@@ -372,6 +372,92 @@ body {
   pointer-events: none;
   animation: hero-sheen 11s cubic-bezier(0.37, 0, 0.3, 1) 2.6s infinite;
 }
+/* Atmospheric seal: the logo's engraving only (alpha mask), filled with pearl →
+   champagne light, softened toward its edges. Placed per breakpoint so it sits in
+   the photograph away from the name, partly beyond the frame. */
+.hero-seal-pos {
+  --seal-size: 125vw;
+  width: var(--seal-size);
+  aspect-ratio: 1;
+  right: -48vw;
+  top: 44svh;
+  --seal-opacity: 0.15;
+}
+@media (min-width: 768px) {
+  .hero-seal-pos {
+    --seal-size: 92vw;
+    right: -38vw;
+    top: 38svh;
+    --seal-opacity: 0.19;
+  }
+}
+@media (min-width: 1024px) {
+  .hero-seal-pos {
+    --seal-size: min(80vh, 54vw);
+    right: -9vw;
+    top: 24vh;
+    --seal-opacity: 0.24;
+  }
+}
+.hero-seal {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  animation: seal-breathe 4.6s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+/* The seal itself: a pre-rendered pearl → champagne image (colour and radial
+   falloff baked in), so the always-visible layer is a plain texture. */
+.hero-seal-fill {
+  position: absolute;
+  inset: 0;
+  opacity: var(--seal-opacity);
+  background: url("/brand/medresa-seal-light.webp") center / 100% 100% no-repeat;
+}
+/* The occasional reflection: a light band clipped to the engraving. The layer is
+   mounted only for its pass (see SealLight), so the mask costs nothing otherwise. */
+.hero-seal-light {
+  position: absolute;
+  inset: 0;
+  opacity: calc(var(--seal-opacity) * 1.6);
+  background: linear-gradient(
+      105deg,
+      transparent 44%,
+      rgb(255 253 246) 50%,
+      rgb(240 222 180 / 0.6) 53%,
+      transparent 58%
+    )
+    130% 0 / 220% 100% no-repeat;
+  -webkit-mask: url("/brand/medresa-seal-mask.webp") center / 100% 100% no-repeat;
+  mask: url("/brand/medresa-seal-mask.webp") center / 100% 100% no-repeat;
+  animation: seal-light 2.5s cubic-bezier(0.37, 0, 0.3, 1) both;
+}
+.hero-seal-pos[data-scrolling="1"] .hero-seal {
+  animation-play-state: paused;
+}
+@keyframes seal-breathe {
+  from {
+    transform: scale(0.985);
+    opacity: 0.86;
+  }
+  to {
+    transform: scale(1.015);
+    opacity: 1;
+  }
+}
+@keyframes seal-light {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-seal,
+  .hero-seal-light {
+    animation: none;
+  }
+}
 @keyframes hero-sheen {
   0% {
     background-position: 120% 0;
