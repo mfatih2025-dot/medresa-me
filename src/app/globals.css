@@ -291,45 +291,47 @@ body {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent);
 }
 
-/* ---------- Hero portal ----------
-   Art direction of the architectural portal per breakpoint. The arch is
-   placed by .portal-target (apex at its top edge, springing points on its
-   sides, grounded at the bottom); Hero.tsx measures it and draws the arch.
-   --portal-shift: how far (fraction of the arch's left offset) the photo is
-   slid right so the building sits inside the portal at rest. */
+/* ---------- Hero: editorial cover → photograph ----------
+   The photo plane is a plain rectangle, placed per breakpoint by its insets
+   from the stage edges (container units). Hero.tsx drives a single --e
+   (0 = cover, 1 = full frame); every inset shrinks to zero with it. */
 .hero-stage {
   container-type: size;
-  --arch-k: 0.66; /* arc radius / arch width: the building's pointed entrance arch */
-  --portal-top: max(41cqh, 15.5rem);
-  --portal-left: max(var(--gutter), 8cqw);
-  --portal-right: max(var(--gutter), 8cqw);
-  --portal-shift: 0;
+  --e: 0;
+  /* phones: plane bleeds off the left and bottom, ivory margin on the right */
+  --plane-top: 46cqh;
+  --plane-right: 13cqw;
+  --plane-bottom: 0px;
+  --plane-left: 0px;
+  /* the name always fits on one line: sized from the space it has */
+  --name-size: calc((100cqw - 2 * var(--gutter)) / 6.7);
+  /* name centre line: capitals stand on the plane's top edge */
+  --name-y: calc(var(--plane-top) - var(--name-size) * 0.31);
 }
 @media (min-width: 768px) {
   .hero-stage {
-    --portal-top: 37cqh;
-    --portal-left: 30cqw;
-    --portal-right: var(--gutter);
-    --portal-shift: 0.5;
+    /* tablet portrait: plane bleeds right; the name crosses its left edge */
+    --plane-top: 42cqh;
+    --plane-right: 0px;
+    --plane-left: 24cqw;
+    --name-size: calc((100cqw - 2 * var(--gutter)) / 8.1);
+    --name-y: calc(var(--plane-top) + 6cqh);
   }
 }
 @media (min-width: 1024px) {
   .hero-stage {
-    --portal-top: 15cqh;
-    --portal-left: 54cqw;
-    --portal-shift: 0.62;
-    /* springing line = apex + arch rise (rise ≈ 0.64 × width for k = 0.66) */
-    --portal-spring: calc(var(--portal-top) + 0.64 * (100cqw - var(--portal-left) - var(--portal-right)));
+    /* desktop cover: tall plane bleeding right and bottom; the name runs across it */
+    --plane-top: 13cqh;
+    --plane-left: 41cqw;
+    --name-size: min(14rem, 9.4cqw);
+    --name-y: 70cqh;
   }
 }
-.portal-target {
-  position: absolute;
-  top: var(--portal-top);
-  left: var(--portal-left);
-  right: var(--portal-right);
-  bottom: 0;
-  visibility: hidden;
-  pointer-events: none;
+.hero-plane {
+  clip-path: inset(
+    calc(var(--plane-top) * (1 - var(--e))) calc(var(--plane-right) * (1 - var(--e)))
+      calc(var(--plane-bottom) * (1 - var(--e))) calc(var(--plane-left) * (1 - var(--e)))
+  );
 }
 
 /* ---------- Overlays ---------- */
