@@ -40,8 +40,8 @@ export function Hero({ dict }: { dict: Dictionary }) {
   // Atmospheric seal: drifts less than the photograph (depth) and fades as the hero exits.
   const sealY = useTransform(p, [0, 1], ["0vh", compact ? "3vh" : "6vh"]);
   const sealOpacity = useTransform(p, [0.1, 0.6], [1, 0]);
-  // Breathing pauses while the page is actually scrolling (and resumes exactly where it
-  // was), so the seal's compositor animation never competes with scroll frames.
+  // The heartbeat holds while the page is actually scrolling (and resumes exactly where it
+  // was) and its halo settles, so the seal never competes with scroll motion.
   const sealRef = useRef<HTMLDivElement>(null);
   const idleTimer = useRef<number | undefined>(undefined);
   useMotionValueEvent(p, "change", () => {
@@ -97,7 +97,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
         </motion.div>
       </motion.div>
 
-      {/* Atmospheric Medresa seal: engraving-only watermark that breathes slowly (CSS). */}
+      {/* Atmospheric Medresa seal: the logo's engraving in champagne gold, with a heartbeat (CSS). */}
       <motion.div
         aria-hidden
         ref={sealRef}
@@ -105,6 +105,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
         style={still ? undefined : { y: sealY, opacity: sealOpacity }}
       >
         <div className="hero-seal">
+          <div className="hero-seal-halo" />
           <div className="hero-seal-fill" />
           {!still && <SealLight />}
         </div>

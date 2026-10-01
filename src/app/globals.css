@@ -381,14 +381,14 @@ body {
   aspect-ratio: 1;
   right: -48vw;
   top: 44svh;
-  --seal-opacity: 0.15;
+  --seal-opacity: 0.22;
 }
 @media (min-width: 768px) {
   .hero-seal-pos {
     --seal-size: 92vw;
     right: -38vw;
     top: 38svh;
-    --seal-opacity: 0.19;
+    --seal-opacity: 0.27;
   }
 }
 @media (min-width: 1024px) {
@@ -396,22 +396,48 @@ body {
     --seal-size: min(80vh, 54vw);
     right: -9vw;
     top: 24vh;
-    --seal-opacity: 0.24;
+    --seal-opacity: 0.32;
   }
 }
+/* Heartbeat: TUP · TUP · long silence. One 6.4s cycle: a soft first beat, a short
+   gap, a slightly stronger second beat, then ~5s of calm. Scale is microscopic;
+   what you see is the gold brightening and a faint halo, then settling. */
 .hero-seal {
   position: absolute;
   inset: 0;
   will-change: transform;
-  animation: seal-breathe 4.6s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  animation: seal-beat 6.4s cubic-bezier(0.33, 0, 0.2, 1) 1.8s infinite;
 }
-/* The seal itself: a pre-rendered pearl → champagne image (colour and radial
-   falloff baked in), so the always-visible layer is a plain texture. */
+/* The seal: the logo's engraving in champagne gold (colour and falloff baked in). */
 .hero-seal-fill {
   position: absolute;
   inset: 0;
-  opacity: var(--seal-opacity);
-  background: url("/brand/medresa-seal-light.webp") center / 100% 100% no-repeat;
+  opacity: calc(var(--seal-opacity) * 0.82);
+  background: url("/brand/medresa-seal-gold.webp") center / 100% 100% no-repeat;
+  animation: seal-beat-light 6.4s cubic-bezier(0.33, 0, 0.2, 1) 1.8s infinite;
+}
+/* A faint pre-blurred gold halo that exists only during the beats. */
+.hero-seal-halo {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.35s ease-out;
+}
+.hero-seal-halo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: url("/brand/medresa-seal-glow.webp") center / 100% 100% no-repeat;
+  animation: seal-beat-halo 6.4s cubic-bezier(0.33, 0, 0.2, 1) 1.8s infinite;
+}
+/* While the page is scrolling: hold the beat where it is and let the halo settle. */
+.hero-seal-pos[data-scrolling="1"] .hero-seal,
+.hero-seal-pos[data-scrolling="1"] .hero-seal-fill,
+.hero-seal-pos[data-scrolling="1"] .hero-seal-halo::before {
+  animation-play-state: paused;
+}
+.hero-seal-pos[data-scrolling="1"] .hero-seal-halo {
+  opacity: 0;
 }
 /* The occasional reflection: a light band clipped to the engraving. The layer is
    mounted only for its pass (see SealLight), so the mask costs nothing otherwise. */
@@ -431,17 +457,52 @@ body {
   mask: url("/brand/medresa-seal-mask.webp") center / 100% 100% no-repeat;
   animation: seal-light 2.5s cubic-bezier(0.37, 0, 0.3, 1) both;
 }
-.hero-seal-pos[data-scrolling="1"] .hero-seal {
-  animation-play-state: paused;
-}
-@keyframes seal-breathe {
-  from {
-    transform: scale(0.985);
-    opacity: 0.86;
+@keyframes seal-beat {
+  0%,
+  20%,
+  100% {
+    transform: scale(1);
   }
-  to {
-    transform: scale(1.015);
-    opacity: 1;
+  4.5% {
+    transform: scale(1.008);
+  }
+  9% {
+    transform: scale(1);
+  }
+  13% {
+    transform: scale(1.012);
+  }
+}
+@keyframes seal-beat-light {
+  0%,
+  22%,
+  100% {
+    opacity: calc(var(--seal-opacity) * 0.82);
+  }
+  4.5% {
+    opacity: calc(var(--seal-opacity) * 1.02);
+  }
+  9% {
+    opacity: calc(var(--seal-opacity) * 0.86);
+  }
+  13% {
+    opacity: calc(var(--seal-opacity) * 1.14);
+  }
+}
+@keyframes seal-beat-halo {
+  0%,
+  22%,
+  100% {
+    opacity: 0;
+  }
+  4.5% {
+    opacity: calc(var(--seal-opacity) * 0.9);
+  }
+  9% {
+    opacity: calc(var(--seal-opacity) * 0.15);
+  }
+  13% {
+    opacity: calc(var(--seal-opacity) * 1.4);
   }
 }
 @keyframes seal-light {
@@ -454,6 +515,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-seal,
+  .hero-seal-fill,
+  .hero-seal-halo::before,
   .hero-seal-light {
     animation: none;
   }
