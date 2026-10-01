@@ -52,9 +52,9 @@ export const bs = {
     ],
   },
   hero: {
-    // Identity: small pre-title, the name on one line, a quiet signature.
+    // Identity: small pre-title, the name on one line (never broken), a quiet signature.
     pre: "MEDRESA",
-    name: "„MEHMED FATIH“",
+    name: "MEHMED FATIH",
     signature: "Zvanična stranica",
     admissions: { kicker: "Prijemni 2026", label: "Rezultati prijemnog ispita", href: href("upis") },
     // Not rendered in the hero composition; kept for reuse elsewhere.

@@ -25,6 +25,12 @@ export const ArrowRight = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const ArrowUpRight = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} width={16} height={16} {...p}>
+    <path d="M7 17 17 7M9 7h8v8" />
+  </svg>
+);
+
 export const ArrowDown = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} width={18} height={18} {...p}>
     <path d="M12 4v15M6 13l6 6 6-6" />

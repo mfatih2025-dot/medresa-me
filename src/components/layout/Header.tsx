@@ -57,6 +57,13 @@ export function Header({ dict }: Props) {
   const geo = useMotionValue<Geo | null>(null);
   const toProgress = (y: number) => Math.min(1, Math.max(0, y / RANGE));
   useMotionValueEvent(scrollY, "change", (y) => p.set(toProgress(y)));
+  // Fully compact, the bar is near-opaque: drop the live backdrop blur (costly over
+  // moving photography) for a flat surface. One attribute flip at the threshold only.
+  useMotionValueEvent(p, "change", (v) => {
+    const h = headerRef.current;
+    const compact = v >= 0.999 ? "1" : "0";
+    if (h && h.dataset.compact !== compact) h.dataset.compact = compact;
+  });
 
   useLayoutEffect(() => {
     const header = headerRef.current;
