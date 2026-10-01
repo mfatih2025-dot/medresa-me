@@ -41,6 +41,7 @@ export function LineReveal({
   lines,
   className,
   accentIndex,
+  lineClasses,
   accentClass = "text-gold-deep",
   delay = 0,
   immediate = false,
@@ -50,6 +51,8 @@ export function LineReveal({
   lines: readonly string[];
   className?: string;
   accentIndex?: number;
+  /** Optional extra classes per line (e.g. a smaller subtitle line). */
+  lineClasses?: readonly string[];
   accentClass?: string;
   delay?: number;
   /** Animate on mount instead of on scroll (hero). */
@@ -69,7 +72,9 @@ export function LineReveal({
       <Tag className={className} id={id}>
         {lines.map((line, i) => (
           <span className="line-mask" key={line}>
-            <span className={`block ${i === accentIndex ? accentClass : ""}`}>{line}</span>
+            <span className={`block ${i === accentIndex ? accentClass : ""} ${lineClasses?.[i] ?? ""}`}>
+              {line}
+            </span>
           </span>
         ))}
       </Tag>
@@ -81,7 +86,7 @@ export function LineReveal({
       {lines.map((line, i) => (
         <span className="line-mask" key={line}>
           <motion.span
-            className={`block ${i === accentIndex ? accentClass : ""}`}
+            className={`block ${i === accentIndex ? accentClass : ""} ${lineClasses?.[i] ?? ""}`}
             variants={{ hide: { y: "108%" }, show: { y: "0%" } }}
             transition={{ duration: 1.2, delay: delay + i * 0.12, ease }}
           >

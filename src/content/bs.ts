@@ -53,10 +53,11 @@ export const bs = {
   },
   hero: {
     eyebrow: ["Znanje", "Vrijednosti", "Odgovornost"],
-    lines: ["Mjesto gdje", "znanje oblikuje", "bolje ljude."],
+    // Institutional title: name on two lines (accent on the quoted name), then the subtitle.
+    lines: ["MEDRESA", "„MEHMED FATIH“", "ZVANIČNA STRANICA"],
     accent: 1,
     lead: "Spoj islamskih vrijednosti, savremenog obrazovanja i odgoja za život.",
-    primary: { label: "Upoznajte nas", href: href("historijat") },
+    primary: { label: "Rezultati prijemnog ispita", href: href("upis") },
     secondary: { label: "Pogledajte video", href: "https://www.youtube.com/@medresacg" },
     image: img(
       "hero-campus",

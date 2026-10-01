@@ -85,7 +85,12 @@ export function Hero({ dict }: { dict: Dictionary }) {
           lines={hero.lines}
           accentIndex={hero.accent}
           accentClass="text-gold-soft"
-          className="display h-hero max-w-[12ch] md:max-w-[14ch]"
+          lineClasses={[
+            "",
+            "",
+            "mt-3 flex items-center gap-3 text-[clamp(0.75rem,0.62rem+0.62vw,1.25rem)] font-normal tracking-[0.32em] text-ivory/90 before:h-px before:w-6 before:shrink-0 before:bg-gold md:mt-5 md:gap-4 md:before:w-10",
+          ]}
+          className="display text-[clamp(1.75rem,0.4rem+8vw,5.25rem)] leading-[1] tracking-[0.01em]"
         />
 
         <motion.p
@@ -103,7 +108,10 @@ export function Hero({ dict }: { dict: Dictionary }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, delay: 1.1, ease }}
         >
-          <Link href={hero.primary.href} className="btn btn-gold">
+          <Link
+            href={hero.primary.href}
+            className="btn btn-gold w-full max-w-[22rem] justify-between whitespace-nowrap px-6 min-[480px]:w-auto min-[480px]:max-w-none min-[480px]:justify-start min-[480px]:px-7"
+          >
             {hero.primary.label}
             <ArrowRight />
           </Link>
