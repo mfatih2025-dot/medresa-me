@@ -8,7 +8,7 @@ export function News({ dict }: { dict: Dictionary }) {
   const { news } = dict;
   const [lead, second] = news.items;
   return (
-    <section aria-labelledby="news-title" className="relative bg-paper pb-24 pt-24 md:pb-40 md:pt-36">
+    <section aria-labelledby="news-title" className="relative bg-paper pb-24 pt-14 md:pb-40 md:pt-[4.5rem] lg:pt-20">
       <div className="wrap">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-ink/15 pb-8">
           <div>

@@ -16,12 +16,12 @@ export default function HomePage() {
   return (
     <>
       <Hero dict={dict} />
+      <News dict={dict} />
       <Glance dict={dict} />
       <Story dict={dict} />
       <Education dict={dict} />
       <Life dict={dict} />
       <Generations dict={dict} />
-      <News dict={dict} />
       <Social dict={dict} />
       <Admissions dict={dict} />
       <Closing dict={dict} />
