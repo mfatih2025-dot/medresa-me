@@ -216,14 +216,28 @@ body {
 .header-bg {
   transform-origin: 50% 0;
   border-radius: calc(var(--bar-h) / 2);
-  background: color-mix(in srgb, var(--color-ivory) 70%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-gold) 18%, transparent);
+  /* Frosted optical glass: cool pearl base, faint silver gradient, the photograph's
+     colour showing through (saturate), a microscopic champagne note at the lower edge. */
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.42) 0%,
+      rgb(255 255 255 / 0.1) 55%,
+      rgb(232 237 240 / 0.2) 100%
+    ),
+    linear-gradient(100deg, rgb(255 255 255 / 0) 30%, rgb(255 255 255 / 0.16) 50%, rgb(255 255 255 / 0) 70%),
+    rgb(242 244 245 / 0.32);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7) brightness(1.04);
+  backdrop-filter: blur(22px) saturate(1.7) brightness(1.04);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    inset 0 -1px 0 rgb(214 189 140 / 0.22),
+    0 10px 28px -18px rgb(14 28 26 / 0.32);
   will-change: transform;
 }
 .medresa-header[data-compact="1"] .header-bg {
-  background: color-mix(in srgb, var(--color-ivory) 97%, transparent);
+  /* Compact over moving content: the same pearl material, solid (no live blur cost). */
+  background: linear-gradient(180deg, rgb(250 250 249 / 0.97), rgb(243 244 244 / 0.97));
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -238,13 +252,14 @@ body {
   border-radius: inherit;
 }
 .header-bg-solid {
-  background: color-mix(in srgb, var(--color-ivory) 80%, transparent);
+  background: rgb(248 248 247 / 0.62);
   opacity: 0;
 }
+/* Hairline: translucent ivory edge with a whisper of champagne gold. */
 .header-bg-ring {
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-gold) 55%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, white 40%, transparent);
+    inset 0 0 0 1px rgb(255 255 255 / 0.5),
+    0 0 0 1px rgb(201 170 112 / 0.28);
 }
 .header-row > * > *,
 .header-row {
@@ -279,16 +294,29 @@ body {
   inset: 0;
   border-radius: 50%;
 }
+/* A frosted glass ring around the logo, same material as the bar. */
 .header-logo-halo {
+  inset: -7px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(240 243 244 / 0.24));
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: blur(16px) saturate(1.6);
   box-shadow:
-    0 0 0 5px color-mix(in srgb, var(--color-paper) 55%, transparent),
-    0 18px 40px -18px rgb(10 42 33 / 0.45);
+    inset 0 1px 0 rgb(255 255 255 / 0.8),
+    0 0 0 1px rgb(201 170 112 / 0.3),
+    0 16px 36px -20px rgb(14 28 26 / 0.4);
 }
 .header-logo-disc {
   display: block;
   padding: 7%;
-  background: var(--color-paper);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent);
+  background: radial-gradient(
+    circle at 50% 28%,
+    rgb(255 255 255) 0%,
+    rgb(246 247 246) 70%,
+    rgb(238 240 240) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgb(201 170 112 / 0.55),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
 }
 
 /* ---------- Hero ----------

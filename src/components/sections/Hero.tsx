@@ -67,11 +67,11 @@ export function Hero({ dict }: { dict: Dictionary }) {
       {/* Light: ivory haze where the sky is, soft shade under the glass (warm grade is in the image). */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(247_243_234/0.97)_0%,rgb(247_243_234/0.86)_19%,rgb(247_243_234/0.45)_32%,rgb(247_243_234/0.1)_42%,rgb(247_243_234/0)_50%)] md:bg-[linear-gradient(180deg,rgb(247_243_234/0.96)_0%,rgb(247_243_234/0.84)_24%,rgb(247_243_234/0.4)_38%,rgb(247_243_234/0)_52%)] lg:bg-[linear-gradient(180deg,rgb(247_243_234/0.94)_0%,rgb(247_243_234/0.68)_28%,rgb(247_243_234/0)_52%),linear-gradient(90deg,rgb(247_243_234/0.5)_0%,rgb(247_243_234/0.22)_32%,rgb(247_243_234/0)_50%)]"
+        className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(246_246_243/0.97)_0%,rgb(246_246_243/0.86)_19%,rgb(246_246_243/0.45)_32%,rgb(246_246_243/0.1)_42%,rgb(246_246_243/0)_50%)] md:bg-[linear-gradient(180deg,rgb(246_246_243/0.96)_0%,rgb(246_246_243/0.84)_24%,rgb(246_246_243/0.4)_38%,rgb(246_246_243/0)_52%)] lg:bg-[linear-gradient(180deg,rgb(246_246_243/0.94)_0%,rgb(246_246_243/0.68)_28%,rgb(246_246_243/0)_52%),linear-gradient(90deg,rgb(246_246_243/0.5)_0%,rgb(246_246_243/0.22)_32%,rgb(246_246_243/0)_50%)]"
       />
       <div
         aria-hidden
-        className="absolute inset-x-0 bottom-0 -z-10 h-[40%] bg-[linear-gradient(0deg,rgb(8_30_23/0.5)_0%,rgb(8_30_23/0)_100%)]"
+        className="absolute inset-x-0 bottom-0 -z-10 h-[40%] bg-[linear-gradient(0deg,rgb(8_26_22/0.42)_0%,rgb(8_26_22/0)_100%)]"
       />
 
       {/* Identity, in the haze beneath the logo. */}
@@ -118,7 +118,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={t(1.1, 1.1)}>
           <Link
             href={hero.admissions.href}
-            className="group flex items-center gap-3.5 rounded-[22px] border border-white/25 bg-[rgb(20_42_32/0.36)] py-3 pl-4 pr-5 text-ivory min-[380px]:pl-3.5 shadow-[0_14px_40px_-20px_rgb(0_0_0/0.5)] backdrop-blur-2xl backdrop-saturate-150 transition-[background-color,translate,scale] duration-300 ease-out hover:-translate-y-0.5 hover:bg-[rgb(20_42_32/0.48)] active:scale-[0.985] md:gap-4 md:py-3.5 md:pl-4 md:pr-6"
+            className="group flex items-center gap-3.5 rounded-[22px] border border-white/25 bg-[rgb(16_22_22/0.3)] py-3 pl-4 pr-5 text-ivory min-[380px]:pl-3.5 shadow-[0_14px_40px_-20px_rgb(0_0_0/0.5)] backdrop-blur-2xl backdrop-saturate-[1.4] transition-[background-color,translate,scale] duration-300 ease-out hover:-translate-y-0.5 hover:bg-[rgb(16_22_22/0.42)] active:scale-[0.985] md:gap-4 md:py-3.5 md:pl-4 md:pr-6"
           >
             <span
               aria-hidden
