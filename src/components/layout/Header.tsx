@@ -63,6 +63,9 @@ export function Header({ dict }: Props) {
     const h = headerRef.current;
     const compact = v >= 0.999 ? "1" : "0";
     if (h && h.dataset.compact !== compact) h.dataset.compact = compact;
+    // The logo's decorative light rests as soon as the header leaves its top state.
+    const scrolled = v > 0.01 ? "1" : "0";
+    if (h && h.dataset.scrolled !== scrolled) h.dataset.scrolled = scrolled;
   });
 
   useLayoutEffect(() => {
@@ -190,6 +193,10 @@ export function Header({ dict }: Props) {
               className="h-full w-full object-contain"
             />
           </span>
+          {/* Signature light on the emblem's gold (see .header-logo-sweep in globals.css). */}
+          <span aria-hidden className="header-logo-glow" />
+          <span aria-hidden className="header-logo-ring" />
+          <span aria-hidden className="header-logo-sweep" />
         </MotionLink>
       </header>
 

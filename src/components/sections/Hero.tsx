@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useMotionValueEvent, useReducedMotion, useTransform } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion, useTransform } from "framer-motion";
+import { useRef } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -37,22 +37,6 @@ export function Hero({ dict }: { dict: Dictionary }) {
   const nameOpacity = useTransform(p, [0.22, 0.62], [1, 0]);
   const lineY = useTransform(p, [0, 1], ["0vh", compact ? "-3vh" : "-6vh"]);
   const lineOpacity = useTransform(p, [0.14, 0.48], [1, 0]);
-  // Atmospheric seal: drifts less than the photograph (depth) and fades as the hero exits.
-  const sealY = useTransform(p, [0, 1], ["0vh", compact ? "3vh" : "6vh"]);
-  const sealOpacity = useTransform(p, [0.1, 0.6], [1, 0]);
-  // The heartbeat holds while the page is actually scrolling (and resumes exactly where it
-  // was) and its halo settles, so the seal never competes with scroll motion.
-  const sealRef = useRef<HTMLDivElement>(null);
-  const idleTimer = useRef<number | undefined>(undefined);
-  useMotionValueEvent(p, "change", () => {
-    const el = sealRef.current;
-    if (!el) return;
-    if (el.dataset.scrolling !== "1") el.dataset.scrolling = "1";
-    window.clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => {
-      el.dataset.scrolling = "0";
-    }, 240);
-  });
   const glassY = useTransform(p, [0, 1], [0, compact ? 30 : 60]);
   const glassOpacity = useTransform(p, [0, 0.45], [1, 0]);
 
@@ -95,20 +79,6 @@ export function Hero({ dict }: { dict: Dictionary }) {
             className="object-cover object-[30%_62%] md:object-[34%_60%] lg:object-[50%_62%]"
           />
         </motion.div>
-      </motion.div>
-
-      {/* Atmospheric Medresa seal: the logo's engraving in champagne gold, with a heartbeat (CSS). */}
-      <motion.div
-        aria-hidden
-        ref={sealRef}
-        className="hero-seal-pos pointer-events-none absolute -z-10"
-        style={still ? undefined : { y: sealY, opacity: sealOpacity }}
-      >
-        <div className="hero-seal">
-          <div className="hero-seal-halo" />
-          <div className="hero-seal-fill" />
-          {!still && <SealLight />}
-        </div>
       </motion.div>
 
       {/* Light: ivory haze where the sky is, soft shade under the glass (warm grade is in the image). */}
@@ -204,31 +174,4 @@ export function Hero({ dict }: { dict: Dictionary }) {
       </motion.div>
     </section>
   );
-}
-
-/**
- * The seal's occasional reflection. Mounted only for its 2.5s pass — first after
- * the entrance and the name's reflection, then every 14s — so its masked layer
- * exists (and costs) only while visible. A timer, not a scroll-frame update.
- */
-function SealLight() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    let hide: number | undefined;
-    let repeat: number | undefined;
-    const pass = () => {
-      setOn(true);
-      hide = window.setTimeout(() => setOn(false), 2600);
-    };
-    const first = window.setTimeout(() => {
-      pass();
-      repeat = window.setInterval(pass, 14000);
-    }, 6500);
-    return () => {
-      window.clearTimeout(first);
-      window.clearTimeout(hide);
-      window.clearInterval(repeat);
-    };
-  }, []);
-  return on ? <div className="hero-seal-light" /> : null;
 }
