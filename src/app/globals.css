@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #f7f3ea;
+  --color-paper: #fbf8f1;
+  --color-sand: #ece4d3;
+  --color-ink: #1a2320;
+  --color-ink-soft: #4a554f;
+  --color-green: #0f3b2e;
+  --color-green-deep: #0a2a21;
+  --color-gold: #c49a55;
+  --color-gold-soft: #e3c78f;
+  --color-gold-deep: #8f6a2c;
+
+  --font-serif: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --breakpoint-xs: 26rem;
+  --breakpoint-3xl: 100rem;
+}
+
+:root {
+  --gutter: clamp(1.25rem, 5vw, 4.5rem);
+  --max: 90rem;
+  --header-h: 4.5rem;
+}
+
+html {
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + 1rem);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-gold-soft);
+  color: var(--color-green-deep);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@layer components {
+  /* ---------- Layout primitives ---------- */
+  .wrap {
+    width: 100%;
+    max-width: var(--max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  /* ---------- Type scale ---------- */
+  .display {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 0.98;
+    font-optical-sizing: auto;
+  }
+  .h-hero {
+    font-size: clamp(2.9rem, 1.2rem + 7.6vw, 8rem);
+  }
+  .h-section {
+    font-size: clamp(2.25rem, 1.2rem + 4.2vw, 5.25rem);
+    line-height: 1.02;
+  }
+  .h-sub {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.25rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+  }
+  .lead {
+    font-size: clamp(1.0625rem, 0.98rem + 0.4vw, 1.3125rem);
+    line-height: 1.6;
+  }
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- Controls ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.25rem;
+    padding: 0 1.75rem;
+    border-radius: 999px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition:
+      background-color 0.4s var(--ease-out-expo),
+      color 0.4s var(--ease-out-expo),
+      border-color 0.4s var(--ease-out-expo);
+  }
+  .btn svg {
+    transition: transform 0.5s var(--ease-out-expo);
+  }
+  .btn:hover svg {
+    transform: translateX(4px);
+  }
+  .btn-gold {
+    background: var(--color-gold);
+    color: var(--color-green-deep);
+  }
+  .btn-gold:hover {
+    background: var(--color-gold-soft);
+  }
+  .btn-green {
+    background: var(--color-green);
+    color: var(--color-ivory);
+  }
+  .btn-green:hover {
+    background: var(--color-green-deep);
+  }
+  .btn-line {
+    border: 1px solid currentColor;
+  }
+
+  .link-u {
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.6s var(--ease-out-expo);
+    padding-bottom: 2px;
+  }
+  .link-u:hover {
+    background-size: 100% 1px;
+  }
+
+  /* ---------- Texture: subtle geometric (8‑point star lattice) ---------- */
+  .geo {
+    background-image: url("/brand/geo.svg");
+    background-size: 120px 120px;
+  }
+
+  /* Masks for line‑by‑line headline reveals */
+  .line-mask {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.14em;
+    margin-bottom: -0.14em;
+  }
+
+  /* Horizontal rails: native scroll, hidden bar */
+  .rail {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------- Signature header ----------
+   --p: 0 (large, floating, logo overlapping) → 1 (compact, full-bleed bar). */
+.medresa-header {
+  --p: 0;
+  --bar-h: 3.75rem;
+  --bar-h-compact: 3.5rem;
+  --bar-top: 0.875rem;
+  --bar-inset: 0.625rem;
+  --logo: 7.5rem;
+  --logo-min: 0.36;
+}
+@media (min-width: 768px) {
+  .medresa-header {
+    --bar-h: 5.25rem;
+    --bar-h-compact: 4.25rem;
+    --bar-top: 1.25rem;
+    --bar-inset: clamp(1.5rem, 2.8vw, 2.75rem);
+    --logo: 11rem;
+  }
+}
+.header-bar {
+  margin-top: calc(var(--bar-top) * (1 - var(--p)));
+  margin-inline: calc(var(--bar-inset) * (1 - var(--p)));
+  height: calc(var(--bar-h) - (var(--bar-h) - var(--bar-h-compact)) * var(--p));
+  border-radius: calc(var(--bar-h) * 0.5 * (1 - var(--p)));
+  background: color-mix(in srgb, var(--color-ivory) calc(70% + 24% * var(--p)), transparent);
+  -webkit-backdrop-filter: blur(calc(10px + 8px * var(--p))) saturate(1.2);
+  backdrop-filter: blur(calc(10px + 8px * var(--p))) saturate(1.2);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-gold) calc(55% * (1 - var(--p)) + 18% * var(--p)), transparent),
+    inset 0 0 0 1px color-mix(in srgb, white calc(40% * (1 - var(--p))), transparent);
+}
+.header-spacer {
+  width: calc(var(--logo) * (1 - (1 - var(--logo-min)) * var(--p)) + 1.25rem);
+}
+.header-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--bar-top) * 0.4 + 0.1rem);
+  margin-left: calc(var(--logo) / -2);
+  width: var(--logo);
+  height: var(--logo);
+  transform-origin: 50% 0;
+  transform: translateY(
+      calc(
+        (var(--bar-h-compact) - var(--logo) * var(--logo-min)) / 2 * var(--p) -
+          (var(--bar-top) * 0.4 + 0.1rem) * var(--p)
+      )
+    )
+    scale(calc(1 - (1 - var(--logo-min)) * var(--p)));
+  will-change: transform;
+}
+.header-logo-disc {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 7%;
+  border-radius: 50%;
+  background: var(--color-paper);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent),
+    0 0 0 calc(5px * (1 - var(--p))) color-mix(in srgb, var(--color-paper) 55%, transparent),
+    0 18px 40px -18px rgb(10 42 33 / calc(0.45 * (1 - var(--p))));
+}
+
+/* ---------- Overlays ---------- */
+.geo-dark {
+  background-image: url("/brand/geo.svg");
+  background-size: 140px 140px;
+  background-blend-mode: soft-light;
+}
+.menu-overlay,
+.search-overlay {
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-out-expo);
+}
+.menu-overlay[data-state="open"],
+.search-overlay[data-state="open"] {
+  opacity: 1;
+}
+.menu-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.9s var(--ease-out-expo),
+    transform 0.9s var(--ease-out-expo);
+  transition-delay: calc(var(--i, 0) * 70ms + 120ms);
+}
+[data-state="open"] .menu-item {
+  opacity: 1;
+  transform: none;
+}
+dialog::backdrop {
+  background: transparent;
+}
