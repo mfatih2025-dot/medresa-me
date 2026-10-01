@@ -16,12 +16,12 @@ const layout = [
 export function Life({ dict }: { dict: Dictionary }) {
   const { life } = dict;
   return (
-    <section aria-labelledby="life-title" className="relative bg-ivory pb-24 pt-24 md:pb-40 md:pt-32">
+    <section aria-labelledby="life-title" className="relative bg-ivory py-16 md:py-24 lg:py-28">
       <div className="wrap">
         <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
             <Reveal>
-              <p className="eyebrow mb-6 text-gold-deep">{life.eyebrow}</p>
+              <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{life.eyebrow}</p>
             </Reveal>
             <LineReveal id="life-title" lines={life.heading} className="display h-section text-green" />
           </div>

@@ -25,7 +25,7 @@ export function Footer({ dict }: { dict: Dictionary }) {
               <ul className="space-y-1">
                 {g.items.map((l) => (
                   <li key={l.href}>
-                    <Link href={l.href} className="link-u inline-block py-1.5 text-[0.9375rem]">
+                    <Link href={l.href} className="link-u inline-flex min-h-11 items-center text-[0.9375rem]">
                       {l.label}
                     </Link>
                   </li>
@@ -41,12 +41,12 @@ export function Footer({ dict }: { dict: Dictionary }) {
             <address className="space-y-1 text-[0.9375rem] not-italic leading-relaxed">
               <p>{contact.address.join(", ")}</p>
               <p>
-                <a href={contact.phoneHref} className="link-u">
+                <a href={contact.phoneHref} className="link-u inline-flex min-h-11 items-center">
                   {contact.phone}
                 </a>
               </p>
               <p>
-                <a href={`mailto:${contact.email}`} className="link-u">
+                <a href={`mailto:${contact.email}`} className="link-u inline-flex min-h-11 items-center">
                   {contact.email}
                 </a>
               </p>
@@ -65,7 +65,7 @@ export function Footer({ dict }: { dict: Dictionary }) {
                     href={s.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="link-u inline-block py-1.5"
+                    className="link-u inline-flex min-h-11 items-center"
                   >
                     {s.label}
                   </a>
@@ -76,11 +76,15 @@ export function Footer({ dict }: { dict: Dictionary }) {
         </div>
       </div>
 
-      <div className="wrap relative flex flex-col gap-3 border-t border-ivory/15 py-6 text-sm text-ivory/55 md:flex-row md:justify-between">
+      <div className="wrap relative flex flex-col gap-3 border-t border-ivory/15 py-6 text-sm font-normal text-ivory/55 md:flex-row md:justify-between">
         <p>
           © {year} {footer.rights}
         </p>
-        <a href={site.eMedresa} className="link-u self-start" rel="noopener">
+        <a
+          href={site.eMedresa}
+          className="link-u inline-flex min-h-11 items-center self-start"
+          rel="noopener"
+        >
           e-medresa
         </a>
         <span className="sr-only">{ui.language}: BS</span>

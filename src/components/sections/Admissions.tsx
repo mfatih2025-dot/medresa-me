@@ -6,7 +6,7 @@ import { ArrowRight } from "@/components/ui/icons";
 export function Admissions({ dict }: { dict: Dictionary }) {
   const a = dict.admissions;
   return (
-    <section aria-labelledby="admissions-title" className="relative bg-ivory py-24 md:py-40">
+    <section aria-labelledby="admissions-title" className="relative bg-ivory py-16 md:py-24 lg:py-28">
       <div className="wrap">
         <div className="relative border-y border-gold/50 py-16 md:py-24">
           <div
@@ -16,7 +16,7 @@ export function Admissions({ dict }: { dict: Dictionary }) {
           <div className="relative grid gap-10 lg:grid-cols-12 lg:gap-x-16">
             <div className="lg:col-span-7">
               <Reveal>
-                <p className="eyebrow mb-6 text-gold-deep">{a.eyebrow}</p>
+                <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{a.eyebrow}</p>
               </Reveal>
               <LineReveal id="admissions-title" lines={a.heading} className="display h-section text-green" />
             </div>
@@ -35,7 +35,10 @@ export function Admissions({ dict }: { dict: Dictionary }) {
                   {a.primary.label}
                   <ArrowRight />
                 </Link>
-                <Link href={a.secondary.href} className="link-u text-[0.9375rem] text-green">
+                <Link
+                  href={a.secondary.href}
+                  className="link-u inline-flex min-h-11 items-center text-[0.9375rem] text-green"
+                >
                   {a.secondary.label}
                 </Link>
               </Reveal>

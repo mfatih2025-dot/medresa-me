@@ -8,12 +8,15 @@ export function News({ dict }: { dict: Dictionary }) {
   const { news } = dict;
   const [lead, second] = news.items;
   return (
-    <section aria-labelledby="news-title" className="relative bg-paper pb-24 pt-14 md:pb-40 md:pt-[4.5rem] lg:pt-20">
+    <section
+      aria-labelledby="news-title"
+      className="relative bg-paper pb-16 pt-14 md:pb-24 md:pt-[4.5rem] lg:pb-28 lg:pt-20"
+    >
       <div className="wrap">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-ink/15 pb-8">
           <div>
             <Reveal>
-              <p className="eyebrow mb-5 text-gold-deep">{news.eyebrow}</p>
+              <p className="eyebrow eyebrow-display mb-5 text-gold-deep">{news.eyebrow}</p>
             </Reveal>
             <LineReveal id="news-title" lines={[news.heading]} className="display h-section text-green" />
           </div>
@@ -31,7 +34,7 @@ export function News({ dict }: { dict: Dictionary }) {
         <Reveal>
           <Link
             href={news.notice.href}
-            className="group mt-6 flex min-h-14 items-center gap-4 border-b border-gold/50 py-3 text-[0.9375rem]"
+            className="group mt-6 flex min-h-14 items-center gap-4 border-b border-gold/50 py-3 text-[0.9375rem] transition-transform duration-150 ease-out active:scale-[0.99]"
           >
             <span className="eyebrow rounded-full bg-gold px-3 py-1.5 text-[0.625rem] text-green-deep">
               {news.notice.label}
@@ -71,18 +74,22 @@ function Story({
   return (
     <Reveal className={className}>
       <article>
-        <a href={item.href} rel="noopener" className="group block">
+        <a
+          href={item.href}
+          rel="noopener"
+          className="group block transition-transform duration-150 ease-out active:scale-[0.99]"
+        >
           <div className={`relative overflow-hidden bg-sand ${ratio}`}>
             <Image
               src={item.image.src}
               alt={item.image.alt}
               fill
               sizes={big ? "(min-width: 1024px) 58vw, 92vw" : "(min-width: 1024px) 32vw, 92vw"}
-              className="object-cover transition-transform duration-[1400ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.04]"
+              className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.04] motion-reduce:group-hover:scale-100"
               style={{ objectPosition: item.image.position }}
             />
           </div>
-          <div className="mt-6 flex items-center gap-4 text-sm text-ink-soft">
+          <div className="mt-6 flex items-center gap-4 text-sm font-normal text-ink-soft">
             <span className="display text-xl font-normal text-gold-deep" aria-hidden>
               {String(index).padStart(2, "0")}
             </span>

@@ -30,6 +30,8 @@ html {
   background: var(--color-ivory);
   color: var(--color-ink);
   -webkit-text-size-adjust: 100%;
+  /* no grey flash on tap; every control has its own :active feedback instead */
+  -webkit-tap-highlight-color: transparent;
   scroll-padding-top: calc(var(--header-h) + 1rem);
 }
 
@@ -47,6 +49,13 @@ body {
 ::selection {
   background: var(--color-gold-soft);
   color: var(--color-green-deep);
+}
+
+/* links and buttons never wait for a double-tap-zoom decision */
+a,
+button,
+[role="button"] {
+  touch-action: manipulation;
 }
 
 :focus-visible {
@@ -97,6 +106,12 @@ body {
     line-height: 1.4;
     text-transform: uppercase;
   }
+  /* tracking follows size: an eyebrow over 64px+ display type groups with it more tightly */
+  @media (min-width: 1024px) {
+    .eyebrow-display {
+      letter-spacing: 0.18em;
+    }
+  }
 
   /* ---------- Controls ---------- */
   .btn {
@@ -110,29 +125,37 @@ body {
     font-weight: 500;
     letter-spacing: 0.02em;
     transition:
-      background-color 0.4s var(--ease-out-expo),
-      color 0.4s var(--ease-out-expo),
-      border-color 0.4s var(--ease-out-expo);
+      background-color 200ms ease,
+      color 200ms ease,
+      border-color 200ms ease,
+      transform 140ms var(--ease-out-expo);
+  }
+  /* press feedback: answers the finger, not the release */
+  .btn:active {
+    transform: scale(0.97);
   }
   .btn svg {
-    transition: transform 0.5s var(--ease-out-expo);
-  }
-  .btn:hover svg {
-    transform: translateX(4px);
+    transition: transform 240ms var(--ease-out-expo);
   }
   .btn-gold {
     background: var(--color-gold);
     color: var(--color-green-deep);
   }
-  .btn-gold:hover {
-    background: var(--color-gold-soft);
-  }
   .btn-green {
     background: var(--color-green);
     color: var(--color-ivory);
   }
-  .btn-green:hover {
-    background: var(--color-green-deep);
+  /* hover only where a real pointer can hover (no sticky hover after a tap) */
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover svg {
+      transform: translateX(4px);
+    }
+    .btn-gold:hover {
+      background: var(--color-gold-soft);
+    }
+    .btn-green:hover {
+      background: var(--color-green-deep);
+    }
   }
   .btn-line {
     border: 1px solid currentColor;
@@ -140,11 +163,13 @@ body {
 
   .link-u {
     background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
-    transition: background-size 0.6s var(--ease-out-expo);
+    transition: background-size 320ms var(--ease-out-expo);
     padding-bottom: 2px;
   }
-  .link-u:hover {
-    background-size: 100% 1px;
+  @media (hover: hover) and (pointer: fine) {
+    .link-u:hover {
+      background-size: 100% 1px;
+    }
   }
 
   /* ---------- Texture: subtle geometric (8‑point star lattice) ---------- */
@@ -175,11 +200,18 @@ body {
     html {
       scroll-behavior: auto;
     }
+    /* gentler, not zero: no looping or moving animation, fades stay short */
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 160ms !important;
+      transition-delay: 0ms !important;
+    }
+    .btn:hover svg,
+    .menu-item {
+      transform: none !important;
     }
   }
 }
@@ -507,10 +539,15 @@ body {
   background-size: 140px 140px;
   background-blend-mode: soft-light;
 }
+/* open 240ms; close faster (180ms) — the system answers a dismissal at once */
 .menu-overlay,
 .search-overlay {
   opacity: 0;
-  transition: opacity 0.5s var(--ease-out-expo);
+  transition: opacity 180ms ease-out;
+}
+.menu-overlay[data-state="open"],
+.search-overlay[data-state="open"] {
+  transition: opacity 240ms var(--ease-out-expo);
 }
 .menu-overlay[data-state="open"],
 .search-overlay[data-state="open"] {
@@ -518,15 +555,18 @@ body {
 }
 .menu-item {
   opacity: 0;
-  transform: translateY(18px);
+  transform: translateY(10px);
   transition:
-    opacity 0.9s var(--ease-out-expo),
-    transform 0.9s var(--ease-out-expo);
-  transition-delay: calc(var(--i, 0) * 70ms + 120ms);
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
 }
 [data-state="open"] .menu-item {
   opacity: 1;
   transform: none;
+  transition:
+    opacity 320ms var(--ease-out-expo),
+    transform 320ms var(--ease-out-expo);
+  transition-delay: calc(var(--i, 0) * 40ms + 60ms);
 }
 dialog::backdrop {
   background: transparent;

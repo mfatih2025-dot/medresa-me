@@ -22,14 +22,21 @@ export function Reveal({
 }) {
   const { reduced, compact } = useMotionProfile();
   const Comp = motion[as];
-  if (reduced) return <Comp className={className}>{children}</Comp>;
+  // Reduced motion is detected after hydration, when this element may already hold its
+  // initial hidden style — so settle it to visible explicitly rather than unstyled.
+  if (reduced)
+    return (
+      <Comp className={className} initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0 }}>
+        {children}
+      </Comp>
+    );
   return (
     <Comp
       className={className}
       initial={{ opacity: 0, y: compact ? y * 0.6 : y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "0px 0px -12% 0px" }}
-      transition={{ duration: 1.1, delay, ease }}
+      transition={{ duration: 0.8, delay, ease }}
     >
       {children}
     </Comp>
@@ -88,7 +95,7 @@ export function LineReveal({
           <motion.span
             className={`block ${i === accentIndex ? accentClass : ""} ${lineClasses?.[i] ?? ""}`}
             variants={{ hide: { y: "108%" }, show: { y: "0%" } }}
-            transition={{ duration: 1.2, delay: delay + i * 0.12, ease }}
+            transition={{ duration: 0.8, delay: delay + i * 0.08, ease }}
           >
             {line}
           </motion.span>

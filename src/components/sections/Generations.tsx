@@ -36,7 +36,7 @@ export function Generations({ dict }: { dict: Dictionary }) {
     <section
       ref={ref}
       aria-labelledby="generations-title"
-      className="relative h-[340svh] overflow-x-clip bg-green-deep text-ivory md:h-[420svh] motion-reduce:h-auto md:motion-reduce:h-auto"
+      className="relative h-[280svh] overflow-x-clip bg-green-deep text-ivory md:h-[360svh] motion-reduce:h-auto md:motion-reduce:h-auto"
     >
       <div className="sticky top-0 flex h-svh flex-col overflow-hidden motion-reduce:relative motion-reduce:h-auto motion-reduce:min-h-svh motion-reduce:py-24">
         <motion.div
@@ -60,7 +60,7 @@ export function Generations({ dict }: { dict: Dictionary }) {
 
         <div className="wrap relative flex flex-1 flex-col justify-center pt-20 md:pt-32 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-10">
           <div className="lg:col-span-7">
-            <p className="eyebrow mb-6 text-gold md:mb-8">{g.eyebrow}</p>
+            <p className="eyebrow eyebrow-display mb-6 text-gold md:mb-8">{g.eyebrow}</p>
             <h2
               id="generations-title"
               className="display flex flex-col text-[clamp(2.25rem,0.9rem+6.2vw,7.5rem)] leading-[1.02]"

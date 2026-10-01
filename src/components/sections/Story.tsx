@@ -9,7 +9,7 @@ export function Story({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="story-title"
-      className="relative overflow-hidden bg-ivory pb-24 pt-8 md:pb-40 md:pt-16"
+      className="relative overflow-hidden bg-ivory py-16 md:py-24 lg:py-28"
     >
       <div
         aria-hidden
@@ -41,7 +41,7 @@ export function Story({ dict }: { dict: Dictionary }) {
 
         <div className="flex flex-col justify-center lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:pb-24">
           <Reveal>
-            <p className="eyebrow mb-6 text-gold-deep">{story.eyebrow}</p>
+            <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{story.eyebrow}</p>
           </Reveal>
           <LineReveal id="story-title" lines={story.heading} className="display h-section text-green" />
           <div className="mt-8 space-y-5 text-ink-soft lead max-w-[34em]">
@@ -71,7 +71,11 @@ export function Story({ dict }: { dict: Dictionary }) {
               <ArrowRight />
             </Link>
             {story.links.map((l) => (
-              <Link key={l.href} href={l.href} className="link-u text-[0.9375rem] text-green">
+              <Link
+                key={l.href}
+                href={l.href}
+                className="link-u inline-flex min-h-11 items-center text-[0.9375rem] text-green"
+              >
                 {l.label}
               </Link>
             ))}

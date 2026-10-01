@@ -36,7 +36,7 @@ export function Overlay({
     const t = window.setTimeout(() => {
       if (dlg.open) dlg.close();
       document.documentElement.style.overflow = "";
-    }, 500);
+    }, 200);
     return () => window.clearTimeout(t);
   }, [open]);
 

@@ -4,7 +4,11 @@ import { Reveal } from "@/components/ui/Reveal";
 export function Glance({ dict }: { dict: Dictionary }) {
   const { glance } = dict;
   return (
-    <section id="glance" aria-label={glance.label} className="relative bg-ivory py-14 md:py-20">
+    <section
+      id="glance"
+      aria-label={glance.label}
+      className="relative border-t border-ink/10 bg-ivory py-16 md:py-24 lg:py-28"
+    >
       <div className="wrap">
         <ul className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-5 xl:gap-x-0">
           {glance.items.map((item, i) => (
@@ -20,7 +24,7 @@ export function Glance({ dict }: { dict: Dictionary }) {
                 {item.value}
               </p>
               <p className="mt-3 text-[0.9375rem] font-medium text-ink">{item.label}</p>
-              <p className="mt-1 text-sm text-ink-soft">{item.note}</p>
+              <p className="mt-1 text-sm font-normal text-ink-soft">{item.note}</p>
             </Reveal>
           ))}
         </ul>

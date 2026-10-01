@@ -233,7 +233,7 @@ function IconButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`grid size-12 shrink-0 place-items-center rounded-full transition-colors duration-500 hover:bg-ink/[0.07] ${className}`}
+      className={`grid size-12 shrink-0 place-items-center rounded-full transition-[background-color,scale] duration-150 ease-out hover:bg-ink/[0.07] active:scale-[0.94] ${className}`}
       {...rest}
     >
       {children}

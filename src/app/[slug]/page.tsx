@@ -26,7 +26,7 @@ export default async function PlaceholderPage({ params }: { params: Promise<Para
   if (!page) notFound();
   const { ui } = getDictionary(defaultLocale);
   return (
-    <section className="geo bg-ivory pb-32 pt-48 md:pt-64">
+    <section className="geo bg-ivory pb-32 pt-36 md:pt-48">
       <div className="wrap">
         <p className="eyebrow mb-6 text-gold-deep">{ui.comingSoon}</p>
         <h1 className="display h-section text-green">{page.title}</h1>

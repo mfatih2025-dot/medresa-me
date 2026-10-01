@@ -11,12 +11,12 @@ export function Social({ dict }: { dict: Dictionary }) {
     <section
       id="zajednica"
       aria-labelledby="social-title"
-      className="relative overflow-hidden bg-sand/60 py-24 md:py-36"
+      className="relative overflow-hidden bg-sand/60 py-16 md:py-24 lg:py-28"
     >
       <div className="wrap grid gap-12 lg:grid-cols-12 lg:gap-x-16">
         <div className="lg:col-span-4">
           <Reveal>
-            <p className="eyebrow mb-6 text-gold-deep">{social.eyebrow}</p>
+            <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{social.eyebrow}</p>
           </Reveal>
           <LineReveal id="social-title" lines={[social.heading]} className="display h-section text-green" />
           <Reveal delay={0.1}>
@@ -29,7 +29,7 @@ export function Social({ dict }: { dict: Dictionary }) {
                   href={c.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex min-h-12 items-baseline justify-between gap-6 border-b border-ink/15 py-3 text-green"
+                  className="group flex min-h-12 items-baseline justify-between gap-6 border-b border-ink/15 py-3 text-green transition-transform duration-150 ease-out active:scale-[0.99]"
                 >
                   <span className="h-sub">{c.label}</span>
                   <span className="text-sm text-ink-soft transition-colors group-hover:text-gold-deep">

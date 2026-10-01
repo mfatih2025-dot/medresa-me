@@ -9,7 +9,7 @@ export function Education({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="education-title"
-      className="relative z-10 -mt-10 rounded-t-[50%/3.5rem] bg-green-deep pb-24 pt-24 text-ivory md:-mt-16 md:rounded-t-[50%/6rem] md:pb-40 md:pt-40"
+      className="relative z-10 -mt-10 rounded-t-[50%/3.5rem] bg-green-deep pb-16 pt-[6.5rem] text-ivory md:-mt-16 md:rounded-t-[50%/6rem] md:pb-24 md:pt-40 lg:pb-28 lg:pt-44"
     >
       <div aria-hidden className="geo pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-screen" />
       <div className="wrap relative grid gap-y-14 lg:grid-cols-12 lg:gap-x-16">
@@ -17,7 +17,7 @@ export function Education({ dict }: { dict: Dictionary }) {
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-32">
             <Reveal>
-              <p className="eyebrow mb-6 text-gold">{e.eyebrow}</p>
+              <p className="eyebrow eyebrow-display mb-6 text-gold">{e.eyebrow}</p>
             </Reveal>
             <LineReveal
               id="education-title"
