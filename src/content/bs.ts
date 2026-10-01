@@ -52,13 +52,15 @@ export const bs = {
     ],
   },
   hero: {
+    // Identity composition: small pre-title, dominant name (one entry per line), signature.
+    pre: "MEDRESA",
+    name: ["„MEHMED", "FATIH“"],
+    signature: "Zvanična stranica",
+    admissions: { kicker: "Prijemni 2026", label: "Rezultati prijemnog ispita", href: href("upis") },
+    // Not rendered in the hero composition; kept for reuse elsewhere.
     eyebrow: ["Znanje", "Vrijednosti", "Odgovornost"],
-    // Institutional title: name on two lines (accent on the quoted name), then the subtitle.
-    lines: ["MEDRESA", "„MEHMED FATIH“", "ZVANIČNA STRANICA"],
-    accent: 1,
     lead: "Spoj islamskih vrijednosti, savremenog obrazovanja i odgoja za život.",
-    primary: { label: "Rezultati prijemnog ispita", href: href("upis") },
-    secondary: { label: "Pogledajte video", href: "https://www.youtube.com/@medresacg" },
+    video: { label: "Pogledajte video", href: "https://www.youtube.com/@medresacg" },
     image: img(
       "hero-campus",
       "Zgrada Medrese „Mehmed Fatih“ u Tuzima sa minaretima i kupolom, u podnožju brda",
