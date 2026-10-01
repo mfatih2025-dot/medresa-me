@@ -76,18 +76,30 @@ export function Hero({ dict }: { dict: Dictionary }) {
 
       {/* Identity, in the haze beneath the logo. */}
       <motion.div
-        className="absolute inset-x-[var(--gutter)] top-[clamp(9.5rem,19svh,12rem)] md:top-[clamp(13.5rem,21svh,16rem)] lg:top-[clamp(13rem,25svh,17rem)]"
+        className="absolute inset-x-[var(--gutter)] top-[clamp(8.5rem,17svh,11rem)] md:top-[clamp(12rem,19svh,14.5rem)] lg:top-[clamp(11.5rem,22svh,15rem)]"
         style={still ? undefined : { y: typeY, opacity: typeOpacity }}
       >
-        <h1 id="hero-title" className="text-green-deep">
-          <motion.span
-            className="block text-[clamp(0.8125rem,0.7rem+0.55vw,1.375rem)] font-light uppercase tracking-[0.42em] text-ink-soft"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={t(0.3, 1)}
-          >
-            {hero.pre}
-          </motion.span>
+        {/* The group takes the name's width, so the top line spans exactly the name. */}
+        <h1 id="hero-title" className="w-fit max-w-full text-green-deep">
+          <span className="flex items-baseline justify-between gap-6">
+            <motion.span
+              className="text-[clamp(0.8125rem,0.7rem+0.55vw,1.375rem)] font-light uppercase tracking-[0.42em] text-ink-soft"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={t(0.3, 1)}
+            >
+              {hero.pre}
+            </motion.span>
+            <motion.span
+              className="flex items-center gap-3 text-[0.625rem] font-normal uppercase tracking-[0.3em] text-ink min-[400px]:text-[0.6875rem] md:gap-4 md:text-xs lg:text-[clamp(0.75rem,0.5rem+0.4vw,1rem)]"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={t(0.45, 1)}
+            >
+              <span aria-hidden className="hidden h-px w-8 bg-gold md:block lg:w-10" />
+              {hero.signature}
+            </motion.span>
+          </span>
           <span className="line-mask mt-1 md:mt-2">
             <motion.span
               className="block whitespace-nowrap text-[calc((100cqw-2*var(--gutter))/6.95)] font-semibold uppercase leading-[1.02] tracking-[-0.018em] md:text-[calc((100cqw-2*var(--gutter))/7.6)] lg:text-[min(10.5rem,7.4cqw)]"
@@ -98,15 +110,6 @@ export function Hero({ dict }: { dict: Dictionary }) {
               {hero.name}
             </motion.span>
           </span>
-          <motion.span
-            className="mt-3 flex items-center gap-4 text-[0.6875rem] font-normal uppercase tracking-[0.34em] text-ink md:mt-5 md:gap-5 md:text-xs lg:text-[clamp(0.75rem,0.5rem+0.4vw,1rem)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={t(0.9)}
-          >
-            <span aria-hidden className="h-px w-10 bg-gold md:w-14" />
-            {hero.signature}
-          </motion.span>
         </h1>
       </motion.div>
 
