@@ -20,8 +20,8 @@ type Props = { dict: Dictionary };
 
 /** Scroll distance over which the large header becomes the compact one. */
 const RANGE = 220;
-/** Compact logo size as a fraction of the large one (docked size unchanged: 0.36 × 11rem ≈ 0.4 × 9.9rem). */
-const LOGO_MIN = 0.4;
+/** Compact logo size as a fraction of the large one; the docked size stays 2.7rem / 3.96rem. */
+const LOGO_MIN = 0.4705;
 
 const MotionLink = motion.create(Link);
 
@@ -186,7 +186,7 @@ export function Header({ dict }: Props) {
               width={site.logo.width}
               height={site.logo.height}
               priority
-              sizes="(min-width: 768px) 158px, 108px"
+              sizes="(min-width: 768px) 135px, 92px"
               className="h-full w-full object-contain"
             />
           </span>

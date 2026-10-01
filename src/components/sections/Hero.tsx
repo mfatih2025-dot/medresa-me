@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useTransform } from "framer-motion";
 import { useRef } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
@@ -23,16 +23,33 @@ export function Hero({ dict }: { dict: Dictionary }) {
   const ref = useRef<HTMLElement>(null);
   const { reduced, compact } = useMotionProfile();
   const p = useScrollProgress(ref, ["start start", "end start"]);
-  const still = reduced;
+  // useReducedMotion is known on the first client render, so the entrance never starts for
+  // reduced-motion visitors (useMotionProfile settles only after hydration).
+  const prefersReduced = useReducedMotion();
+  const still = reduced || prefersReduced === true;
 
   const imgScale = useTransform(p, [0, 1], [1, compact ? 1.06 : 1.1]);
   const imgY = useTransform(p, [0, 1], ["0%", compact ? "8%" : "14%"]);
-  const typeY = useTransform(p, [0, 1], [0, compact ? -60 : -120]);
-  const typeOpacity = useTransform(p, [0, 0.55], [1, 0]);
+  // Depth separation: the photograph sinks, the name rises a little, the top line
+  // rises least. Opacity holds, then eases out late. Amplitudes in vh scale with
+  // the device; phones move less.
+  const nameY = useTransform(p, [0, 1], ["0vh", compact ? "-5vh" : "-10vh"]);
+  const nameOpacity = useTransform(p, [0.22, 0.62], [1, 0]);
+  const lineY = useTransform(p, [0, 1], ["0vh", compact ? "-3vh" : "-6vh"]);
+  const lineOpacity = useTransform(p, [0.14, 0.48], [1, 0]);
   const glassY = useTransform(p, [0, 1], [0, compact ? 30 : 60]);
   const glassOpacity = useTransform(p, [0, 0.45], [1, 0]);
 
   const t = (delay: number, duration = 1.2) => (still ? { duration: 0 } : { duration, delay, ease });
+  // Entrance: short rise + blur resolving to sharp; the filter is removed at the end
+  // (transitionEnd) so the resting text is never left blurred or rasterised.
+  const settle = [0.22, 1, 0.36, 1] as const;
+  const labelIn = (delay: number, origin: "left" | "right") => ({
+    initial: { opacity: 0, y: 6, scaleX: 1.03, filter: "blur(3px)" },
+    animate: { opacity: 1, y: 0, scaleX: 1, filter: "blur(0px)", transitionEnd: { filter: "none" } },
+    transition: still ? { duration: 0 } : { duration: 0.95, delay, ease: settle },
+    style: { transformOrigin: origin },
+  });
 
   return (
     <section
@@ -75,43 +92,53 @@ export function Hero({ dict }: { dict: Dictionary }) {
       />
 
       {/* Identity, in the haze beneath the logo. */}
-      <motion.div
-        className="absolute inset-x-[var(--gutter)] top-[clamp(8.5rem,17svh,11rem)] md:top-[clamp(12rem,19svh,14.5rem)] lg:top-[clamp(11.5rem,22svh,15rem)]"
-        style={still ? undefined : { y: typeY, opacity: typeOpacity }}
-      >
+      <div className="absolute inset-x-[var(--gutter)] top-[clamp(8.5rem,17svh,11rem)] md:top-[clamp(12rem,19svh,14.5rem)] lg:top-[clamp(11.5rem,22svh,15rem)]">
         {/* The group takes the name's width, so the top line spans exactly the name. */}
         <h1 id="hero-title" className="w-fit max-w-full text-green-deep">
-          <span className="flex items-baseline justify-between gap-6">
+          <motion.span
+            className="flex items-baseline justify-between gap-6"
+            style={still ? undefined : { y: lineY, opacity: lineOpacity }}
+          >
             <motion.span
               className="text-[clamp(0.8125rem,0.7rem+0.55vw,1.375rem)] font-light uppercase tracking-[0.42em] text-ink-soft"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={t(0.3, 1)}
+              {...labelIn(0.2, "left")}
             >
               {hero.pre}
             </motion.span>
             <motion.span
               className="flex items-center gap-3 text-[0.625rem] font-normal uppercase tracking-[0.3em] text-ink min-[400px]:text-[0.6875rem] md:gap-4 md:text-xs lg:text-[clamp(0.75rem,0.5rem+0.4vw,1rem)]"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={t(0.45, 1)}
+              {...labelIn(0.32, "right")}
             >
               <span aria-hidden className="hidden h-px w-8 bg-gold md:block lg:w-10" />
               {hero.signature}
             </motion.span>
-          </span>
-          <span className="line-mask mt-1 md:mt-2">
+          </motion.span>
+          <motion.span
+            className="mt-1 block pb-[0.18em] pt-[0.08em] -mb-[0.18em] md:mt-2"
+            style={still ? undefined : { y: nameY, opacity: nameOpacity }}
+          >
             <motion.span
-              className="block whitespace-nowrap text-[calc((100cqw-2*var(--gutter))/6.95)] font-semibold uppercase leading-[1.02] tracking-[-0.018em] md:text-[calc((100cqw-2*var(--gutter))/7.6)] lg:text-[min(10.5rem,7.4cqw)]"
-              initial={{ y: "108%" }}
-              animate={{ y: "0%" }}
-              transition={t(0.4, 1.35)}
+              className="relative block whitespace-nowrap text-[calc((100cqw-2*var(--gutter))/6.95)] font-semibold uppercase leading-[1.02] tracking-[-0.018em] md:text-[calc((100cqw-2*var(--gutter))/7.6)] lg:text-[min(10.5rem,7.4cqw)]"
+              initial={{ opacity: 0, y: "0.15em", scale: 0.985, filter: "blur(0.08em)" }}
+              animate={{
+                opacity: 1,
+                y: "0em",
+                scale: 1,
+                filter: "blur(0em)",
+                transitionEnd: { filter: "none" },
+              }}
+              transition={still ? { duration: 0 } : { duration: 1.5, delay: 0.5, ease: settle }}
             >
               {hero.name}
+              {/* Light passing across the letters: the same text, filled only by a narrow
+                  ivory/pearl/champagne band clipped to the glyphs (see .hero-sheen). */}
+              <span aria-hidden className="hero-sheen absolute inset-0">
+                {hero.name}
+              </span>
             </motion.span>
-          </span>
+          </motion.span>
         </h1>
-      </motion.div>
+      </div>
 
       {/* Admissions results: dark glass over the lower photograph. */}
       <motion.div
