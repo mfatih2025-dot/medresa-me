@@ -61,8 +61,9 @@ export const bs = {
     eyebrow: ["Znanje", "Vrijednosti", "Odgovornost"],
     lead: "Spoj islamskih vrijednosti, savremenog obrazovanja i odgoja za život.",
     video: { label: "Pogledajte video", href: "https://www.youtube.com/@medresacg" },
+    // Same campus photograph with its warm grade baked in (no runtime filters over a moving layer).
     image: img(
-      "hero-campus",
+      "hero-campus-graded",
       "Zgrada Medrese „Mehmed Fatih“ u Tuzima sa minaretima i kupolom, u podnožju brda",
       "34% 50%",
     ),

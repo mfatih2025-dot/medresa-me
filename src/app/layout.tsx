@@ -8,10 +8,11 @@ import { defaultLocale } from "@/i18n/config";
 import "./globals.css";
 
 // Only the weights/styles in use are loaded (no synthesized bold or italic):
-// 300 body · 400 sub-headings, navigation, statistics · 500 headings, buttons, labels.
+// 300 body · 400 sub-headings, navigation, statistics · 500 headings, buttons, labels ·
+// 600 the hero identity.
 const kanit = Kanit({
   subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "500"],
+  weight: ["300", "400", "500", "600"],
   style: ["normal", "italic"],
   variable: "--font-kanit",
   display: "swap",

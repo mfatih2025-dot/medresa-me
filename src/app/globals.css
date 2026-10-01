@@ -291,47 +291,10 @@ body {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent);
 }
 
-/* ---------- Hero: editorial cover → photograph ----------
-   The photo plane is a plain rectangle, placed per breakpoint by its insets
-   from the stage edges (container units). Hero.tsx drives a single --e
-   (0 = cover, 1 = full frame); every inset shrinks to zero with it. */
-.hero-stage {
-  container-type: size;
-  --e: 0;
-  /* phones: plane bleeds off the left and bottom, ivory margin on the right */
-  --plane-top: 46cqh;
-  --plane-right: 13cqw;
-  --plane-bottom: 0px;
-  --plane-left: 0px;
-  /* the name always fits on one line: sized from the space it has */
-  --name-size: calc((100cqw - 2 * var(--gutter)) / 6.7);
-  /* name centre line: capitals stand on the plane's top edge */
-  --name-y: calc(var(--plane-top) - var(--name-size) * 0.31);
-}
-@media (min-width: 768px) {
-  .hero-stage {
-    /* tablet portrait: plane bleeds right; the name crosses its left edge */
-    --plane-top: 42cqh;
-    --plane-right: 0px;
-    --plane-left: 24cqw;
-    --name-size: calc((100cqw - 2 * var(--gutter)) / 8.1);
-    --name-y: calc(var(--plane-top) + 6cqh);
-  }
-}
-@media (min-width: 1024px) {
-  .hero-stage {
-    /* desktop cover: tall plane bleeding right and bottom; the name runs across it */
-    --plane-top: 13cqh;
-    --plane-left: 41cqw;
-    --name-size: min(14rem, 9.4cqw);
-    --name-y: 70cqh;
-  }
-}
-.hero-plane {
-  clip-path: inset(
-    calc(var(--plane-top) * (1 - var(--e))) calc(var(--plane-right) * (1 - var(--e)))
-      calc(var(--plane-bottom) * (1 - var(--e))) calc(var(--plane-left) * (1 - var(--e)))
-  );
+/* ---------- Hero ----------
+   Container for width-relative type: the name is sized from the space it has. */
+.hero-frame {
+  container-type: inline-size;
 }
 
 /* ---------- Overlays ---------- */
