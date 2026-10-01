@@ -1,6 +1,6 @@
 # medresa-me
 
-Official website of Medresa „Mehmed Fatih“ – Podgorica. Next.js (App Router) · TypeScript · Tailwind CSS 4 · Framer Motion. Vercel-ready (zero config).
+Official website of Medresa „Mehmed Fatih“ – Podgorica. Next.js (App Router) · TypeScript · Tailwind CSS 4 · Framer Motion · Kanit (next/font). Vercel-ready (zero config).
 
 ```bash
 npm install
@@ -15,7 +15,7 @@ npm run lint && npm run typecheck && npm run build
 | `src/content/site.ts` | Language-neutral facts, contacts, routes (slugs mirror medresa.me) |
 | `src/content/bs.ts` | All homepage copy + image references (Bosnian/Montenegrin). Add `sq.ts` / `en.ts` implementing `Dictionary` |
 | `src/i18n/config.ts` | Locale registry (bs enabled; sq, en reserved) |
-| `src/components/layout` | Signature header (single `--p` scroll variable), menu/search overlays, footer |
+| `src/components/layout` | Signature header (CSS lays out the large state; scroll maps to transforms/opacity only), menu/search overlays, footer |
 | `src/components/sections` | One file per homepage chapter, in story order |
 | `src/components/ui` | `ParallaxImage`, `Reveal`, `LineReveal`, icons |
 | `src/hooks` | `useMotionProfile` (reduced-motion + phone tuning), `useScrollProgress`, `useScrollDrift` (velocity) |

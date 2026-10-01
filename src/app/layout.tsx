@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Kanit } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { getDictionary } from "@/content";
@@ -7,16 +7,13 @@ import { site } from "@/content/site";
 import { defaultLocale } from "@/i18n/config";
 import "./globals.css";
 
-const serif = Newsreader({
+// Only the weights/styles in use are loaded (no synthesized bold or italic):
+// 300 body · 400 sub-headings, navigation, statistics · 500 headings, buttons, labels.
+const kanit = Kanit({
   subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500"],
   style: ["normal", "italic"],
-  axes: ["opsz"],
-  variable: "--font-newsreader",
-  display: "swap",
-});
-const sans = Inter({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-inter",
+  variable: "--font-kanit",
   display: "swap",
 });
 
@@ -44,7 +41,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={dict.lang} className={`${serif.variable} ${sans.variable}`}>
+    <html lang={dict.lang} className={kanit.variable}>
       <body>
         <a
           href="#main"

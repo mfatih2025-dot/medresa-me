@@ -13,7 +13,9 @@ export function Footer({ dict }: { dict: Dictionary }) {
       <div className="wrap relative grid gap-14 py-20 md:py-28 lg:grid-cols-12 lg:gap-x-12">
         <div className="lg:col-span-4">
           <Image src={site.logo.src} alt={site.name} width={96} height={96} className="size-24" />
-          <p className="display mt-8 max-w-[16em] text-2xl text-ivory md:text-3xl">{footer.tagline}</p>
+          <p className="display mt-8 max-w-[16em] text-2xl font-light text-ivory md:text-3xl">
+            {footer.tagline}
+          </p>
         </div>
 
         <nav aria-label={footer.explore} className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:col-span-4">

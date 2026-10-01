@@ -63,7 +63,7 @@ export function Generations({ dict }: { dict: Dictionary }) {
             <p className="eyebrow mb-6 text-gold md:mb-8">{g.eyebrow}</p>
             <h2
               id="generations-title"
-              className="display flex flex-col text-[clamp(2.5rem,1rem+7vw,8.5rem)] leading-[0.95]"
+              className="display flex flex-col text-[clamp(2.25rem,0.9rem+6.2vw,7.5rem)] leading-[1.02]"
             >
               {g.words.map((w, i) => (
                 <Word key={w} p={p} index={i} start={start} step={step} last={i === count - 1}>
@@ -77,7 +77,7 @@ export function Generations({ dict }: { dict: Dictionary }) {
             <p className="lead max-w-[34em] text-ivory/85">{g.lead}</p>
             <div className="mt-8 flex flex-wrap items-center gap-x-10 gap-y-5">
               <p className="flex items-baseline gap-3">
-                <span className="display text-5xl text-gold-soft md:text-6xl">{g.total}</span>
+                <span className="display text-5xl font-normal text-gold-soft md:text-6xl">{g.total}</span>
                 <span className="text-sm text-ivory/80">{g.totalLabel}</span>
               </p>
               <Link
@@ -130,7 +130,7 @@ function Word({
   );
   const y = useTransform(p, [a, a + 0.1], ["38%", "0%"]);
   return (
-    <span className="block overflow-hidden pb-[0.12em] -mb-[0.12em]">
+    <span className="line-mask">
       <motion.span className={`block ${last ? "italic text-gold-soft" : ""}`} style={{ opacity, y }}>
         {children}
       </motion.span>
@@ -170,7 +170,10 @@ function Numeral({
   const at = 0.06 + (index / total) * 0.7;
   const opacity = useTransform(p, [at, at + 0.04], [0.18, 1]);
   return (
-    <motion.li style={{ opacity }} className="display text-sm tracking-wide text-gold-soft md:text-base">
+    <motion.li
+      style={{ opacity }}
+      className="display text-sm font-normal tracking-wide text-gold-soft md:text-base"
+    >
       {children}
     </motion.li>
   );

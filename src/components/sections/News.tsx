@@ -83,14 +83,14 @@ function Story({
             />
           </div>
           <div className="mt-6 flex items-center gap-4 text-sm text-ink-soft">
-            <span className="display text-xl text-gold-deep" aria-hidden>
+            <span className="display text-xl font-normal text-gold-deep" aria-hidden>
               {String(index).padStart(2, "0")}
             </span>
             <span className="eyebrow text-[0.6875rem] text-green">{item.category}</span>
             <time dateTime={item.date}>{item.dateLabel}</time>
           </div>
           <h3
-            className={`display mt-4 text-green ${big ? "text-[clamp(1.75rem,1.2rem+2vw,3rem)] leading-[1.08]" : "text-[clamp(1.5rem,1.1rem+1.2vw,2.1rem)] leading-[1.12]"}`}
+            className={`display mt-4 font-normal text-green ${big ? "text-[clamp(1.75rem,1.2rem+2vw,3rem)] leading-[1.08]" : "text-[clamp(1.5rem,1.1rem+1.2vw,2.1rem)] leading-[1.12]"}`}
           >
             <span className="link-u">{item.title}</span>
           </h3>

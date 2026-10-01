@@ -62,7 +62,7 @@ export function Education({ dict }: { dict: Dictionary }) {
               className="grid gap-6 border-t border-ivory/20 pt-8 md:grid-cols-[auto_1fr] md:gap-10"
             >
               <Reveal>
-                <span className="display text-5xl text-gold md:text-6xl" aria-hidden>
+                <span className="display text-5xl font-light text-gold md:text-6xl" aria-hidden>
                   {String(i + 1).padStart(2, "0")}
                 </span>
               </Reveal>

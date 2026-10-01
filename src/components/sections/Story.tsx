@@ -59,7 +59,7 @@ export function Story({ dict }: { dict: Dictionary }) {
           <Reveal delay={0.1} className="mt-10 grid max-w-md grid-cols-2 gap-6">
             {story.facts.map((f) => (
               <div key={f.label}>
-                <p className="display text-4xl text-green">{f.value}</p>
+                <p className="display text-4xl font-normal text-green">{f.value}</p>
                 <p className="mt-1 text-sm text-ink-soft">{f.label}</p>
               </div>
             ))}

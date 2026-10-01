@@ -52,7 +52,7 @@ export function Life({ dict }: { dict: Dictionary }) {
                 className={`aspect-[4/5] ${layout[i].match(/lg:aspect-\S+/)?.[0] ?? ""}`}
               />
               <div className="mt-5 flex gap-4">
-                <span className="display text-xl text-gold-deep" aria-hidden>
+                <span className="display text-xl font-normal text-gold-deep" aria-hidden>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>

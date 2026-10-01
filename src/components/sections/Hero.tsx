@@ -89,7 +89,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
         />
 
         <motion.p
-          className="lead mt-6 max-w-[30ch] text-ivory/90 md:mt-8 md:max-w-[36ch]"
+          className="lead mt-6 max-w-[30ch] font-normal text-ivory/90 md:mt-8 md:max-w-[36ch]"
           initial={still ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, delay: 0.95, ease }}

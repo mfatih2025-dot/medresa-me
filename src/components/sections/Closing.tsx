@@ -56,7 +56,7 @@ export function Closing({ dict }: { dict: Dictionary }) {
           lines={closing.line}
           accentIndex={2}
           accentClass="italic text-gold-soft"
-          className="display text-[clamp(2.75rem,1.2rem+7vw,8rem)] leading-[1]"
+          className="display text-[clamp(2.5rem,1.1rem+6vw,7rem)] leading-[1.04]"
           as="p"
         />
       </div>

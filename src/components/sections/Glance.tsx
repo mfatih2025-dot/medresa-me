@@ -16,7 +16,7 @@ export function Glance({ dict }: { dict: Dictionary }) {
                 i === glance.items.length - 1 ? "col-span-2 md:col-span-1" : ""
               } ${i > 0 ? "xl:border-l xl:border-gold/40" : ""}`}
             >
-              <p className="display whitespace-nowrap text-[clamp(1.9rem,1.2rem+2.2vw,2.75rem)] leading-none text-green">
+              <p className="display whitespace-nowrap text-[clamp(1.75rem,1rem+1.6vw,2.5rem)] font-normal leading-none text-green">
                 {item.value}
               </p>
               <p className="mt-3 text-[0.9375rem] font-medium text-ink">{item.label}</p>
