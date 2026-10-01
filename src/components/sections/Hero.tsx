@@ -17,9 +17,9 @@ function quoted(line: string): ReactNode {
   if (!m) return line;
   return (
     <>
-      {m[1] && <span className="text-gold-soft">{m[1]}</span>}
+      {m[1] && <span className="mr-[0.04em] font-light text-gold-soft lg:-ml-[0.42em]">{m[1]}</span>}
       {m[2]}
-      {m[3] && <span className="text-gold-soft">{m[3]}</span>}
+      {m[3] && <span className="ml-[0.03em] font-light text-gold-soft">{m[3]}</span>}
     </>
   );
 }
@@ -90,86 +90,65 @@ export function Hero({ dict }: { dict: Dictionary }) {
       />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gold/10 mix-blend-soft-light" />
 
-      {/* Desktop signature: vertical, on the right edge. */}
-      <motion.div
-        aria-hidden
-        className="absolute right-[calc(var(--gutter)*0.55)] top-1/2 hidden -translate-y-1/2 items-center gap-5 lg:flex lg:flex-col"
-        style={still ? undefined : { y: sigY, opacity: typeOpacity }}
-      >
-        <motion.span
-          className="h-16 w-px origin-top bg-gold"
-          initial={still ? false : { scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ duration: 1.4, delay: 0.9, ease }}
-        />
-        <motion.span
-          className="text-xs font-normal uppercase tracking-[0.42em] text-ivory [text-shadow:0_1px_14px_rgb(8_30_23/0.85)] [writing-mode:vertical-rl]"
-          {...intro(1.1, 0)}
-        >
-          {hero.signature}
-        </motion.span>
-      </motion.div>
-
-      <div className="wrap relative pb-[clamp(1.5rem,5vh,3.5rem)] lg:grid lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12 lg:pb-[clamp(2.5rem,7vh,4.5rem)]">
-        <h1 id="hero-title" className="display">
+      <div className="wrap relative pb-[clamp(1.75rem,5.5vh,3.5rem)] lg:flex lg:items-end lg:justify-between lg:gap-12 lg:pb-[clamp(2.5rem,7vh,4.5rem)]">
+        <h1 id="hero-title" className="display min-w-0">
           <motion.span
-            className="flex items-center gap-4 text-[clamp(0.875rem,0.72rem+0.75vw,1.375rem)] font-light uppercase tracking-[0.42em] text-ivory/90 after:h-px after:w-10 after:bg-gold/80 md:gap-5 md:after:w-16"
+            className="block text-[clamp(0.8125rem,0.7rem+0.5vw,1.125rem)] font-light uppercase tracking-[0.34em] text-ivory/90"
             style={still ? undefined : { y: preY, opacity: preOpacity }}
           >
-            <motion.span {...intro(0.35, 12)}>{hero.pre}</motion.span>
+            <motion.span className="block" {...intro(0.35, 12)}>
+              {hero.pre}
+            </motion.span>
           </motion.span>
 
+          {/* One line, always. On desktop the opening quote hangs into the margin so the M aligns with MEDRESA. */}
           <motion.span
-            className="mt-2 block text-[clamp(3.1rem,16.6vw,7rem)] font-medium uppercase leading-[0.9] tracking-[-0.01em] md:mt-3 lg:text-[clamp(6rem,8.4vw,11.5rem)]"
+            className="mt-2 block whitespace-nowrap text-[clamp(2.125rem,10.2vw,4rem)] font-medium uppercase leading-[1.02] tracking-[-0.005em] md:mt-3 lg:text-[clamp(4rem,6.4vw,8rem)]"
             style={still ? undefined : { y: nameY, opacity: typeOpacity }}
           >
-            {hero.name.map((line, i) => (
-              <span className="line-mask" key={line}>
-                <motion.span
-                  className={`block ${i > 0 ? "pl-[0.42em]" : ""}`}
-                  initial={still ? false : { y: "108%" }}
-                  animate={{ y: "0%" }}
-                  transition={{ duration: 1.3, delay: 0.5 + i * 0.13, ease }}
-                >
-                  {quoted(line)}
-                </motion.span>
-              </span>
-            ))}
+            <span className="line-mask lg:-ml-[0.5em] lg:pl-[0.5em]">
+              <motion.span
+                className="block"
+                initial={still ? false : { y: "108%" }}
+                animate={{ y: "0%" }}
+                transition={still ? { duration: 0 } : { duration: 1.3, delay: 0.5, ease }}
+              >
+                {quoted(hero.name)}
+              </motion.span>
+            </span>
           </motion.span>
 
-          {/* Phone/tablet signature: a quiet line under the name. Desktop shows the vertical one. */}
           <motion.span
-            className="mt-4 flex items-center justify-end gap-3 text-[0.625rem] font-normal uppercase tracking-[0.42em] text-ivory/85 before:h-px before:w-8 before:bg-gold/80 md:mt-6 md:text-xs lg:sr-only"
+            className="mt-3 block text-[0.6875rem] font-normal uppercase tracking-[0.3em] text-ivory/75 md:mt-4 md:text-xs"
             style={still ? undefined : { y: sigY, opacity: typeOpacity }}
           >
-            <motion.span {...intro(1, 0)}>{hero.signature}</motion.span>
+            <motion.span className="block" {...intro(0.9, 8)}>
+              {hero.signature}
+            </motion.span>
           </motion.span>
         </h1>
 
         <motion.div
-          className="mt-7 flex justify-end md:mt-9 lg:mt-0"
+          className="mt-8 md:mt-10 lg:mt-0 lg:shrink-0"
           style={still ? undefined : { y: cardY, opacity: cardOpacity }}
         >
-          <motion.div {...intro(1.15, 24)} className="w-full max-w-[21rem] md:max-w-[23rem]">
+          <motion.div {...intro(1.05, 20)} className="max-w-[26rem] lg:w-[22rem]">
             <Link
               href={hero.admissions.href}
-              className="group relative flex items-center gap-5 border border-ivory/15 bg-green-deep/45 px-5 py-4 backdrop-blur-md transition-colors duration-500 hover:border-gold/50 hover:bg-green-deep/70 md:px-6 md:py-5"
+              className="group flex items-center gap-4 rounded-[24px] border border-white/50 bg-ivory/80 px-5 py-4 text-green-deep shadow-[0_18px_44px_-20px_rgb(8_30_23/0.55)] backdrop-blur-xl backdrop-saturate-150 transition-[translate,scale,background-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:bg-ivory/[0.88] hover:shadow-[0_22px_50px_-20px_rgb(8_30_23/0.6)] active:scale-[0.985] md:px-6 md:py-[1.125rem]"
             >
-              <span aria-hidden className="absolute left-0 top-0 h-px w-12 bg-gold" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[0.625rem] font-medium uppercase tracking-[0.32em] text-gold-soft md:text-[0.6875rem]">
+                <span className="block text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-gold-deep">
                   {hero.admissions.kicker}
                 </span>
-                <span className="mt-1.5 block text-base font-normal leading-snug text-ivory md:text-[1.0625rem]">
+                <span className="mt-0.5 block text-[1.0625rem] font-medium leading-snug md:text-lg">
                   {hero.admissions.label}
                 </span>
               </span>
-              <span
+              <ArrowRight
                 aria-hidden
-                className="grid size-11 shrink-0 place-items-center rounded-full border border-gold/60 text-gold-soft transition-colors duration-500 group-hover:bg-gold group-hover:text-green-deep"
-              >
-                <ArrowRight className="transition-transform duration-500 group-hover:translate-x-0.5" />
-              </span>
+                className="shrink-0 text-green transition-transform duration-300 ease-out group-hover:translate-x-1"
+              />
             </Link>
           </motion.div>
         </motion.div>
