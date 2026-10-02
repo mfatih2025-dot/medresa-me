@@ -112,9 +112,6 @@ export function Header({ dict }: Props) {
   const navL = useGeo(p, geo, (v, g) => ((g.logo * (1 - LOGO_MIN)) / 2) * v, 0);
   const navR = useGeo(p, geo, (v, g) => (-(g.logo * (1 - LOGO_MIN)) / 2) * v, 0);
 
-  // The Hijri inscription leaves before the header is compact (gone by half the range).
-  const hijri = useTransform(p, [0, 0.5], [1, 0]);
-
   const logoY = useGeo(p, geo, (v, g) => ((g.hc - g.logo * LOGO_MIN) / 2 - g.logoTop) * v, 0);
   const logoScale = useTransform(p, [0, 1], [1, LOGO_MIN]);
 
@@ -130,13 +127,6 @@ export function Header({ dict }: Props) {
         >
           <motion.span className="header-bg-solid" style={{ opacity: solid }} />
           <motion.span className="header-bg-ring" style={{ opacity: ring }} />
-        </motion.div>
-
-        {/* 1429 – the Hijri year of the Medresa's opening – as a ghost inscription in the
-            glass, split around the logo (see .header-hijri). Follows the row; fades on scroll. */}
-        <motion.div aria-hidden className="header-hijri-layer xl:hidden" style={{ y: rowY, opacity: hijri }}>
-          <HijriPart side="l">14</HijriPart>
-          <HijriPart side="r">29</HijriPart>
         </motion.div>
 
         <motion.div
@@ -213,15 +203,6 @@ export function Header({ dict }: Props) {
       <MenuOverlay open={menu} onClose={() => setMenu(false)} dict={dict} />
       <SearchOverlay open={search} onClose={() => setSearch(false)} dict={dict} />
     </>
-  );
-}
-
-function HijriPart({ side, children }: { side: "l" | "r"; children: string }) {
-  return (
-    <span className={`header-hijri header-hijri-${side}`}>
-      <span className="header-hijri-glyphs">{children}</span>
-      <span className="header-hijri-sheen">{children}</span>
-    </span>
   );
 }
 
