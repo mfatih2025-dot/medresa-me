@@ -25,13 +25,14 @@ export function Closing({ dict }: { dict: Dictionary }) {
 
   // Photograph: unchanged mapping over the section's whole pass through the viewport.
   const pass = useScrollProgress(ref, ["start end", "end start"]);
-  const clip = useTransform(
-    pass,
-    [0, 0.38],
-    compact
-      ? ["inset(10% 5% 10% 5%)", "inset(0% 0% 0% 0%)"]
-      : ["inset(14% 10% 14% 10%)", "inset(0% 0% 0% 0%)"],
-  );
+  // Opening "frame": the same inset reveal as before, done with transforms instead of
+  // clip-path (which repaints every frame): the frame scales open from the inset size
+  // while its contents are counter-scaled, so the photograph itself is not distorted.
+  const inset = compact ? { x: 0.05, y: 0.1 } : { x: 0.1, y: 0.14 };
+  const frameX = useTransform(pass, [0, 0.38], [1 - 2 * inset.x, 1], { clamp: true });
+  const frameY = useTransform(pass, [0, 0.38], [1 - 2 * inset.y, 1], { clamp: true });
+  const counterX = useTransform(frameX, (v) => 1 / v);
+  const counterY = useTransform(frameY, (v) => 1 / v);
   const scale = useTransform(pass, [0, 0.6], [1.22, 1.04]);
   const y = useTransform(pass, [0, 1], ["-6%", "8%"]);
 
@@ -67,27 +68,35 @@ export function Closing({ dict }: { dict: Dictionary }) {
       className="relative bg-green-deep text-ivory md:h-[190svh] lg:h-[200svh] md:motion-reduce:h-auto lg:motion-reduce:h-auto"
     >
       <div className="relative isolate overflow-hidden md:sticky md:top-0 md:flex md:h-svh md:min-h-[36rem] md:items-center md:motion-reduce:relative md:motion-reduce:h-auto md:motion-reduce:py-28">
-        <motion.div className="absolute inset-0 -z-10" style={reduced ? undefined : { clipPath: clip }}>
+        <motion.div
+          className="absolute inset-0 -z-10 overflow-hidden will-change-transform"
+          style={reduced ? undefined : { scaleX: frameX, scaleY: frameY }}
+        >
           <motion.div
-            className="absolute inset-[-8%] will-change-transform"
-            style={reduced ? undefined : { scale, y }}
+            className="absolute inset-0 will-change-transform"
+            style={reduced ? undefined : { scaleX: counterX, scaleY: counterY }}
           >
-            <Image
-              src={closing.image.src}
-              alt={closing.image.alt}
-              fill
-              sizes="100vw"
-              className="object-cover"
-              style={{ objectPosition: closing.image.position }}
+            <motion.div
+              className="absolute inset-[-8%] will-change-transform"
+              style={reduced ? undefined : { scale, y }}
+            >
+              <Image
+                src={closing.image.src}
+                alt={closing.image.alt}
+                fill
+                sizes="100vw"
+                className="object-cover"
+                style={{ objectPosition: closing.image.position }}
+              />
+            </motion.div>
+            {/* Only what the text needs: an even green veil, deeper where the letter sits
+              (top to bottom on phones, where the letter fills the section; the left column from tablet up). */}
+            <div aria-hidden className="absolute inset-0 bg-[rgb(10_42_33/0.2)] md:bg-[rgb(10_42_33/0.34)]" />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-[linear-gradient(180deg,rgb(8_30_24/0.5)_0%,rgb(8_30_24/0.68)_30%,rgb(8_30_24/0.72)_70%,rgb(8_30_24/0.55)_100%)] md:bg-[linear-gradient(90deg,rgb(8_30_24/0.84)_0%,rgb(8_30_24/0.66)_42%,rgb(8_30_24/0.14)_72%,rgb(8_30_24/0)_100%)]"
             />
           </motion.div>
-          {/* Only what the text needs: an even green veil, deeper where the letter sits
-              (top to bottom on phones, where the letter fills the section; the left column from tablet up). */}
-          <div aria-hidden className="absolute inset-0 bg-[rgb(10_42_33/0.2)] md:bg-[rgb(10_42_33/0.34)]" />
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-[linear-gradient(180deg,rgb(8_30_24/0.5)_0%,rgb(8_30_24/0.68)_30%,rgb(8_30_24/0.72)_70%,rgb(8_30_24/0.55)_100%)] md:bg-[linear-gradient(90deg,rgb(8_30_24/0.84)_0%,rgb(8_30_24/0.66)_42%,rgb(8_30_24/0.14)_72%,rgb(8_30_24/0)_100%)]"
-          />
         </motion.div>
 
         <div className="wrap pb-[clamp(3.5rem,9svh,4.5rem)] pt-[clamp(2.25rem,6svh,3rem)] md:pb-0 md:pt-24">
@@ -116,14 +125,26 @@ export function Closing({ dict }: { dict: Dictionary }) {
                   {l.thanks}
                 </p>
                 <span aria-hidden className="mt-5 block h-px w-12 bg-gold/70 md:mt-8 md:w-16" />
-                <p className="mt-4 md:mt-6">
-                  <span className="block text-[0.875rem] font-normal tracking-[0.04em] text-ivory/70">
-                    {l.role}
-                  </span>
-                  <span className="display mt-1.5 block text-[clamp(1.875rem,1.4rem+1.6vw,2.625rem)] font-normal leading-[1.1] tracking-[-0.01em] text-gold-soft">
-                    {l.name}
-                  </span>
-                </p>
+                {/* Sign-off: role and name on the left, the Director's signature in the
+                    space to their right (beside, not beneath), its foot on the name's baseline. */}
+                <div className="mt-4 flex items-end justify-between gap-4 md:mt-6 md:justify-start md:gap-10 lg:gap-12">
+                  <p>
+                    <span className="block text-[0.875rem] font-normal tracking-[0.04em] text-ivory/70">
+                      {l.role}
+                    </span>
+                    <span className="display mt-1.5 block text-[clamp(1.875rem,1.4rem+1.6vw,2.625rem)] font-normal leading-[1.1] tracking-[-0.01em] text-gold-soft">
+                      {l.name}
+                    </span>
+                  </p>
+                  <Image
+                    src={l.signature.src}
+                    alt={l.signature.alt}
+                    width={l.signature.width}
+                    height={l.signature.height}
+                    sizes="(min-width: 1024px) 110px, (min-width: 768px) 96px, 80px"
+                    className="-mb-2 h-[5.75rem] w-auto shrink-0 min-[400px]:h-[6.25rem] md:h-[7rem] lg:h-[8rem]"
+                  />
+                </div>
               </footer>
             </Step>
           </article>
@@ -153,7 +174,7 @@ function Step({
   // Blur only from tablet up, and only while arriving: removed entirely at rest.
   const filter = useTransform(p, (v) => (compact || v >= 1 ? "none" : `blur(${(1 - v) * 4}px)`));
   return (
-    <motion.div ref={ref} style={{ opacity: p, y, filter }}>
+    <motion.div ref={ref} className="will-change-[transform,opacity]" style={{ opacity: p, y, filter }}>
       {children}
     </motion.div>
   );

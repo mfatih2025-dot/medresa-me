@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useMotionValue, useScroll, useTransform } from "framer-motion";
-import { useEffect, type ReactNode } from "react";
+import { motion, useMotionValue, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 
 /**
@@ -27,13 +27,24 @@ export function HeroStage({ hero, children }: { hero: ReactNode; children: React
   // Dims from nothing to a quiet 0.3 over the first screen of scroll (while it is covered).
   const dim = useTransform(() => Math.min(1, Math.max(0, scrollY.get() / vh.get())) * 0.3);
 
+  // Once the hero is fully covered it is hidden, so the browser stops compositing it,
+  // its glass blur and its looping light sheen underneath the page. One attribute flip
+  // at the threshold, in both directions; never visible (it is under opaque sections).
+  const stage = useRef<HTMLDivElement>(null);
+  useMotionValueEvent(scrollY, "change", (y) => {
+    const el = stage.current;
+    if (!el) return;
+    const covered = y > el.offsetHeight + 2;
+    if (covered !== el.hasAttribute("data-covered")) el.toggleAttribute("data-covered", covered);
+  });
+
   return (
     <div className="relative">
-      <div className="sticky top-0 z-0 motion-reduce:relative">
+      <div ref={stage} className="sticky top-0 z-0 data-[covered]:invisible motion-reduce:relative">
         {hero}
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[rgb(6_18_15)]"
+          className="pointer-events-none absolute inset-0 bg-[rgb(6_18_15)] will-change-[opacity]"
           style={{ opacity: reduced ? 0 : dim }}
         />
       </div>

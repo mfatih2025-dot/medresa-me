@@ -329,6 +329,13 @@ export const bs = {
       thanks: "Hvala vam na povjerenju.",
       role: "Direktor Medrese,",
       name: "Amer Šukurica",
+      // The Director's signature as used on medresa.me, re-inked ivory for the dark section.
+      signature: {
+        src: "/images/potpis-direktora.png",
+        alt: "Potpis direktora Amera Šukurice",
+        width: 406,
+        height: 480,
+      },
     },
     image: img("closing-minaret", "Minaret Medrese na plavom nebu", "50% 40%"),
   },
