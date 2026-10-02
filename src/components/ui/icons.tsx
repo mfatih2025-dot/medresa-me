@@ -44,6 +44,13 @@ export const PlayIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const PauseIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} fill="currentColor" stroke="none" width={14} height={14} {...p}>
+    <rect x="6" y="4.5" width="4" height="15" rx="1" />
+    <rect x="14" y="4.5" width="4" height="15" rx="1" />
+  </svg>
+);
+
 export const CloseIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <path d="M5 5l14 14M19 5 5 19" />

@@ -4,6 +4,7 @@
   --color-ivory: #f7f3ea;
   --color-paper: #fbf8f1;
   --color-sand: #ece4d3;
+  --color-stage: #efe9dd;
   --color-ink: #1a2320;
   --color-ink-soft: #4a554f;
   --color-green: #0f3b2e;
@@ -617,22 +618,40 @@ dialog::backdrop {
   background: transparent;
 }
 
-/* ---------- Generacije gallery ---------- */
-.alumni-scroller {
-  scrollbar-width: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.alumni-scroller::-webkit-scrollbar {
-  display: none;
-}
-@media (hover: hover) and (pointer: fine) {
-  .alumni-scroller {
-    cursor: grab;
+/* ---------- Generacije: the living wall ---------- */
+/* One loop moves a track by exactly one of its two identical halves: seamless. */
+@keyframes gen-drift {
+  from {
+    transform: translate3d(0, 0, 0);
   }
-  .alumni-scroller[data-dragging] {
-    cursor: grabbing;
+  to {
+    transform: translate3d(-50%, 0, 0);
   }
-  .alumni-scroller[data-dragging] a {
-    pointer-events: none;
+}
+.gen-track {
+  animation: gen-drift var(--d) linear infinite;
+  animation-delay: var(--delay);
+  will-change: transform;
+}
+.gen-stage[data-offscreen] .gen-track,
+.gen-stage[data-paused] .gen-track,
+.gen-stage:has(.gen-track a:focus-visible) .gen-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gen-track {
+    animation: none;
+    will-change: auto;
+  }
+  .gen-copy {
+    display: none;
+  }
+  .gen-row {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .gen-row::-webkit-scrollbar {
+    display: none;
   }
 }
