@@ -3,12 +3,13 @@
 export const site = {
   name: "Medresa „Mehmed Fatih“",
   shortName: "Medresa",
-  place: "Podgorica",
+  /** Seat of the Medresa (Tuzi, Montenegro); never Podgorica. */
+  place: "Tuzi",
   url: "https://www.medresa.me",
   eMedresa: "https://www.e-medresa.me/",
   logo: { src: "/brand/medresa-logo.png", width: 640, height: 640 },
   contact: {
-    address: ["Donji Milješ, Tuzi", "Podgorica, Crna Gora"],
+    address: ["Donji Milješ, Tuzi", "Crna Gora"],
     phone: "+382 20 513 363",
     phoneHref: "tel:+38220513363",
     email: "medresapg@gmail.com",

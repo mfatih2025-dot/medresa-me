@@ -24,14 +24,48 @@ export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: { default: dict.meta.title, template: `%s · ${site.name}` },
   description: dict.meta.description,
+  applicationName: site.name,
   openGraph: {
     title: dict.meta.title,
     description: dict.meta.description,
+    siteName: dict.meta.title,
     locale: "bs_BA",
     type: "website",
     images: [{ url: "/images/hero-campus.jpg", width: 1627, height: 1080 }],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: dict.meta.title,
+    description: dict.meta.description,
+    images: ["/images/hero-campus.jpg"],
+  },
   icons: { icon: site.logo.src, apple: site.logo.src },
+};
+
+/**
+ * Structured data: the Medresa as an educational organization. Branded for
+ * Montenegro; the postal address is the school's seat in Tuzi.
+ */
+const organization = {
+  "@context": "https://schema.org",
+  "@type": ["EducationalOrganization", "HighSchool"],
+  name: site.name,
+  alternateName: dict.meta.title,
+  description: dict.meta.description,
+  url: site.url,
+  logo: new URL(site.logo.src, site.url).href,
+  image: new URL("/images/hero-campus.jpg", site.url).href,
+  foundingDate: "2008-10-06",
+  telephone: site.contact.phone,
+  email: site.contact.email,
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "Donji Milješ",
+    addressLocality: "Tuzi",
+    addressCountry: "ME",
+  },
+  areaServed: { "@type": "Country", name: "Crna Gora" },
+  sameAs: site.social.map((s) => s.href),
 };
 
 export const viewport: Viewport = {
@@ -44,6 +78,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang={dict.lang} className={kanit.variable}>
       <body>
+        <script
+          type="application/ld+json"
+          // Static, build-time data only (no user input).
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organization).replace(/</g, "\\u003c") }}
+        />
         <a
           href="#main"
           className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-full bg-gold px-5 py-3 text-sm font-medium text-green-deep transition-transform focus:translate-y-0"

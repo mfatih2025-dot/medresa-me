@@ -35,9 +35,9 @@ const gen = (numeral: string, n: number, url: string) => {
 export const bs = {
   lang: "bs",
   meta: {
-    title: "Medresa „Mehmed Fatih“ – Podgorica",
+    title: "Medresa „Mehmed Fatih“ – Crna Gora",
     description:
-      "Zvanična stranica Medrese „Mehmed Fatih“ u Tuzima, Podgorica. Spoj islamskih vrijednosti, savremenog obrazovanja i odgoja za život.",
+      "Zvanična stranica Medrese „Mehmed Fatih“ u Crnoj Gori. Spoj islamskih vrijednosti, savremenog obrazovanja i odgoja za život.",
   },
   ui: {
     skip: "Preskoči na sadržaj",
@@ -344,7 +344,7 @@ export const bs = {
     contact: "Kontakt",
     explore: "Medresa",
     follow: "Pratite nas",
-    rights: "Medresa „Mehmed Fatih“ – Podgorica. Sva prava zadržana.",
+    rights: "Medresa „Mehmed Fatih“ – Crna Gora. Sva prava zadržana.",
   },
 };
 
