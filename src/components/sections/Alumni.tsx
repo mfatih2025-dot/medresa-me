@@ -22,9 +22,9 @@ const COPIES = 3;
 
 /* Tile rhythm inside a track: proportion and a small vertical offset. */
 const rhythm = [
-  { aspect: "aspect-[4/5] md:aspect-square lg:aspect-[6/5]", offset: "mt-0" },
+  { aspect: "aspect-[6/7] md:aspect-square lg:aspect-[6/5]", offset: "mt-0" },
   { aspect: "aspect-square md:aspect-[6/5] lg:aspect-[5/4]", offset: "mt-2.5 md:mt-4" },
-  { aspect: "aspect-[5/6] md:aspect-[5/4] lg:aspect-[4/3]", offset: "mt-1 md:mt-2" },
+  { aspect: "aspect-[8/9] md:aspect-[5/4] lg:aspect-[4/3]", offset: "mt-1 md:mt-2" },
 ] as const;
 
 /**
@@ -82,16 +82,19 @@ export function Alumni({ dict }: { dict: Dictionary }) {
           </Reveal>
         </div>
 
-        <Reveal y={20} className="mt-7 md:mt-10 lg:mt-12">
+        <Reveal
+          y={20}
+          className="mt-7 md:mt-10 lg:mt-12 [@media(max-width:767px)_and_(max-height:740px)]:mt-5"
+        >
           {/* The stage: one rounded, clipped window onto the wall. */}
           <div
             ref={stage}
-            className="gen-stage relative select-none overflow-clip rounded-[30px] bg-[var(--color-stage)] py-4 [clip-path:inset(0_round_30px)] md:rounded-[40px] md:py-6 md:[clip-path:inset(0_round_40px)] lg:rounded-[52px] lg:py-8 lg:[clip-path:inset(0_round_52px)]"
+            className="gen-stage relative select-none overflow-clip rounded-[30px] bg-[var(--color-stage)] py-3.5 [clip-path:inset(0_round_30px)] md:rounded-[40px] md:py-6 md:[clip-path:inset(0_round_40px)] lg:rounded-[52px] lg:py-8 lg:[clip-path:inset(0_round_52px)]"
           >
             <div
               role="list"
               aria-label={a.galleryLabel}
-              className="flex flex-col gap-y-2.5 md:gap-y-4 lg:gap-y-5"
+              className="flex flex-col gap-y-2 md:gap-y-4 lg:gap-y-5"
             >
               {rows.map((items, r) => (
                 <div key={r} className="gen-row">
@@ -141,7 +144,7 @@ function Tile({
   return (
     <div
       role="listitem"
-      className={`w-[calc((100vw-2*var(--gutter))/2.75)] shrink-0 md:w-[calc((100vw-2*var(--gutter))/3.85)] lg:w-[min(14rem,calc((min(100vw,var(--max))-2*var(--gutter))/5.2))] ${offset}`}
+      className={`w-[max(7rem,calc((100vw-2*var(--gutter))/2.7))] shrink-0 min-[400px]:w-[calc((100vw-2*var(--gutter))/2.8)] min-[420px]:w-[calc((100vw-2*var(--gutter))/3)] md:w-[calc((100vw-2*var(--gutter))/3.85)] lg:w-[min(14rem,calc((min(100vw,var(--max))-2*var(--gutter))/5.2))] ${offset}`}
     >
       <a
         href={item.href}
@@ -164,7 +167,7 @@ function Tile({
         </div>
 
         {/* Numeral on a tab cut into the photograph's lower-left corner; it travels with the panel. */}
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-end justify-between gap-2 md:gap-3">
           <span
             aria-hidden
             className="relative -mt-[0.62em] rounded-tr-[0.3em] bg-[var(--color-stage)] pr-[0.32em] pt-[0.1em] text-[clamp(1.4375rem,1.1rem+1.15vw,2.25rem)] font-normal leading-[0.9] tracking-[-0.02em] text-green"
@@ -173,9 +176,9 @@ function Tile({
           </span>
           <span
             aria-hidden
-            className="flex items-center gap-2 pt-2 text-[0.625rem] font-medium tabular-nums tracking-[0.14em] text-ink-soft transition-colors duration-300 group-hover:text-gold-deep md:text-[0.6875rem]"
+            className="flex items-center gap-2 whitespace-nowrap pt-2 text-[0.625rem] font-medium tabular-nums tracking-[0.14em] text-ink-soft transition-colors duration-300 group-hover:text-gold-deep md:text-[0.6875rem]"
           >
-            <span className="h-px w-4 origin-right bg-gold/70 transition-[scale] duration-500 ease-[var(--ease-out-expo)] group-hover:scale-x-150 md:w-5" />
+            <span className="hidden h-px w-4 origin-right bg-gold/70 md:block transition-[scale] duration-500 ease-[var(--ease-out-expo)] group-hover:scale-x-150 md:w-5" />
             {item.years}
           </span>
         </div>
