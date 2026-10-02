@@ -488,6 +488,23 @@ button,
   }
 }
 
+/* ---------- News typography ----------
+   Never break or hyphenate words; balance headlines so they never end on a
+   single orphaned word; excerpts avoid short last lines. */
+.news-type :is(h1, h2, h3, p, span),
+.news-headline,
+.news-excerpt {
+  hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.news-headline {
+  text-wrap: balance;
+}
+.news-excerpt {
+  text-wrap: pretty;
+}
+
 /* ---------- Hero ----------
    Container for width-relative type: the name is sized from the space it has. */
 .hero-frame {

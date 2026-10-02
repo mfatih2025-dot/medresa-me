@@ -188,6 +188,11 @@ export const bs = {
     eyebrow: "Aktuelno",
     heading: "Vijesti",
     all: { label: "Pogledaj sve vijesti", href: href("vijesti") },
+    // Interface labels for the news layouts and the /vijesti archive.
+    read: "Pročitaj",
+    archive: "Arhiva",
+    filterAll: "Sve",
+    more: "Prikaži starije vijesti",
     notice: {
       label: "Upis",
       title: "Rezultati upisa u Medresu 2026/2027",
