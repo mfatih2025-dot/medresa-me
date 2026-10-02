@@ -73,7 +73,11 @@ export function Alumni({ dict }: { dict: Dictionary }) {
           <Reveal variant="label">
             <p className="eyebrow eyebrow-display mb-4 text-gold-deep md:mb-5">{a.eyebrow}</p>
           </Reveal>
-          <LineReveal id="alumni-title" lines={a.heading} className="display h-section text-green [text-wrap:balance]" />
+          <LineReveal
+            id="alumni-title"
+            lines={a.heading}
+            className="display h-section text-green [text-wrap:balance]"
+          />
         </div>
         <Reveal className="shrink-0 pb-1 md:pb-2">
           <Link
@@ -219,7 +223,10 @@ function Tile({
         <div
           className={`relative overflow-hidden bg-sand transition-[scale] duration-150 ease-out group-active:scale-[0.98] ${aspect}`}
         >
-          <motion.div className="absolute inset-0" style={motionStyle ? { scale: motionStyle.scale } : undefined}>
+          <motion.div
+            className="absolute inset-0"
+            style={motionStyle ? { scale: motionStyle.scale } : undefined}
+          >
             <Image
               src={item.image.src}
               alt={item.image.alt}
@@ -304,7 +311,11 @@ function useMouseDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
       const c = el.getBoundingClientRect();
       const margin = Math.min(48, c.width * 0.06);
       const delta =
-        r.right > c.right - margin ? r.right - c.right + margin : r.left < c.left + margin ? r.left - c.left - margin : 0;
+        r.right > c.right - margin
+          ? r.right - c.right + margin
+          : r.left < c.left + margin
+            ? r.left - c.left - margin
+            : 0;
       if (delta) el.scrollBy({ left: delta, behavior: reducedMotion() ? "auto" : "smooth" });
     },
     onClickCapture(e: MouseEvent<HTMLDivElement>) {
