@@ -196,17 +196,32 @@ export const bs = {
       heading: "Više od nastave.",
       text: "Nastava, internat, biblioteka, sport i druženje – svakodnevica u kojoj učenici rastu uz znanje, vjeru i prijateljstva.",
       cta: { label: "Istraži život u Medresi", href: href("oiu") },
+      // Official photographs from medresa.me/oiu, one per facility (ids map to the
+      // card placements in LifeStack.tsx).
       cards: [
         {
-          label: "Amfiteatar",
-          image: img("life-amphitheatre", "Amfiteatar sa stepenastim sjedenjem i zajedničkim stolom"),
+          id: "biblioteka",
+          label: "Biblioteka",
+          image: img("zivot/biblioteka", "Biblioteka Medrese: police s islamskom i opštom literaturom"),
         },
-        { label: "Biblioteka", image: img("life-library", "Svijetla čitaonica s velikim prozorima") },
         {
-          label: "Internat",
-          image: img("life-dormitory", "Zgrada internata Medrese uz maslinu u zalasku sunca"),
+          id: "sportska-sala",
+          label: "Sportska sala",
+          image: img("zivot/sportska-sala", "Sportska sala Medrese s košem i golom u popodnevnom svjetlu"),
         },
-        { label: "Sport", image: img("life-sports", "Pogled iz zraka na sportski teren kampusa") },
+        {
+          id: "internat",
+          label: "Internat",
+          image: img("zivot/internat", "Soba u internatu Medrese s krevetima na sprat i ormarima"),
+        },
+        {
+          id: "amfiteatar",
+          label: "Amfiteatar",
+          image: img(
+            "zivot/amfiteatar",
+            "Amfiteatar Medrese sa stepenastim redovima sjedišta i stolom za govornike",
+          ),
+        },
       ],
     },
   },

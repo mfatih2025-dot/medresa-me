@@ -10,6 +10,39 @@ import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { ArrowRight } from "@/components/ui/icons";
 
 type Card = Dictionary["life"]["stack"]["cards"][number];
+type Facility = Card["id"];
+
+/*
+ * Which facility sits in which place of the deck (index = slot in `deck`, also
+ * its stacking order), chosen so the part of each photograph that stays
+ * uncovered by the green card is the facility itself:
+ *   0 top-left     · Biblioteka     — the shelves fill the whole frame
+ *   1 top-right    · Sportska sala  — hoop and goal sit mid-height
+ *   2 bottom-left  · Internat       — the beds are in the lower half
+ *   3 bottom-right · Amfiteatar     — the seating and speakers' table are low
+ */
+const ORDER = [
+  "biblioteka",
+  "sportska-sala",
+  "internat",
+  "amfiteatar",
+] as const satisfies readonly Facility[];
+
+/*
+ * Every frame is narrower than the 3:2 photographs, so object-cover crops them
+ * sideways; these keep each facility's subject in frame per breakpoint
+ * (phone portrait/square frames, tablet landscape, desktop).
+ */
+const CROP: Record<Facility, string> = {
+  // Shelving runs from the left edge to ~78%; the poster on the right is not the subject.
+  biblioteka: "object-[36%_50%] md:object-[40%_50%] lg:object-[38%_50%]",
+  // Basket and goal are dead centre; keep them on the axis of the frame.
+  "sportska-sala": "object-[50%_50%]",
+  // The bunk beds sit left of centre; the wardrobes on the right can go.
+  internat: "object-[36%_60%] md:object-[34%_60%] lg:object-[36%_60%]",
+  // Symmetrical room: centre on the aisle between the two seating blocks.
+  amfiteatar: "object-[50%_60%]",
+};
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
@@ -97,8 +130,8 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
         >
           {deck.map((d, i) => (
             <Photo
-              key={s.cards[i].label}
-              card={s.cards[i]}
+              key={ORDER[i]}
+              card={byId(s.cards, ORDER[i])}
               d={d}
               z={i}
               spread={spread}
@@ -184,8 +217,7 @@ function Photo({
             alt={card.image.alt}
             fill
             sizes="(min-width: 1024px) 30vw, (min-width: 768px) 40vw, 56vw"
-            className="object-cover"
-            style={{ objectPosition: card.image.position }}
+            className={`object-cover ${CROP[card.id]}`}
           />
         </motion.div>
         <figcaption
@@ -196,4 +228,10 @@ function Photo({
       </motion.figure>
     </motion.div>
   );
+}
+
+function byId(cards: readonly Card[], id: Facility): Card {
+  const card = cards.find((c) => c.id === id);
+  if (!card) throw new Error(`Život u Medresi: no card for "${id}"`);
+  return card;
 }
