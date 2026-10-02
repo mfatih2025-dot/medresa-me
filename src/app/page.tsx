@@ -4,6 +4,7 @@ import { Hero } from "@/components/sections/Hero";
 import { HeroStage } from "@/components/sections/HeroStage";
 import { LifeStack } from "@/components/sections/LifeStack";
 import { News } from "@/components/sections/News";
+import { SocialFeed } from "@/components/sections/SocialFeed";
 import type { Metadata } from "next";
 import { getDictionary } from "@/content";
 import { defaultLocale } from "@/i18n/config";
@@ -31,6 +32,7 @@ export default function HomePage() {
       </HeroStage>
       <LifeStack dict={dict} />
       <Closing dict={dict} />
+      <SocialFeed dict={dict} />
     </>
   );
 }

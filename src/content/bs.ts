@@ -298,6 +298,14 @@ export const bs = {
       },
     ],
   },
+  // Homepage social stack (below Riječ direktora).
+  feed: {
+    eyebrow: "Pratite život Medrese",
+    heading: "Medresa iz dana u dan.",
+    lead: "Trenuci, događaji i priče iz života naše Medrese.",
+    platforms: { instagram: "Instagram", facebook: "Facebook" },
+    open: { post: "Otvori objavu", profile: "Pratite nas" },
+  },
   social: {
     eyebrow: "Zajednica",
     heading: "Medresa iz dana u dan.",
