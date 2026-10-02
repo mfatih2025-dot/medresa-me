@@ -191,6 +191,24 @@ export const bs = {
       },
     ],
     cta: { label: "Objekat i uslovi", href: href("oiu") },
+    // Homepage stack: one green card, photographs of everyday life layered behind it.
+    stack: {
+      heading: "Više od nastave.",
+      text: "Nastava, internat, biblioteka, sport i druženje – svakodnevica u kojoj učenici rastu uz znanje, vjeru i prijateljstva.",
+      cta: { label: "Istraži život u Medresi", href: href("oiu") },
+      cards: [
+        {
+          label: "Amfiteatar",
+          image: img("life-amphitheatre", "Amfiteatar sa stepenastim sjedenjem i zajedničkim stolom"),
+        },
+        { label: "Biblioteka", image: img("life-library", "Svijetla čitaonica s velikim prozorima") },
+        {
+          label: "Internat",
+          image: img("life-dormitory", "Zgrada internata Medrese uz maslinu u zalasku sunca"),
+        },
+        { label: "Sport", image: img("life-sports", "Pogled iz zraka na sportski teren kampusa") },
+      ],
+    },
   },
   generations: {
     eyebrow: "Generacije",

@@ -4,7 +4,7 @@ import { Closing } from "@/components/sections/Closing";
 import { Education } from "@/components/sections/Education";
 import { Glance } from "@/components/sections/Glance";
 import { Hero } from "@/components/sections/Hero";
-import { Life } from "@/components/sections/Life";
+import { LifeStack } from "@/components/sections/LifeStack";
 import { News } from "@/components/sections/News";
 import { Social } from "@/components/sections/Social";
 import { Story } from "@/components/sections/Story";
@@ -21,7 +21,7 @@ export default function HomePage() {
       <Glance dict={dict} />
       <Story dict={dict} />
       <Education dict={dict} />
-      <Life dict={dict} />
+      <LifeStack dict={dict} />
       <Social dict={dict} />
       <Admissions dict={dict} />
       <Closing dict={dict} />
