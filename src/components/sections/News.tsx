@@ -26,7 +26,7 @@ export function News({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="news-title"
-      className="news-type relative overflow-x-clip bg-paper pb-[var(--section-y)] pt-11 md:pt-14 lg:pb-[calc(var(--section-y)*0.75)] lg:pt-16"
+      className="news-type relative overflow-x-clip rounded-t-[1.75rem] bg-paper pb-[var(--section-y)] shadow-[0_-18px_40px_-24px_rgb(6_18_15/0.45)] md:rounded-t-[2.5rem] lg:rounded-t-[3rem] pt-11 md:pt-14 lg:pb-[calc(var(--section-y)*0.75)] lg:pt-16"
     >
       <div className="wrap">
         <NewsHead id="news-title" eyebrow={news.eyebrow} heading={news.heading} link={news.all} />
@@ -97,13 +97,7 @@ function Featured({ item, readLabel }: { item: NewsItem; readLabel: string }) {
  * The index band: the Upis notice first, then the next stories. One ruled row per
  * entry on phones; side by side, divided by hairlines, from tablet up.
  */
-function NewsIndex({
-  notice,
-  items,
-}: {
-  notice: Dictionary["news"]["notice"];
-  items: readonly NewsItem[];
-}) {
+function NewsIndex({ notice, items }: { notice: Dictionary["news"]["notice"]; items: readonly NewsItem[] }) {
   const count = items.length + 1;
   const cols = count >= 3 ? "md:grid-cols-2 lg:grid-cols-3" : count === 2 ? "md:grid-cols-2" : "";
   // Hairline between neighbours in a row (two per row on tablets, all in one row on desktop).
@@ -118,7 +112,8 @@ function NewsIndex({
       className="pointer-events-none absolute inset-x-0 -bottom-px h-px origin-left scale-x-0 bg-gold transition-[scale] duration-500 ease-[var(--ease-out-expo)] group-hover:scale-x-100 group-focus-visible:scale-x-100"
     />
   );
-  const title = "news-headline line-clamp-3 text-[1rem] font-medium leading-[1.3] text-green md:text-[1.0625rem]";
+  const title =
+    "news-headline line-clamp-3 text-[1rem] font-medium leading-[1.3] text-green md:text-[1.0625rem]";
 
   return (
     <ol className={`mt-10 grid border-t border-ink/15 md:mt-12 lg:mt-14 ${cols}`}>
