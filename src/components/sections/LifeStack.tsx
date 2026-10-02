@@ -88,7 +88,7 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="life-title"
-      className="relative overflow-x-clip bg-ivory py-[calc(var(--section-y)*0.9)] lg:py-[var(--section-y)]"
+      className="relative overflow-x-clip bg-ivory pb-[calc(var(--section-y)*0.9)] pt-[calc(var(--section-y)*0.45)] lg:pb-[var(--section-y)] lg:pt-[calc(var(--section-y)*0.35)]"
     >
       <div className="wrap">
         <div
