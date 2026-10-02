@@ -70,18 +70,23 @@ export function NewsImage({
   );
 }
 
-/** A thin gold hairline that draws in from the left once. */
-export function GoldRule({ className = "" }: { className?: string }) {
+/** A thin gold hairline that draws in once: from the left, or from the top when vertical. */
+export function GoldRule({ className = "", vertical = false }: { className?: string; vertical?: boolean }) {
   const { reduced } = useMotionProfile();
+  const axis = vertical ? "scaleY" : "scaleX";
   const motionProps = reduced
-    ? { initial: false as const, animate: { scaleX: 1 }, transition: { duration: 0 } }
+    ? { initial: false as const, animate: { [axis]: 1 }, transition: { duration: 0 } }
     : {
-        initial: { scaleX: 0 },
-        whileInView: { scaleX: 1 },
+        initial: { [axis]: 0 },
+        whileInView: { [axis]: 1 },
         viewport: inView,
-        transition: { duration: 0.9, ease },
+        transition: { duration: vertical ? 1.2 : 0.9, ease },
       };
   return (
-    <motion.span aria-hidden className={`block h-px origin-left bg-gold/70 ${className}`} {...motionProps} />
+    <motion.span
+      aria-hidden
+      className={`block bg-gold/70 ${vertical ? "w-px origin-top" : "h-px origin-left"} ${className}`}
+      {...motionProps}
+    />
   );
 }
