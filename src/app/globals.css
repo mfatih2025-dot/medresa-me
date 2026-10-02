@@ -619,30 +619,29 @@ dialog::backdrop {
 }
 
 /* ---------- Generacije: the living wall ---------- */
-/* One loop moves a track by exactly one of its two identical halves: seamless. */
-@keyframes gen-drift {
-  from {
-    transform: translate3d(0, 0, 0);
+/* The drift itself is a Web Animation (see Alumni.tsx); this is only gesture plumbing. */
+@media (prefers-reduced-motion: no-preference) {
+  .gen-stage {
+    /* Vertical swipes scroll the page; horizontal ones are the wall's. */
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
   }
-  to {
-    transform: translate3d(-50%, 0, 0);
+  .gen-track {
+    will-change: transform;
   }
 }
-.gen-track {
-  animation: gen-drift var(--d) linear infinite;
-  animation-delay: var(--delay);
-  will-change: transform;
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .gen-stage {
+    cursor: grab;
+  }
+  .gen-stage[data-dragging] {
+    cursor: grabbing;
+  }
 }
-.gen-stage[data-offscreen] .gen-track,
-.gen-stage[data-paused] .gen-track,
-.gen-stage:has(.gen-track a:focus-visible) .gen-track {
-  animation-play-state: paused;
+.gen-stage[data-dragging] a {
+  pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .gen-track {
-    animation: none;
-    will-change: auto;
-  }
   .gen-copy {
     display: none;
   }

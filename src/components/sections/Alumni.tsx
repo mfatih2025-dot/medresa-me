@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { useMotionProfile } from "@/hooks/useMotionProfile";
 import type { Dictionary } from "@/content";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { ArrowRight, PauseIcon, PlayIcon } from "@/components/ui/icons";
@@ -10,50 +11,44 @@ import { ArrowRight, PauseIcon, PlayIcon } from "@/components/ui/icons";
 type Generation = Dictionary["alumni"]["items"][number];
 
 /*
- * Three tracks, each drifting left at its own pace and starting at its own
- * offset, so the wall never moves as one block. Durations are per loop (one
- * set of five generations); desktop loops are longer because each one is wider.
+ * The wall's established pace, in px per second per track (the three tracks
+ * drift at slightly different speeds), and where each track starts in its loop.
+ * Pinned in px/s so tile size changes never change how fast it feels.
  */
-const tracks = [
-  "[--d:42s] [--delay:0s] lg:[--d:70s]",
-  "[--d:35s] [--delay:calc(var(--d)*-0.08)] lg:[--d:60s]",
-  "[--d:49s] [--delay:calc(var(--d)*-0.17)] lg:[--d:82s]",
-] as const;
+const SPEEDS = [19.5, 23.3, 16.7];
+const STARTS = [0, 0.08, 0.17];
+/* Copies of each track's panels: enough to cover the stage at every point in the loop. */
+const COPIES = 3;
 
 /* Tile rhythm inside a track: proportion and a small vertical offset. */
 const rhythm = [
   { aspect: "aspect-[4/5] md:aspect-square lg:aspect-[6/5]", offset: "mt-0" },
-  { aspect: "aspect-square md:aspect-[6/5] lg:aspect-[5/4]", offset: "mt-3 md:mt-5" },
-  { aspect: "aspect-[5/6] md:aspect-[5/4] lg:aspect-[4/3]", offset: "mt-1.5 md:mt-2.5" },
+  { aspect: "aspect-square md:aspect-[6/5] lg:aspect-[5/4]", offset: "mt-2.5 md:mt-4" },
+  { aspect: "aspect-[5/6] md:aspect-[5/4] lg:aspect-[4/3]", offset: "mt-1 md:mt-2" },
 ] as const;
 
 /**
  * Generacije: the official generation panels as a living wall behind one
  * rounded stage. Three tracks of panels drift slowly and continuously to the
- * left, each at its own speed; every track holds its panels twice, so the loop
- * is seamless. Panels enter and leave at the stage's rounded edges.
+ * left, each at its own speed; each track repeats its panels, so the loop is
+ * seamless. Panels enter and leave at the stage's rounded edges.
  *
- * The motion is a CSS animation on the compositor — no per-frame JavaScript. It
- * runs only while the stage is on screen, pauses while a panel has keyboard
- * focus, and can be paused with the button in the corner. With reduced motion
- * the wall stands still and each track scrolls natively instead.
+ * The wall can be grabbed: touch or press and it stops under the finger, drag
+ * sideways and it follows, release and it coasts briefly, then eases back into
+ * the same drift from where it was left. Vertical swipes still scroll the page.
+ * The drift runs as Web Animations on the compositor; drag only sets their
+ * current time, never React state. It runs only while on screen, pauses while a
+ * panel has keyboard focus, and has a pause button. With reduced motion the
+ * wall stands still and each track scrolls natively instead.
  */
 export function Alumni({ dict }: { dict: Dictionary }) {
   const a = dict.alumni;
   const stage = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
 
-  // Run only while the stage is visible (an attribute, not React state).
-  useEffect(() => {
-    const el = stage.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) delete el.dataset.offscreen;
-      else el.dataset.offscreen = "";
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  const { reduced } = useMotionProfile();
+  const wall = useWall(stage, reduced);
+  useEffect(() => wall.current?.setUserPaused(paused), [wall, paused]);
 
   // Generation n goes to track (n - 1) % 3: the first column reads I, II, III.
   const rows: Generation[][] = [[], [], []];
@@ -91,25 +86,23 @@ export function Alumni({ dict }: { dict: Dictionary }) {
           {/* The stage: one rounded, clipped window onto the wall. */}
           <div
             ref={stage}
-            data-paused={paused ? "" : undefined}
-            onFocus={keepInView}
-            className="gen-stage relative overflow-clip rounded-[32px] bg-[var(--color-stage)] py-5 [clip-path:inset(0_round_32px)] md:rounded-[44px] md:py-7 md:[clip-path:inset(0_round_44px)] lg:rounded-[56px] lg:py-9 lg:[clip-path:inset(0_round_56px)]"
+            className="gen-stage relative select-none overflow-clip rounded-[30px] bg-[var(--color-stage)] py-4 [clip-path:inset(0_round_30px)] md:rounded-[40px] md:py-6 md:[clip-path:inset(0_round_40px)] lg:rounded-[52px] lg:py-8 lg:[clip-path:inset(0_round_52px)]"
           >
             <div
               role="list"
               aria-label={a.galleryLabel}
-              className="flex flex-col gap-y-3 md:gap-y-5 lg:gap-y-6"
+              className="flex flex-col gap-y-2.5 md:gap-y-4 lg:gap-y-5"
             >
               {rows.map((items, r) => (
                 <div key={r} className="gen-row">
-                  <div className={`gen-track flex w-max ${tracks[r]}`}>
-                    {[0, 1].map((copy) => (
+                  <div className="gen-track flex w-max">
+                    {Array.from({ length: COPIES }, (_, copy) => (
                       <div
                         key={copy}
-                        // The second copy only closes the loop: hidden from assistive tech and focus.
-                        aria-hidden={copy === 1 || undefined}
-                        inert={copy === 1}
-                        className={`flex items-start gap-x-3 pr-3 md:gap-x-4 md:pr-4 lg:gap-x-6 lg:pr-6 ${copy === 1 ? "gen-copy" : ""}`}
+                        // Copies only close the loop: hidden from assistive tech and focus.
+                        aria-hidden={copy > 0 || undefined}
+                        inert={copy > 0}
+                        className={`flex items-start gap-x-2.5 pr-2.5 md:gap-x-3.5 md:pr-3.5 lg:gap-x-5 lg:pr-5 ${copy > 0 ? "gen-copy" : ""}`}
                       >
                         {items.map((item, k) => (
                           <Tile key={item.numeral} item={item} open={a.open} rhythm={rhythm[(k + r) % 3]} />
@@ -148,7 +141,7 @@ function Tile({
   return (
     <div
       role="listitem"
-      className={`w-[calc((100vw-2*var(--gutter))/2.3)] shrink-0 md:w-[calc((100vw-2*var(--gutter))/3.4)] lg:w-[min(15.5rem,calc((min(100vw,var(--max))-2*var(--gutter))/4.6))] ${offset}`}
+      className={`w-[calc((100vw-2*var(--gutter))/2.75)] shrink-0 md:w-[calc((100vw-2*var(--gutter))/3.85)] lg:w-[min(14rem,calc((min(100vw,var(--max))-2*var(--gutter))/5.2))] ${offset}`}
     >
       <a
         href={item.href}
@@ -158,14 +151,14 @@ function Tile({
         className="group block select-none [-webkit-touch-callout:none]"
       >
         <div
-          className={`relative overflow-hidden bg-sand transition-[scale] duration-150 ease-out group-active:scale-[0.98] ${aspect}`}
+          className={`relative overflow-hidden rounded-[14px] bg-sand [clip-path:inset(0_round_14px)] md:rounded-[17px] md:[clip-path:inset(0_round_17px)] lg:rounded-[20px] lg:[clip-path:inset(0_round_20px)] ${aspect}`}
         >
           <Image
             src={item.image.src}
             alt={item.image.alt}
             fill
             draggable={false}
-            sizes="(min-width: 1024px) 15.5rem, (min-width: 768px) 28vw, 44vw"
+            sizes="(min-width: 1024px) 14rem, (min-width: 768px) 25vw, 37vw"
             className="object-cover transition-[scale] duration-[700ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.045] motion-reduce:group-hover:scale-100"
           />
         </div>
@@ -174,7 +167,7 @@ function Tile({
         <div className="flex items-end justify-between gap-3">
           <span
             aria-hidden
-            className="relative -mt-[0.62em] bg-[var(--color-stage)] pr-[0.32em] pt-[0.1em] text-[clamp(1.625rem,1.25rem+1.3vw,2.5rem)] font-normal leading-[0.9] tracking-[-0.02em] text-green"
+            className="relative -mt-[0.62em] rounded-tr-[0.3em] bg-[var(--color-stage)] pr-[0.32em] pt-[0.1em] text-[clamp(1.4375rem,1.1rem+1.15vw,2.25rem)] font-normal leading-[0.9] tracking-[-0.02em] text-green"
           >
             {item.numeral}
           </span>
@@ -191,36 +184,242 @@ function Tile({
   );
 }
 
+type Track = { el: HTMLElement; anim: Animation; loop: number; speed: number };
+
+const frames = (loop: number) => [
+  { transform: "translate3d(0px, 0px, 0px)" },
+  { transform: `translate3d(${-loop}px, 0px, 0px)` },
+];
+
+/** Where a track is in its loop, in px. */
+const offsetOf = (t: Track) => (Number(t.anim.effect?.getComputedTiming().progress) || 0) * t.loop;
+
+/** Put a track at `px` into its loop. Wrapping is invisible: the copies are identical. */
+function setOffset(t: Track, px: number) {
+  if (!t.loop) return;
+  const wrapped = ((px % t.loop) + t.loop) % t.loop;
+  t.anim.currentTime = (wrapped / t.loop) * ((t.loop / t.speed) * 1000);
+}
+
 /**
- * Keyboard focus pauses the wall (CSS :focus-within). If the focused panel sits
- * outside the stage, move that track's animation forward or back just enough
- * to bring it fully into view.
+ * The wall's motion controller. Everything here is imperative and runs outside
+ * React: the drift is three infinite Web Animations; grabbing pauses them and
+ * scrubs their current time; release coasts with a decaying velocity, then the
+ * drift resumes from that exact point with a short ease-in of its rate.
  */
-function keepInView(e: FocusEvent<HTMLDivElement>) {
-  const target = e.target;
-  if (!(target instanceof HTMLElement)) return;
-  const track = target.closest<HTMLElement>(".gen-track");
-  const animation = track?.getAnimations()[0];
-  if (!track || !animation) return;
-  const r = target.getBoundingClientRect();
-  const s = e.currentTarget.getBoundingClientRect();
-  const margin = Math.min(40, s.width * 0.06);
-  const delta =
-    r.right > s.right - margin
-      ? r.right - s.right + margin
-      : r.left < s.left + margin
-        ? r.left - s.left - margin
-        : 0;
-  const timing = animation.effect?.getComputedTiming();
-  const duration = Number(timing?.duration) || 0;
-  const progress = Number(timing?.progress) || 0;
-  const loop = track.offsetWidth / 2;
-  if (!delta || !duration || !loop) return;
-  // Moving the track left by `delta` px = advancing delta / loop of a cycle. Stay within
-  // the current cycle: wrapping would show the hidden copy instead of the focused panel.
-  const next = Math.min(0.999, Math.max(0.001, progress + delta / loop));
-  let time = Number(animation.currentTime ?? 0) + (next - progress) * duration;
-  // A negative time reads as "not started"; whole cycles later is the same position.
-  while (time < 0) time += duration;
-  animation.currentTime = time;
+function useWall(stageRef: RefObject<HTMLDivElement | null>, reduced: boolean) {
+  const api = useRef<{ setUserPaused: (v: boolean) => void } | null>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || reduced) return;
+
+    const tracks: Track[] = [...stage.querySelectorAll<HTMLElement>(".gen-track")].map((el, i) => ({
+      el,
+      anim: el.animate(frames(1), { duration: 1000, iterations: Infinity, easing: "linear" }),
+      loop: 0,
+      speed: SPEEDS[i % SPEEDS.length],
+    }));
+
+    // Loop length = one copy of the panels (gap included). Re-measured on resize,
+    // keeping each track's place in its loop.
+    const measure = () =>
+      tracks.forEach((t, i) => {
+        const loop = (t.el.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
+        if (!loop || loop === t.loop) return;
+        const share = t.loop ? offsetOf(t) / t.loop : STARTS[i % STARTS.length];
+        t.loop = loop;
+        (t.anim.effect as KeyframeEffect).setKeyframes(frames(loop));
+        t.anim.effect?.updateTiming({ duration: (loop / t.speed) * 1000 });
+        setOffset(t, share * loop);
+      });
+    measure();
+
+    const flags = { offscreen: true, user: false, focus: false, hold: false };
+    let ramp = 0;
+    let coast = 0;
+
+    const sync = () => {
+      const run = !flags.offscreen && !flags.user && !flags.focus && !flags.hold;
+      cancelAnimationFrame(ramp);
+      if (!run) {
+        tracks.forEach((t) => t.anim.pause());
+        return;
+      }
+      // Ease the drift back in over ~0.6s instead of starting at full speed.
+      const t0 = performance.now();
+      tracks.forEach((t) => {
+        t.anim.playbackRate = 0;
+        t.anim.play();
+      });
+      const step = (now: number) => {
+        const k = Math.min(1, (now - t0) / 600);
+        const rate = 1 - (1 - k) ** 3;
+        tracks.forEach((t) => (t.anim.playbackRate = rate));
+        if (k < 1) ramp = requestAnimationFrame(step);
+      };
+      ramp = requestAnimationFrame(step);
+    };
+
+    // --- Grab, drag, release ------------------------------------------------
+    let drag: {
+      id: number;
+      x: number;
+      y: number;
+      start: number[];
+      active: boolean;
+      samples: { t: number; x: number }[];
+    } | null = null;
+    let suppressClick = false;
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0 || (e.target as Element).closest("button")) return;
+      cancelAnimationFrame(coast);
+      suppressClick = false;
+      flags.hold = true;
+      sync();
+      drag = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        start: tracks.map(offsetOf),
+        active: false,
+        samples: [{ t: e.timeStamp, x: e.clientX }],
+      };
+      // Mouse: no text selection or native link/image drag while grabbing.
+      if (e.pointerType === "mouse") e.preventDefault();
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (!drag.active) {
+        // Only an intentional horizontal gesture takes the wall; vertical ones
+        // stay with the page (touch-action: pan-y lets the browser scroll).
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(dy)) return;
+        drag.active = true;
+        stage.setPointerCapture(e.pointerId);
+        stage.dataset.dragging = "";
+      }
+      tracks.forEach((t, i) => setOffset(t, drag!.start[i] - dx));
+      drag.samples.push({ t: e.timeStamp, x: e.clientX });
+      if (drag.samples.length > 6) drag.samples.shift();
+    };
+
+    const release = (e: PointerEvent, cancelled: boolean) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const wasDragging = drag.active;
+      const samples = drag.samples;
+      drag = null;
+      delete stage.dataset.dragging;
+      if (stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId);
+      if (!wasDragging || cancelled) {
+        flags.hold = false;
+        sync();
+        return;
+      }
+      suppressClick = true;
+      // Release velocity from the last ~100ms of movement, in px/ms.
+      const last = samples[samples.length - 1];
+      const first = samples.find((s) => last.t - s.t <= 100) ?? samples[0];
+      const dt = last.t - first.t;
+      let v = dt > 0 ? (last.x - first.x) / dt : 0;
+      if (Math.abs(v) < 0.05) {
+        flags.hold = false;
+        sync();
+        return;
+      }
+      v = Math.max(-2.5, Math.min(2.5, v));
+      // Coast: velocity decays exponentially (≈ iOS scroll deceleration), then the drift resumes.
+      let prev = performance.now();
+      const step = (now: number) => {
+        const elapsed = now - prev;
+        prev = now;
+        tracks.forEach((t) => setOffset(t, offsetOf(t) - v * elapsed));
+        v *= Math.exp(-elapsed / 325);
+        if (Math.abs(v) > 0.02) coast = requestAnimationFrame(step);
+        else {
+          flags.hold = false;
+          sync();
+        }
+      };
+      coast = requestAnimationFrame(step);
+    };
+    const onUp = (e: PointerEvent) => release(e, false);
+    const onCancel = (e: PointerEvent) => release(e, true);
+    const onClick = (e: MouseEvent) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // --- Keyboard: pause on focus, bring the focused panel fully into view ---
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      const el = target.closest<HTMLElement>(".gen-track");
+      const t = tracks.find((x) => x.el === el);
+      if (!t || !target.matches(":focus-visible")) return;
+      flags.focus = true;
+      sync();
+      const r = target.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+      const margin = Math.min(40, s.width * 0.06);
+      const delta =
+        r.right > s.right - margin
+          ? r.right - s.right + margin
+          : r.left < s.left + margin
+            ? r.left - s.left - margin
+            : 0;
+      // Stay within the loop: the focused panel is in the first copy.
+      if (delta) setOffset(t, Math.min(t.loop * 0.999, Math.max(0, offsetOf(t) + delta)));
+    };
+    const onFocusOut = (e: FocusEvent) => {
+      const next = e.relatedTarget as HTMLElement | null;
+      if (next?.closest(".gen-track") && stage.contains(next)) return;
+      flags.focus = false;
+      sync();
+    };
+
+    const io = new IntersectionObserver(([entry]) => {
+      flags.offscreen = !entry.isIntersecting;
+      sync();
+    });
+    io.observe(stage);
+    const ro = new ResizeObserver(measure);
+    ro.observe(stage);
+
+    stage.addEventListener("pointerdown", onDown);
+    stage.addEventListener("pointermove", onMove);
+    stage.addEventListener("pointerup", onUp);
+    stage.addEventListener("pointercancel", onCancel);
+    stage.addEventListener("click", onClick, true);
+    stage.addEventListener("focusin", onFocusIn);
+    stage.addEventListener("focusout", onFocusOut);
+    api.current = {
+      setUserPaused: (v) => {
+        flags.user = v;
+        sync();
+      },
+    };
+
+    return () => {
+      api.current = null;
+      cancelAnimationFrame(ramp);
+      cancelAnimationFrame(coast);
+      io.disconnect();
+      ro.disconnect();
+      stage.removeEventListener("pointerdown", onDown);
+      stage.removeEventListener("pointermove", onMove);
+      stage.removeEventListener("pointerup", onUp);
+      stage.removeEventListener("pointercancel", onCancel);
+      stage.removeEventListener("click", onClick, true);
+      stage.removeEventListener("focusin", onFocusIn);
+      stage.removeEventListener("focusout", onFocusOut);
+      tracks.forEach((t) => t.anim.cancel());
+    };
+  }, [stageRef, reduced]);
+
+  return api;
 }
