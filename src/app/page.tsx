@@ -1,7 +1,7 @@
 import { Admissions } from "@/components/sections/Admissions";
+import { Alumni } from "@/components/sections/Alumni";
 import { Closing } from "@/components/sections/Closing";
 import { Education } from "@/components/sections/Education";
-import { Generations } from "@/components/sections/Generations";
 import { Glance } from "@/components/sections/Glance";
 import { Hero } from "@/components/sections/Hero";
 import { Life } from "@/components/sections/Life";
@@ -17,11 +17,11 @@ export default function HomePage() {
     <>
       <Hero dict={dict} />
       <News dict={dict} />
+      <Alumni dict={dict} />
       <Glance dict={dict} />
       <Story dict={dict} />
       <Education dict={dict} />
       <Life dict={dict} />
-      <Generations dict={dict} />
       <Social dict={dict} />
       <Admissions dict={dict} />
       <Closing dict={dict} />

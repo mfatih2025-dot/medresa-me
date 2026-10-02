@@ -616,3 +616,23 @@ button,
 dialog::backdrop {
   background: transparent;
 }
+
+/* ---------- Generacije gallery ---------- */
+.alumni-scroller {
+  scrollbar-width: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.alumni-scroller::-webkit-scrollbar {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .alumni-scroller {
+    cursor: grab;
+  }
+  .alumni-scroller[data-dragging] {
+    cursor: grabbing;
+  }
+  .alumni-scroller[data-dragging] a {
+    pointer-events: none;
+  }
+}

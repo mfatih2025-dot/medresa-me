@@ -14,6 +14,24 @@ const img = (src: string, alt: string, position = "50% 50%", placeholder = false
 
 const link = (slug: PageSlug): Link => ({ label: pages[slug].title, href: href(slug) });
 
+/**
+ * One generation panel. Generation n finished (2007 + n)–(2011 + n), as printed on every
+ * official panel; from the fifth generation on, the panel also shows the maturantice.
+ */
+const gen = (numeral: string, n: number, url: string) => {
+  const years = `${2007 + n}–${2011 + n}`;
+  const who = n >= 5 ? "maturanata i maturantica" : "maturanata";
+  return {
+    numeral,
+    years,
+    href: url,
+    image: img(
+      `generacije/generacija-${String(n).padStart(2, "0")}`,
+      `Tablo ${numeral}. generacije ${who} Medrese „Mehmed Fatih“, ${years}.`,
+    ),
+  };
+};
+
 export const bs = {
   lang: "bs",
   meta: {
@@ -183,6 +201,32 @@ export const bs = {
     numerals: ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"],
     cta: { label: "Alumni", href: href("alumni") },
     image: img("generations-aerial", "Pogled iz zraka na kampus Medrese", "50% 50%", true),
+  },
+  // Homepage Generacije gallery. Images, links and years are the official alumni panels
+  // from medresa.me/alumni; the years are printed on each panel.
+  alumni: {
+    eyebrow: "Generacije",
+    heading: ["Generacije koje ostavljaju trag."],
+    link: { label: "Alumni", href: href("alumni") },
+    galleryLabel: "Generacije maturanata Medrese, od I do XV",
+    open: "otvori pano",
+    items: [
+      gen("I", 1, "https://www.medresa.me/generacija/generacija1/"),
+      gen("II", 2, "https://www.medresa.me/generacija/generacija2/"),
+      gen("III", 3, "https://www.medresa.me/generacija/generacija3/"),
+      gen("IV", 4, "https://www.medresa.me/generacija/generacija-iv-otvori-pano/"),
+      gen("V", 5, "https://www.medresa.me/generacija/generacija-v-otvori-pano/"),
+      gen("VI", 6, "https://www.medresa.me/generacija/generacija-vi-otvori-pano/"),
+      gen("VII", 7, "https://www.medresa.me/generacija/generacija-vii-otvori-pano/"),
+      gen("VIII", 8, "https://www.medresa.me/generacija/generacija-viii-otvori-pano/"),
+      gen("IX", 9, "https://www.medresa.me/generacija/generacija-ix-otvori-pano/"),
+      gen("X", 10, "https://www.medresa.me/generacija/generacija-x-otvori-pano/"),
+      gen("XI", 11, "https://www.medresa.me/generacija/generacija-xi-otvori-pano/"),
+      gen("XII", 12, "https://www.medresa.me/generacija/generacija-xii-otvori-pano/"),
+      gen("XIII", 13, "https://www.medresa.me/generacija/generacija-xiii-otvori-pano/"),
+      gen("XIV", 14, "https://www.medresa.me/generacija/generacija-xiv-otvori-pano/"),
+      gen("XV", 15, "https://www.medresa.me/generacija/generacija-xv-otvori-pano/"),
+    ],
   },
   news: {
     eyebrow: "Aktuelno",
