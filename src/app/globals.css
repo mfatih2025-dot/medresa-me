@@ -517,6 +517,108 @@ button,
   }
 }
 
+/* Hijri year of the opening (1429), split 14 · logo · 29: a ghost inscription inside
+   the glass, not navigation. Each half is centred in the empty glass between its
+   icon and the logo, sized to that gap (and to the bar), so it never meets either.
+   Below xl only: from xl the navigation occupies that glass. */
+.header-hijri-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.header-hijri {
+  --hijri-o: 0.17;
+  /* gap between the icon (inset + 0.5rem padding + 3rem button) and the logo's halo */
+  --hijri-gap: calc(50% - var(--logo) / 2 - 5px - var(--bar-inset) - 3.5rem);
+  position: absolute;
+  top: calc(var(--bar-top) + var(--bar-h) / 2);
+  font-size: min(calc((50vw - var(--logo) / 2 - var(--bar-inset) - 3.5rem) * 0.42), calc(var(--bar-h) * 0.6));
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  font-variant-numeric: lining-nums proportional-nums;
+  white-space: nowrap;
+}
+.header-hijri-l {
+  left: calc(var(--bar-inset) + 3.5rem + var(--hijri-gap) / 2);
+  transform: translate(-50%, -50%);
+}
+.header-hijri-r {
+  right: calc(var(--bar-inset) + 3.5rem + var(--hijri-gap) / 2);
+  transform: translate(50%, -50%);
+}
+/* Silver-pearl with the faintest champagne at the foot; slightly softened by the frost. */
+.header-hijri-glyphs,
+.header-hijri-sheen {
+  display: block;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.header-hijri-glyphs {
+  background-image: linear-gradient(180deg, #9aa2a6 0%, #6f787c 58%, #a08a62 100%);
+  opacity: var(--hijri-o);
+  filter: blur(0.4px);
+  /* resolve into the glass: 0.9s in, after the hero type has begun */
+  animation: hijri-in 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.9s both;
+}
+/* One narrow pearl/champagne reflection, once, as the glyphs settle. */
+.header-hijri-sheen {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    100deg,
+    transparent 42%,
+    rgb(246 240 226 / 0.9) 48%,
+    rgb(214 190 140 / 0.95) 50.5%,
+    rgb(246 240 226 / 0.9) 53%,
+    transparent 59%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: 115% 0;
+  opacity: 0;
+  animation: hijri-sheen 1.3s cubic-bezier(0.45, 0.05, 0.25, 1) 1.9s both;
+}
+@keyframes hijri-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(0.98);
+  }
+  to {
+    opacity: var(--hijri-o);
+    filter: blur(0.4px);
+    transform: scale(1);
+  }
+}
+@keyframes hijri-sheen {
+  0% {
+    background-position: 115% 0;
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.32;
+  }
+  75% {
+    opacity: 0.32;
+  }
+  100% {
+    background-position: -15% 0;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-hijri-glyphs {
+    animation: none;
+  }
+  .header-hijri-sheen {
+    display: none;
+  }
+}
+
 /* ---------- News typography ----------
    Never break or hyphenate words; balance headlines so they never end on a
    single orphaned word; excerpts avoid short last lines. */
