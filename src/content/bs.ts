@@ -319,6 +319,17 @@ export const bs = {
   },
   closing: {
     line: ["Znanje je", "svjetlo koje", "ostaje."],
+    // "Riječ direktora", verbatim from the official medresa.me homepage.
+    letter: {
+      eyebrow: "Riječ direktora",
+      paragraphs: [
+        "Naša misija je jasna: odgojiti generacije koje će voljeti svoju vjeru, poštovati druge i služiti zajednici. U vremenu izazova, Medresa ostaje svjetionik koji svojim učenicima pruža sigurnost, smisao i pravac.",
+        "Ponosni smo na našu tradiciju, ali jednako posvećeni budućnosti. Na ovom putu, svako znanje je amanet, a svaki učenik – povjerenje koje čuvamo s ljubavlju i predanošću.",
+      ],
+      thanks: "Hvala vam na povjerenju.",
+      role: "Direktor Medrese,",
+      name: "Amer Šukurica",
+    },
     image: img("closing-minaret", "Minaret Medrese na plavom nebu", "50% 40%"),
   },
   footer: {
