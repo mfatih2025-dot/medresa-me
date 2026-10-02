@@ -1,6 +1,6 @@
 import type { Dictionary } from "@/content";
 import { getLatestSocial, type SocialItem } from "@/lib/social";
-import { SocialStack, type SocialCardData } from "./SocialStack";
+import { SocialStories, type SocialCardData } from "./SocialStories";
 
 /** Shorten a caption at a word boundary; the full text stays on the platform. */
 function excerpt(text: string, max = 150) {
@@ -52,7 +52,7 @@ function toCard(item: SocialItem, dict: Dictionary): SocialCardData {
 export async function SocialFeed({ dict }: { dict: Dictionary }) {
   const latest = await getLatestSocial();
   return (
-    <SocialStack
+    <SocialStories
       copy={{ eyebrow: dict.feed.eyebrow, heading: dict.feed.heading, lead: dict.feed.lead }}
       cards={[toCard(latest.instagram, dict), toCard(latest.facebook, dict)]}
     />

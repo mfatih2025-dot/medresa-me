@@ -304,7 +304,7 @@ export const bs = {
     heading: "Medresa iz dana u dan.",
     lead: "Trenuci, događaji i priče iz života naše Medrese.",
     platforms: { instagram: "Instagram", facebook: "Facebook" },
-    open: { post: "Otvori objavu", profile: "Pratite nas" },
+    open: { post: "Pogledaj objavu", profile: "Posjetite profil" },
   },
   social: {
     eyebrow: "Zajednica",
