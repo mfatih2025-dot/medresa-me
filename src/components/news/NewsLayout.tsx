@@ -22,7 +22,7 @@ export function NewsHead({
   return (
     <div className="flex items-end justify-between gap-x-6">
       <div>
-        <Reveal>
+        <Reveal variant="label">
           <p className="eyebrow eyebrow-display mb-4 text-gold-deep md:mb-5">{eyebrow}</p>
         </Reveal>
         <LineReveal
@@ -39,7 +39,7 @@ export function NewsHead({
             className="group link-u inline-flex min-h-11 items-center gap-2.5 text-[0.875rem] text-green md:text-[0.9375rem]"
           >
             {link.label}
-            <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-1" />
+            <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
           </Link>
         </Reveal>
       )}
@@ -62,7 +62,7 @@ export function NewsAnnouncement({ label, title, href }: { label: string; title:
         <span className="news-headline flex-1 text-[1.0625rem] font-medium leading-[1.3] text-green md:text-[1.25rem]">
           {title}
         </span>
-        <ArrowRight className="shrink-0 text-gold-deep transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-1" />
+        <ArrowRight className="shrink-0 text-gold-deep transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
       </Link>
     </div>
   );

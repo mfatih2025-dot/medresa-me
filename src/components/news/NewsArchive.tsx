@@ -89,7 +89,7 @@ export function NewsArchive({
                       <span className="link-u">{item.title}</span>
                     </span>
                   </span>
-                  <ArrowRight className="text-gold-deep transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-1" />
+                  <ArrowRight className="text-gold-deep transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
                 </a>
               </li>
             ))}

@@ -21,9 +21,32 @@
 }
 
 :root {
+  /* Vertical rhythm between homepage chapters (applied above and below each one).
+     Tuned per device class rather than scaled down from desktop. */
+  --section-y: 2.75rem;
   --gutter: clamp(1.25rem, 5vw, 4.5rem);
   --max: 90rem;
   --header-h: 4.5rem;
+}
+@media (min-width: 640px) {
+  :root {
+    --section-y: 3.25rem;
+  }
+}
+@media (min-width: 768px) {
+  :root {
+    --section-y: 4.25rem;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --section-y: 5rem;
+  }
+}
+@media (min-width: 1536px) {
+  :root {
+    --section-y: 5.75rem;
+  }
 }
 
 html {
@@ -167,9 +190,14 @@ button,
     padding-bottom: 2px;
   }
   @media (hover: hover) and (pointer: fine) {
-    .link-u:hover {
+    .link-u:hover,
+    .group:hover .link-u {
       background-size: 100% 1px;
     }
+  }
+  /* keyboard users get the same response as pointer hover */
+  .group:focus-visible .link-u {
+    background-size: 100% 1px;
   }
 
   /* ---------- Texture: subtle geometric (8‑point star lattice) ---------- */

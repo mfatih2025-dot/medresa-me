@@ -9,14 +9,14 @@ export function Education({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="education-title"
-      className="relative z-10 -mt-10 rounded-t-[50%/3.5rem] bg-green-deep pb-16 pt-[6.5rem] text-ivory md:-mt-16 md:rounded-t-[50%/6rem] md:pb-24 md:pt-40 lg:pb-28 lg:pt-44"
+      className="relative z-10 -mt-10 rounded-t-[50%/3.5rem] bg-green-deep pb-[var(--section-y)] pt-[calc(var(--section-y)+2.5rem)] text-ivory md:-mt-16 md:rounded-t-[50%/6rem] md:pt-[calc(var(--section-y)+3rem)]"
     >
       <div aria-hidden className="geo pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-screen" />
-      <div className="wrap relative grid gap-y-14 lg:grid-cols-12 lg:gap-x-16">
+      <div className="wrap relative grid gap-y-10 md:gap-y-14 lg:grid-cols-12 lg:gap-x-16">
         {/* Sticky narrative */}
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-32">
-            <Reveal>
+            <Reveal variant="label">
               <p className="eyebrow eyebrow-display mb-6 text-gold">{e.eyebrow}</p>
             </Reveal>
             <LineReveal
@@ -27,9 +27,9 @@ export function Education({ dict }: { dict: Dictionary }) {
               accentClass="text-gold-soft"
             />
             <Reveal delay={0.1}>
-              <p className="lead mt-8 max-w-[34em] text-ivory/80">{e.lead}</p>
+              <p className="lead mt-6 max-w-[34em] text-ivory/80 md:mt-8">{e.lead}</p>
             </Reveal>
-            <ul className="mt-10 space-y-3 border-t border-ivory/15 pt-6 text-[0.9375rem] text-ivory/85">
+            <ul className="mt-8 space-y-3 border-t border-ivory/15 pt-6 text-[0.9375rem] text-ivory/85">
               {e.facts.map((f) => (
                 <Reveal as="li" key={f} className="flex gap-3">
                   <span aria-hidden className="mt-[0.7em] h-px w-5 shrink-0 bg-gold" />
@@ -37,7 +37,7 @@ export function Education({ dict }: { dict: Dictionary }) {
                 </Reveal>
               ))}
             </ul>
-            <Reveal className="mt-10">
+            <Reveal className="mt-8">
               <Link href={e.cta.href} className="btn btn-gold">
                 {e.cta.label}
                 <ArrowRight />
@@ -47,7 +47,7 @@ export function Education({ dict }: { dict: Dictionary }) {
         </div>
 
         {/* Scrolling pillars */}
-        <div className="space-y-16 md:space-y-24 lg:col-span-7 lg:pt-24">
+        <div className="space-y-12 md:space-y-16 lg:col-span-7 lg:space-y-20 lg:pt-16">
           <ParallaxImage
             image={e.image}
             sizes="(min-width: 1024px) 56vw, 92vw"

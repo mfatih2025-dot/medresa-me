@@ -6,37 +6,54 @@ import { useMotionProfile } from "@/hooks/useMotionProfile";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-/** Fade + short rise when entering the viewport. Opt-in, never decorative loops. */
+/**
+ * Entrance on first view. Variants give each kind of content its own motion so a
+ * section reads in order instead of everything fading up the same way:
+ *   rise  – supporting content: short rise + fade (default)
+ *   label – eyebrows/labels: a small horizontal slide, quicker
+ *   fade  – opacity only, for content that should not move
+ * Full transform strings keep the motion on the compositor.
+ */
 export function Reveal({
   children,
   delay = 0,
   y = 28,
+  variant = "rise",
   className,
   as = "div",
 }: {
   children: ReactNode;
   delay?: number;
   y?: number;
+  variant?: "rise" | "label" | "fade";
   className?: string;
   as?: "div" | "p" | "li" | "span";
 }) {
   const { reduced, compact } = useMotionProfile();
   const Comp = motion[as];
+  const settled = { opacity: 1, transform: "translate3d(0px, 0px, 0px)" };
   // Reduced motion is detected after hydration, when this element may already hold its
   // initial hidden style — so settle it to visible explicitly rather than unstyled.
   if (reduced)
     return (
-      <Comp className={className} initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0 }}>
+      <Comp className={className} initial={false} animate={settled} transition={{ duration: 0 }}>
         {children}
       </Comp>
     );
+  const distance = compact ? y * 0.6 : y;
+  const from =
+    variant === "label"
+      ? `translate3d(${compact ? -8 : -12}px, 0px, 0px)`
+      : variant === "fade"
+        ? "translate3d(0px, 0px, 0px)"
+        : `translate3d(0px, ${distance}px, 0px)`;
   return (
     <Comp
       className={className}
-      initial={{ opacity: 0, y: compact ? y * 0.6 : y }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, transform: from }}
+      whileInView={settled}
       viewport={{ once: true, margin: "0px 0px -12% 0px" }}
-      transition={{ duration: 0.8, delay, ease }}
+      transition={{ duration: variant === "rise" ? 0.8 : 0.6, delay, ease }}
     >
       {children}
     </Comp>
@@ -50,7 +67,7 @@ export function LineReveal({
   accentIndex,
   lineClasses,
   accentClass = "text-gold-deep",
-  delay = 0,
+  delay = 0.06,
   immediate = false,
   as: Tag = "h2",
   id,
@@ -94,7 +111,7 @@ export function LineReveal({
         <span className="line-mask" key={line}>
           <motion.span
             className={`block ${i === accentIndex ? accentClass : ""} ${lineClasses?.[i] ?? ""}`}
-            variants={{ hide: { y: "108%" }, show: { y: "0%" } }}
+            variants={{ hide: { transform: "translateY(108%)" }, show: { transform: "translateY(0%)" } }}
             transition={{ duration: 0.8, delay: delay + i * 0.08, ease }}
           >
             {line}

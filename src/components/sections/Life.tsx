@@ -16,11 +16,11 @@ const layout = [
 export function Life({ dict }: { dict: Dictionary }) {
   const { life } = dict;
   return (
-    <section aria-labelledby="life-title" className="relative bg-ivory py-16 md:py-24 lg:py-28">
+    <section aria-labelledby="life-title" className="relative bg-ivory py-[var(--section-y)]">
       <div className="wrap">
         <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
-            <Reveal>
+            <Reveal variant="label">
               <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{life.eyebrow}</p>
             </Reveal>
             <LineReveal id="life-title" lines={life.heading} className="display h-section text-green" />
@@ -33,7 +33,7 @@ export function Life({ dict }: { dict: Dictionary }) {
         </div>
       </div>
 
-      <div className="wrap mt-14 md:mt-20">
+      <div className="wrap mt-8 md:mt-12 lg:mt-16">
         <ul
           className="rail -mx-[var(--gutter)] flex snap-x snap-mandatory gap-4 overflow-x-auto px-[var(--gutter)] pb-4 [scroll-padding-inline:var(--gutter)] md:gap-6 lg:mx-0 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:gap-y-10 lg:overflow-visible lg:px-0 lg:pb-0"
           aria-label={life.eyebrow}
@@ -64,7 +64,7 @@ export function Life({ dict }: { dict: Dictionary }) {
           ))}
         </ul>
 
-        <Reveal className="mt-14 flex justify-start lg:mt-20">
+        <Reveal className="mt-8 flex justify-start lg:mt-14">
           <Link href={life.cta.href} className="btn btn-green">
             {life.cta.label}
             <ArrowRight />

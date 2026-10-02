@@ -11,11 +11,11 @@ export function Social({ dict }: { dict: Dictionary }) {
     <section
       id="zajednica"
       aria-labelledby="social-title"
-      className="relative overflow-hidden bg-sand/60 py-16 md:py-24 lg:py-28"
+      className="relative overflow-hidden bg-sand/60 py-[var(--section-y)]"
     >
-      <div className="wrap grid gap-12 lg:grid-cols-12 lg:gap-x-16">
+      <div className="wrap grid gap-8 md:gap-12 lg:grid-cols-12 lg:gap-x-16">
         <div className="lg:col-span-4">
-          <Reveal>
+          <Reveal variant="label">
             <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{social.eyebrow}</p>
           </Reveal>
           <LineReveal id="social-title" lines={[social.heading]} className="display h-section text-green" />
@@ -42,9 +42,15 @@ export function Social({ dict }: { dict: Dictionary }) {
         </div>
 
         <div id="social-feed" className="lg:col-span-8" data-feed="reserved">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
+          {/* Phones show one quiet row of three; the full six from tablet up. */}
+          <div className="grid grid-cols-3 gap-2 md:gap-5">
             {Array.from({ length: 6 }, (_, i) => (
-              <Reveal key={i} delay={i * 0.06} y={20}>
+              <Reveal
+                key={i}
+                delay={(i % 3) * 0.06}
+                y={20}
+                className={i >= 3 ? "hidden md:block" : undefined}
+              >
                 <div
                   aria-hidden
                   className={`geo relative grid place-items-center border border-gold/35 bg-ivory ${

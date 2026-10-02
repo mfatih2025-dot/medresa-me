@@ -19,11 +19,14 @@ export function NewsImage({
   sizes,
   className = "",
   priority = false,
+  quiet = false,
 }: {
   image: Img;
   sizes: string;
   className?: string;
   priority?: boolean;
+  /** Smaller stories answer hover more quietly. */
+  quiet?: boolean;
 }) {
   const { reduced } = useMotionProfile();
   // Reduced motion is known only after hydration: settle explicitly instead of leaving
@@ -54,10 +57,15 @@ export function NewsImage({
           fill
           sizes={sizes}
           priority={priority}
-          className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.03] motion-reduce:group-hover:scale-100"
+          className={`object-cover transition-transform duration-[600ms] ease-[var(--ease-out-expo)] motion-reduce:group-hover:scale-100 ${quiet ? "group-hover:scale-[1.02]" : "group-hover:scale-[1.03]"}`}
           style={{ objectPosition: image.position }}
         />
       </motion.div>
+      {/* hover light: a faint wash from the top, pointer devices only (group-hover is hover-gated) */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.1),rgb(255_255_255/0)_60%)] opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
+      />
     </motion.div>
   );
 }

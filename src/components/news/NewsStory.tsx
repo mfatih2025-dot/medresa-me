@@ -44,7 +44,7 @@ function ReadMore({ label }: { label: string }) {
   return (
     <span className="mt-5 inline-flex min-h-11 items-center gap-2 text-[0.875rem] font-medium text-green">
       {label}
-      <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-1" />
+      <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
     </span>
   );
 }
@@ -97,7 +97,12 @@ export function NewsStory({ item, role, readLabel, headingLevel = "h3", priority
           rel="noopener"
           className={`${link} grid grid-cols-[5.5rem_1fr] items-start gap-4 min-[380px]:grid-cols-[6.5rem_1fr] sm:grid-cols-[8rem_1fr] md:grid-cols-[6.5rem_1fr] lg:block`}
         >
-          <NewsImage image={item.image} sizes="(min-width: 1024px) 30vw, 8rem" className="aspect-[4/5]" />
+          <NewsImage
+            image={item.image}
+            sizes="(min-width: 1024px) 30vw, 8rem"
+            className="aspect-[4/5]"
+            quiet
+          />
           <Reveal y={10} className="lg:mt-6">
             <NewsMeta item={item} />
             <div className="mt-2.5 lg:mt-4">{title}</div>
@@ -115,7 +120,7 @@ export function NewsStory({ item, role, readLabel, headingLevel = "h3", priority
           rel="noopener"
           className={`${link} grid grid-cols-[5.5rem_1fr] items-start gap-4 min-[380px]:grid-cols-[6.5rem_1fr] sm:grid-cols-[8rem_1fr] md:grid-cols-[6.5rem_1fr] lg:grid-cols-[5.5rem_1fr] xl:grid-cols-[6.5rem_1fr]`}
         >
-          <NewsImage image={item.image} sizes="8rem" className="aspect-square" />
+          <NewsImage image={item.image} sizes="8rem" className="aspect-square" quiet />
           <Reveal y={10}>
             <NewsMeta item={item} />
             <div className="mt-2.5">{title}</div>

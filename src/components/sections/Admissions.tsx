@@ -6,16 +6,16 @@ import { ArrowRight } from "@/components/ui/icons";
 export function Admissions({ dict }: { dict: Dictionary }) {
   const a = dict.admissions;
   return (
-    <section aria-labelledby="admissions-title" className="relative bg-ivory py-16 md:py-24 lg:py-28">
+    <section aria-labelledby="admissions-title" className="relative bg-ivory py-[var(--section-y)]">
       <div className="wrap">
-        <div className="relative border-y border-gold/50 py-16 md:py-24">
+        <div className="relative border-y border-gold/50 py-10 md:py-16 lg:py-20">
           <div
             aria-hidden
             className="geo pointer-events-none absolute right-0 top-1/2 h-72 w-72 -translate-y-1/2 opacity-30 [mask-image:radial-gradient(closest-side,black,transparent)] md:h-[30rem] md:w-[30rem]"
           />
-          <div className="relative grid gap-10 lg:grid-cols-12 lg:gap-x-16">
+          <div className="relative grid gap-8 lg:grid-cols-12 lg:gap-x-16">
             <div className="lg:col-span-7">
-              <Reveal>
+              <Reveal variant="label">
                 <p className="eyebrow eyebrow-display mb-6 text-gold-deep">{a.eyebrow}</p>
               </Reveal>
               <LineReveal id="admissions-title" lines={a.heading} className="display h-section text-green" />
