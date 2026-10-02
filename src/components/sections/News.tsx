@@ -26,7 +26,7 @@ export function News({ dict }: { dict: Dictionary }) {
   return (
     <section
       aria-labelledby="news-title"
-      className="news-type relative overflow-x-clip rounded-t-[1.75rem] bg-paper pb-[var(--section-y)] shadow-[0_-18px_40px_-24px_rgb(6_18_15/0.45)] md:rounded-t-[2.5rem] lg:rounded-t-[3rem] pt-11 md:pt-14 lg:pb-[calc(var(--section-y)*0.75)] lg:pt-16"
+      className="news-type relative overflow-x-clip bg-paper pb-[var(--section-y)] shadow-[0_-18px_40px_-24px_rgb(6_18_15/0.45)] pt-11 md:pt-14 lg:pb-[calc(var(--section-y)*0.75)] lg:pt-16"
     >
       <div className="wrap">
         <NewsHead id="news-title" eyebrow={news.eyebrow} heading={news.heading} link={news.all} />

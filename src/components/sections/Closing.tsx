@@ -90,7 +90,7 @@ export function Closing({ dict }: { dict: Dictionary }) {
           />
         </motion.div>
 
-        <div className="wrap pb-[clamp(3.5rem,9svh,4.5rem)] pt-[clamp(5.5rem,13svh,6.75rem)] md:pb-0 md:pt-24">
+        <div className="wrap pb-[clamp(3.5rem,9svh,4.5rem)] pt-[clamp(2.25rem,6svh,3rem)] md:pb-0 md:pt-24">
           <article className="max-w-[31rem] md:max-w-[34rem] lg:ml-[4%] lg:max-w-[38rem] xl:max-w-[40rem]">
             <Step ref={openingRef} p={steps.opening} compact={compact}>
               <div className="flex items-center gap-4">
@@ -99,28 +99,28 @@ export function Closing({ dict }: { dict: Dictionary }) {
                   {l.eyebrow}
                 </h2>
               </div>
-              <p className="mt-5 text-[1.125rem] font-light leading-[1.56] text-ivory/95 [text-wrap:pretty] min-[380px]:text-[1.1875rem] md:mt-8 md:text-[1.3125rem] md:leading-[1.6] lg:text-[clamp(1.375rem,0.9rem+0.75vw,1.625rem)]">
+              <p className="mt-5 text-[1.1875rem] font-light leading-[1.55] text-ivory/95 [text-wrap:pretty] min-[380px]:text-[1.25rem] md:mt-8 md:text-[1.3125rem] md:leading-[1.6] lg:text-[clamp(1.375rem,0.9rem+0.75vw,1.625rem)]">
                 {l.paragraphs[0]}
               </p>
             </Step>
 
             <Step ref={secondRef} p={steps.second} compact={compact}>
-              <p className="mt-4 text-[1.125rem] font-light leading-[1.56] text-ivory/95 [text-wrap:pretty] min-[380px]:text-[1.1875rem] md:mt-7 md:text-[1.3125rem] md:leading-[1.6] lg:text-[clamp(1.375rem,0.9rem+0.75vw,1.625rem)]">
+              <p className="mt-4 text-[1.1875rem] font-light leading-[1.55] text-ivory/95 [text-wrap:pretty] min-[380px]:text-[1.25rem] md:mt-7 md:text-[1.3125rem] md:leading-[1.6] lg:text-[clamp(1.375rem,0.9rem+0.75vw,1.625rem)]">
                 {l.paragraphs[1]}
               </p>
             </Step>
 
             <Step ref={signatureRef} p={steps.signature} compact={compact}>
               <footer className="mt-7 md:mt-12 lg:mt-14">
-                <p className="text-[1.125rem] font-light italic text-ivory/85 min-[380px]:text-[1.1875rem] md:text-[1.25rem]">
+                <p className="text-[1.1875rem] font-light italic text-ivory/85 min-[380px]:text-[1.25rem] md:text-[1.25rem]">
                   {l.thanks}
                 </p>
                 <span aria-hidden className="mt-5 block h-px w-12 bg-gold/70 md:mt-8 md:w-16" />
                 <p className="mt-4 md:mt-6">
-                  <span className="block text-[0.8125rem] font-normal tracking-[0.04em] text-ivory/70 md:text-[0.875rem]">
+                  <span className="block text-[0.875rem] font-normal tracking-[0.04em] text-ivory/70">
                     {l.role}
                   </span>
-                  <span className="display mt-1.5 block text-[clamp(1.75rem,1.3rem+1.6vw,2.625rem)] font-normal leading-[1.1] tracking-[-0.01em] text-gold-soft">
+                  <span className="display mt-1.5 block text-[clamp(1.875rem,1.4rem+1.6vw,2.625rem)] font-normal leading-[1.1] tracking-[-0.01em] text-gold-soft">
                     {l.name}
                   </span>
                 </p>
