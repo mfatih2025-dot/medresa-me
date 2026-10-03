@@ -9,6 +9,9 @@ import type { Metadata } from "next";
 import { getDictionary } from "@/content";
 import { defaultLocale } from "@/i18n/config";
 
+// The homepage is regenerated at most every 30 minutes (latest Instagram post).
+export const revalidate = 1800;
+
 // Canonical only here: set in the layout it would be inherited by every subpage.
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
