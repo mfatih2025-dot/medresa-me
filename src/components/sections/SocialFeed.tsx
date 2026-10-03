@@ -30,7 +30,8 @@ function toCard(item: SocialItem, dict: Dictionary): SocialCardData {
       dateTime: item.date,
       // A post without a caption/message still gets a line (the platform description).
       text: excerpt(item.text) || socialProfiles[item.platform].text,
-      media: item.media,
+      // A post without any picture keeps the card's photograph (the platform image).
+      media: item.media ?? socialProfiles[item.platform].media,
       action: feed.open.post,
       label: `${platform}: ${feed.open.post}`,
     };
