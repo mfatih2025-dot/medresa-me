@@ -91,7 +91,7 @@ export function SocialStories({
   return (
     <section
       aria-labelledby="feed-title"
-      className="news-type relative bg-ivory pb-[var(--section-y)] pt-[calc(var(--section-y)*0.85)]"
+      className="news-type relative bg-ivory pb-[calc(var(--section-y)*0.85)] pt-[calc(var(--section-y)*0.85)]"
     >
       <div className="wrap">
         <header className="md:grid md:grid-cols-12 md:items-end md:gap-x-8 lg:gap-x-12">
@@ -111,10 +111,10 @@ export function SocialStories({
             </p>
           </Reveal>
         </header>
-        <GoldRule className="mt-8 md:mt-10" />
+        <GoldRule className="mt-7 md:mt-9" />
       </div>
 
-      <Reveal y={18} className="mt-10 md:mt-12">
+      <Reveal y={18} className="mt-8 md:mt-10">
         {/* The track: full bleed to the right edge, content aligned with the page grid on the left. */}
         <ul
           ref={track}
@@ -125,7 +125,7 @@ export function SocialStories({
             <li
               key={card.platform}
               aria-label={`${i + 1} / ${count}`}
-              className="w-[62vw] max-w-[17.5rem] shrink-0 snap-start md:w-[40vw] md:max-w-[22rem] lg:w-[min(40rem,46vw)] lg:max-w-none"
+              className="w-[50vw] max-w-[14rem] shrink-0 snap-start md:w-[32vw] md:max-w-[17.5rem] lg:w-[min(32rem,38vw)] lg:max-w-none"
             >
               <Story card={card} index={i} />
             </li>
@@ -134,7 +134,7 @@ export function SocialStories({
       </Reveal>
 
       {count > 1 && scrollable && (
-        <div className="wrap mt-6 flex items-center justify-between gap-6 md:mt-8">
+        <div className="wrap mt-5 flex items-center justify-between gap-6 md:mt-6">
           <div className="flex items-center gap-4 text-[0.8125rem] tabular-nums text-ink-soft">
             <span aria-live="polite">
               <span className="text-green">{String(active + 1).padStart(2, "0")}</span> /{" "}
@@ -201,18 +201,18 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
         className="group flex h-full flex-col overflow-hidden rounded-[4px] bg-paper lg:grid lg:grid-cols-[1.45fr_1fr]"
       >
         {card.media && (
-          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[17.5rem]">
+          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[14rem]">
             <Image
               src={card.media.src}
               alt={card.media.alt}
               fill
               priority={false}
-              sizes="(min-width: 1024px) 24rem, (min-width: 768px) 40vw, 62vw"
+              sizes="(min-width: 1024px) 19rem, (min-width: 768px) 32vw, 50vw"
               className="object-cover transition-[scale] duration-[800ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.025] motion-reduce:group-hover:scale-100"
             />
           </div>
         )}
-        <div className="flex flex-1 flex-col px-4 pb-3 pt-4 md:px-5 md:pb-4 md:pt-5 lg:justify-between lg:px-6 lg:py-6">
+        <div className="flex flex-1 flex-col px-3.5 pb-2.5 pt-3.5 md:px-4 md:pb-3 md:pt-4 lg:justify-between lg:px-5 lg:py-5">
           <div>
             <p className="flex items-center gap-2 text-[0.75rem] text-ink-soft">
               <PlatformIcon platform={card.platform} />
@@ -227,8 +227,8 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
             <p
               className={`news-excerpt mt-2 line-clamp-3 font-medium leading-[1.3] tracking-[-0.01em] text-green [text-wrap:pretty] md:mt-2.5 lg:line-clamp-4 ${
                 index === 0
-                  ? "text-[1.0625rem] md:text-[1.125rem] lg:text-[1.25rem]"
-                  : "text-[1.0625rem] md:text-[1.125rem] lg:text-[1.25rem]"
+                  ? "text-[1rem] md:text-[1.0625rem] lg:text-[1.125rem]"
+                  : "text-[1rem] md:text-[1.0625rem] lg:text-[1.125rem]"
               }`}
             >
               {card.text}
