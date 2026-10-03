@@ -109,7 +109,6 @@ async function resolvePage(token: string) {
       ok: false as const,
       reason: `user token, but no Medresa Page among ${pages.length} Page(s)`,
       me,
-      candidates: pages.map((p) => ({ id: p.id, name: p.name, username: p.username })),
     };
   }
   return {
@@ -132,8 +131,7 @@ async function newestPost() {
   const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!token) return { reason: "FACEBOOK_PAGE_ACCESS_TOKEN is not set" } as const;
   const page = await resolvePage(token);
-  if (!page.ok)
-    return { reason: page.reason, candidates: "candidates" in page ? page.candidates : undefined } as const;
+  if (!page.ok) return { reason: page.reason } as const;
   // published_posts: the Page's own published posts, newest first.
   const posts = await graph<{ data?: Post[] }>(
     `/${page.id}/published_posts?fields=${encodeURIComponent(POST_FIELDS)}&limit=5`,
@@ -175,30 +173,5 @@ export async function latestFacebookPost(): Promise<SocialPost | null> {
       ? { src: picture, alt: "Najnovija objava Medrese „Mehmed Fatih“ na Facebooku" }
       : undefined,
     source: "meta",
-  };
-}
-
-/**
- * Non-secret diagnostics (Page, newest post, failure reason) for verifying the
- * production setup. Never includes a token or a request URL.
- */
-export async function facebookDiagnostics() {
-  const r = await newestPost();
-  const p = "newest" in r ? r.newest : undefined;
-  return {
-    page: "page" in r && r.page ? { id: r.page.id, name: r.page.name, tokenType: r.page.tokenType } : null,
-    newest: p
-      ? {
-          id: p.id,
-          created_time: p.created_time,
-          status_type: p.status_type,
-          attachment_type: p.attachments?.data?.[0]?.type,
-          media_found: Boolean(pictureOf(p)),
-          has_text: Boolean(p.message ?? p.story),
-          permalink_url: p.permalink_url,
-        }
-      : null,
-    reason: "reason" in r ? r.reason : null,
-    candidates: "candidates" in r ? r.candidates : undefined,
   };
 }
