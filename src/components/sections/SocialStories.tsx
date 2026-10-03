@@ -114,49 +114,59 @@ export function SocialStories({
         <GoldRule className="mt-7 md:mt-9" />
       </div>
 
-      <Reveal y={18} className="mt-8 md:mt-10">
-        {/* The track: full bleed to the right edge, content aligned with the page grid on the left. */}
-        <ul
-          ref={track}
-          aria-label={copy.heading}
-          className="social-track flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pl-[var(--track-pad)] pr-[var(--gutter)] [--track-pad:calc(var(--gutter)+max(0px,(100%-var(--max))/2))] [scroll-padding-inline-start:var(--track-pad)] md:gap-6 lg:gap-8"
-        >
-          {cards.map((card, i) => (
-            <li
-              key={card.platform}
-              aria-label={`${i + 1} / ${count}`}
-              className="w-[50vw] max-w-[14rem] shrink-0 snap-start md:w-[32vw] md:max-w-[17.5rem] lg:w-[min(32rem,38vw)] lg:max-w-none"
+      {/* The carousel as one self-contained object: a narrower frame centred in the
+          page, clipping the track so the next story peeks in at its own right edge. */}
+      <div className="wrap">
+        <div className="mx-auto w-[84%] md:w-full md:max-w-[38rem] lg:max-w-[56rem]">
+          <Reveal y={18} className="mt-8 md:mt-10">
+            <ul
+              ref={track}
+              aria-label={copy.heading}
+              className="social-track flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain md:gap-5 lg:gap-6"
             >
-              <Story card={card} index={i} />
-            </li>
-          ))}
-        </ul>
-      </Reveal>
+              {cards.map((card, i) => (
+                <li
+                  key={card.platform}
+                  aria-label={`${i + 1} / ${count}`}
+                  className="w-[84%] shrink-0 snap-start md:w-[78%] lg:w-[82%]"
+                >
+                  <Story card={card} index={i} />
+                </li>
+              ))}
+            </ul>
+          </Reveal>
 
-      {count > 1 && scrollable && (
-        <div className="wrap mt-5 flex items-center justify-between gap-6 md:mt-6">
-          <div className="flex items-center gap-4 text-[0.8125rem] tabular-nums text-ink-soft">
-            <span aria-live="polite">
-              <span className="text-green">{String(active + 1).padStart(2, "0")}</span> /{" "}
-              {String(count).padStart(2, "0")}
-            </span>
-            <span aria-hidden className="relative block h-px w-16 bg-ink/15 md:w-24">
-              <span
-                className="absolute inset-y-0 left-0 block w-full origin-left bg-gold transition-[scale] duration-500 ease-[var(--ease-out-expo)]"
-                style={{ scale: `${(active + 1) / count} 1` }}
-              />
-            </span>
-          </div>
-          <div className="flex gap-2.5">
-            <NavButton label="Prethodna objava" disabled={active === 0} onClick={() => go(active - 1)} back />
-            <NavButton
-              label="Sljedeća objava"
-              disabled={active >= count - 1}
-              onClick={() => go(active + 1)}
-            />
-          </div>
+          {count > 1 && scrollable && (
+            <div className="mt-5 flex items-center justify-between gap-6 md:mt-6">
+              <div className="flex items-center gap-4 text-[0.8125rem] tabular-nums text-ink-soft">
+                <span aria-live="polite">
+                  <span className="text-green">{String(active + 1).padStart(2, "0")}</span> /{" "}
+                  {String(count).padStart(2, "0")}
+                </span>
+                <span aria-hidden className="relative block h-px w-14 bg-ink/15 md:w-24">
+                  <span
+                    className="absolute inset-y-0 left-0 block w-full origin-left bg-gold transition-[scale] duration-500 ease-[var(--ease-out-expo)]"
+                    style={{ scale: `${(active + 1) / count} 1` }}
+                  />
+                </span>
+              </div>
+              <div className="flex gap-2.5">
+                <NavButton
+                  label="Prethodna objava"
+                  disabled={active === 0}
+                  onClick={() => go(active - 1)}
+                  back
+                />
+                <NavButton
+                  label="Sljedeća objava"
+                  disabled={active >= count - 1}
+                  onClick={() => go(active + 1)}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -201,20 +211,20 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
         className="group flex h-full flex-col overflow-hidden rounded-[4px] bg-paper lg:grid lg:grid-cols-[1.45fr_1fr]"
       >
         {card.media && (
-          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[14rem]">
+          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[17.5rem]">
             <Image
               src={card.media.src}
               alt={card.media.alt}
               fill
               priority={false}
-              sizes="(min-width: 1024px) 19rem, (min-width: 768px) 32vw, 50vw"
+              sizes="(min-width: 1024px) 27rem, (min-width: 768px) 30rem, 64vw"
               className="object-cover transition-[scale] duration-[800ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.025] motion-reduce:group-hover:scale-100"
             />
           </div>
         )}
-        <div className="flex flex-1 flex-col px-3.5 pb-2.5 pt-3.5 md:px-4 md:pb-3 md:pt-4 lg:justify-between lg:px-5 lg:py-5">
+        <div className="flex flex-1 flex-col px-4 pb-3 pt-4 md:px-5 md:pb-4 md:pt-5 lg:justify-between lg:px-6 lg:py-6">
           <div>
-            <p className="flex items-center gap-2 text-[0.75rem] text-ink-soft">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75rem] text-ink-soft">
               <PlatformIcon platform={card.platform} />
               <span className="font-medium uppercase tracking-[0.16em] text-gold-deep">
                 {card.platformLabel}
@@ -222,19 +232,25 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
               <span aria-hidden className="text-gold">
                 ·
               </span>
-              {card.dateTime ? <time dateTime={card.dateTime}>{card.meta}</time> : <span>{card.meta}</span>}
+              {card.dateTime ? (
+                <time dateTime={card.dateTime} className="whitespace-nowrap">
+                  {card.meta}
+                </time>
+              ) : (
+                <span className="whitespace-nowrap">{card.meta}</span>
+              )}
             </p>
             <p
               className={`news-excerpt mt-2 line-clamp-3 font-medium leading-[1.3] tracking-[-0.01em] text-green [text-wrap:pretty] md:mt-2.5 lg:line-clamp-4 ${
                 index === 0
-                  ? "text-[1rem] md:text-[1.0625rem] lg:text-[1.125rem]"
-                  : "text-[1rem] md:text-[1.0625rem] lg:text-[1.125rem]"
+                  ? "text-[1.0625rem] md:text-[1.1875rem] lg:text-[1.25rem]"
+                  : "text-[1.0625rem] md:text-[1.1875rem] lg:text-[1.25rem]"
               }`}
             >
               {card.text}
             </p>
           </div>
-          <span className="mt-2 inline-flex min-h-11 items-center gap-2 text-[0.8125rem] font-medium text-green lg:mt-4">
+          <span className="mt-2 inline-flex min-h-11 items-center gap-2 text-[0.875rem] font-medium text-green lg:mt-4">
             <span className="link-u">{card.action}</span>
             <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
           </span>
