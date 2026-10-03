@@ -266,6 +266,12 @@ button,
     --logo: 8.415rem;
   }
 }
+/* Wider than the page container: the pill spans the content width, not the whole screen. */
+@media (min-width: 1600px) {
+  .medresa-header {
+    --bar-inset: max(2.75rem, calc((100vw - var(--max)) / 2 + var(--gutter) - 1.5rem));
+  }
+}
 .header-bg,
 .header-row {
   position: absolute;

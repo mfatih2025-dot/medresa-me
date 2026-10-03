@@ -144,7 +144,7 @@ function Tile({
   return (
     <div
       role="listitem"
-      className={`w-[max(7rem,calc((100vw-2*var(--gutter))/2.7))] shrink-0 min-[400px]:w-[calc((100vw-2*var(--gutter))/2.8)] min-[420px]:w-[calc((100vw-2*var(--gutter))/3)] md:w-[calc((100vw-2*var(--gutter))/3.85)] lg:w-[min(14rem,calc((min(100vw,var(--max))-2*var(--gutter))/5.2))] ${offset}`}
+      className={`w-[max(7rem,calc((100vw-2*var(--gutter))/2.7))] shrink-0 min-[400px]:w-[calc((100vw-2*var(--gutter))/2.8)] min-[420px]:w-[calc((100vw-2*var(--gutter))/3)] md:w-[calc((100vw-2*var(--gutter))/4.6)] lg:w-[min(12rem,calc((min(100vw,var(--max))-2*var(--gutter))/6))] ${offset}`}
     >
       <a
         href={item.href}
@@ -161,7 +161,7 @@ function Tile({
             alt={item.image.alt}
             fill
             draggable={false}
-            sizes="(min-width: 1024px) 14rem, (min-width: 768px) 25vw, 37vw"
+            sizes="(min-width: 1024px) 12rem, (min-width: 768px) 22vw, 37vw"
             className="object-cover transition-[scale] duration-[700ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.045] motion-reduce:group-hover:scale-100"
           />
         </div>

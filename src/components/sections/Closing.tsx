@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion, useMotionValue, useTransform, type MotionValue } from "framer-motion";
-import { useRef, useSyncExternalStore, type ReactNode, type Ref } from "react";
+import { useRef, type ReactNode, type Ref } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -36,38 +36,22 @@ export function Closing({ dict }: { dict: Dictionary }) {
   const scale = useTransform(pass, [0, 0.6], [1.22, 1.04]);
   const y = useTransform(pass, [0, 1], ["-6%", "8%"]);
 
-  // Letter: arrival (section top rising to the viewport top), then the held stage.
-  const arrive = useScrollProgress(ref, ["start end", "start start"]);
-  const hold = useScrollProgress(ref, ["start start", "end end"]);
+  // The section is as tall as the letter on every screen (no held stage): each part
+  // settles as it rises into the lower part of the viewport.
   const done = useMotionValue(1);
-
-  const opening = useStep(arrive, 0.5, 0.95);
-  const second = useStep(hold, 0.06, 0.3);
-  const signature = useStep(hold, 0.34, 0.58);
-
-  // Phones: no held stage — the section is as tall as the letter, and each part
-  // settles as it rises into the lower third of the screen.
-  const phone = usePhone();
   const openingRef = useRef<HTMLDivElement>(null);
   const secondRef = useRef<HTMLDivElement>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
   const openingIn = useStep(useScrollProgress(openingRef, ["start end", "start 62%"]), 0, 1);
   const secondIn = useStep(useScrollProgress(secondRef, ["start end", "start 66%"]), 0, 1);
-  const signatureIn = useStep(useScrollProgress(signatureRef, ["start end", "start 72%"]), 0, 1);
-
+  const signatureIn = useStep(useScrollProgress(signatureRef, ["start end", "start 74%"]), 0, 1);
   const steps = reduced
     ? { opening: done, second: done, signature: done }
-    : phone
-      ? { opening: openingIn, second: secondIn, signature: signatureIn }
-      : { opening, second, signature };
+    : { opening: openingIn, second: secondIn, signature: signatureIn };
 
   return (
-    <section
-      ref={ref}
-      aria-labelledby="director-title"
-      className="relative bg-green-deep text-ivory md:h-[190svh] lg:h-[200svh] md:motion-reduce:h-auto lg:motion-reduce:h-auto"
-    >
-      <div className="relative isolate overflow-hidden md:sticky md:top-0 md:flex md:h-svh md:min-h-[36rem] md:items-center md:motion-reduce:relative md:motion-reduce:h-auto md:motion-reduce:py-28">
+    <section ref={ref} aria-labelledby="director-title" className="relative bg-green-deep text-ivory">
+      <div className="relative isolate overflow-hidden">
         <motion.div
           className="absolute inset-0 -z-10 overflow-hidden will-change-transform"
           style={reduced ? undefined : { scaleX: frameX, scaleY: frameY }}
@@ -90,7 +74,7 @@ export function Closing({ dict }: { dict: Dictionary }) {
               />
             </motion.div>
             {/* Only what the text needs: an even green veil, deeper where the letter sits
-              (top to bottom on phones, where the letter fills the section; the left column from tablet up). */}
+              (top to bottom on phones; from tablet up the left columns, leaving the minaret clear). */}
             <div aria-hidden className="absolute inset-0 bg-[rgb(10_42_33/0.2)] md:bg-[rgb(10_42_33/0.34)]" />
             <div
               aria-hidden
@@ -99,7 +83,7 @@ export function Closing({ dict }: { dict: Dictionary }) {
           </motion.div>
         </motion.div>
 
-        <div className="wrap pb-[clamp(3.5rem,9svh,4.5rem)] pt-[clamp(2.25rem,6svh,3rem)] md:pb-0 md:pt-24">
+        <div className="wrap pb-[clamp(3.5rem,9svh,4.5rem)] pt-[clamp(2.25rem,6svh,3rem)] md:py-24 lg:py-28 xl:py-32">
           <article className="max-w-[31rem] md:max-w-[34rem] lg:ml-[4%] lg:max-w-[38rem] xl:max-w-[40rem]">
             <Step ref={openingRef} p={steps.opening} compact={compact}>
               <div className="flex items-center gap-4">
@@ -177,20 +161,5 @@ function Step({
     <motion.div ref={ref} className="will-change-[transform,opacity]" style={{ opacity: p, y, filter }}>
       {children}
     </motion.div>
-  );
-}
-
-const PHONE = "(max-width: 767px)";
-const subscribe = (cb: () => void) => {
-  const mq = window.matchMedia(PHONE);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-};
-/** Layout-matching phone check (the md breakpoint), known after hydration. */
-function usePhone() {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(PHONE).matches,
-    () => false,
   );
 }

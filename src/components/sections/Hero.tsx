@@ -92,7 +92,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
       />
 
       {/* Identity, in the haze beneath the logo. */}
-      <div className="absolute inset-x-[var(--gutter)] top-[clamp(8.5rem,17svh,11rem)] md:top-[clamp(12rem,19svh,14.5rem)] lg:top-[clamp(11.5rem,22svh,15rem)]">
+      <div className="absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] top-[clamp(8.5rem,17svh,11rem)] md:top-[clamp(12rem,19svh,14.5rem)] lg:top-[clamp(11.5rem,22svh,15rem)]">
         {/* The group takes the name's width, so the top line spans exactly the name. */}
         <h1 id="hero-title" className="w-fit max-w-full text-green-deep">
           <motion.span
@@ -142,7 +142,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
 
       {/* Admissions results: dark glass over the lower photograph. */}
       <motion.div
-        className="absolute inset-x-[var(--gutter)] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] md:right-auto md:w-[26rem] lg:bottom-[clamp(2rem,6svh,3.5rem)] lg:w-[28rem]"
+        className="absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] md:right-auto md:w-[26rem] lg:bottom-[clamp(2rem,6svh,3.5rem)] lg:w-[28rem]"
         style={still ? undefined : { y: glassY, opacity: glassOpacity }}
       >
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={t(1.1, 1.1)}>
