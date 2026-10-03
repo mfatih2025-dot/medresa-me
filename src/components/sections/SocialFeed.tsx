@@ -1,4 +1,5 @@
 import type { Dictionary } from "@/content";
+import { socialProfiles } from "@/content/social";
 import { getLatestSocial, type SocialItem } from "@/lib/social";
 import { SocialStories, type SocialCardData } from "./SocialStories";
 
@@ -27,7 +28,8 @@ function toCard(item: SocialItem, dict: Dictionary): SocialCardData {
       url: item.url,
       meta: dateFormat.format(new Date(item.date)),
       dateTime: item.date,
-      text: excerpt(item.text),
+      // A post without a caption/message still gets a line (the platform description).
+      text: excerpt(item.text) || socialProfiles[item.platform].text,
       media: item.media,
       action: feed.open.post,
       label: `${platform}: ${feed.open.post}`,
