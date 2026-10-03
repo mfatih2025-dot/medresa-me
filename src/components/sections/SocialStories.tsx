@@ -41,6 +41,8 @@ export function SocialStories({
 }) {
   const track = useRef<HTMLUListElement>(null);
   const [active, setActive] = useState(0);
+  // Controls only when the cards do not all fit (e.g. not on a tablet showing both).
+  const [scrollable, setScrollable] = useState(true);
   const count = cards.length;
 
   useEffect(() => {
@@ -69,7 +71,10 @@ export function SocialStories({
       if (!frame) frame = requestAnimationFrame(update);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(() => setScrollable(el.scrollWidth > el.clientWidth + 2));
+    ro.observe(el);
     return () => {
+      ro.disconnect();
       el.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(frame);
     };
@@ -114,13 +119,13 @@ export function SocialStories({
         <ul
           ref={track}
           aria-label={copy.heading}
-          className="social-track flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pl-[var(--track-pad)] pr-[var(--gutter)] [--track-pad:calc(var(--gutter)+max(0px,(100%-var(--max))/2))] [scroll-padding-inline-start:var(--track-pad)] md:gap-6 lg:gap-8"
+          className="social-track flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pl-[var(--track-pad)] pr-[var(--gutter)] [--track-pad:calc(var(--gutter)+max(0px,(100%-var(--max))/2))] [scroll-padding-inline-start:var(--track-pad)] md:gap-6 lg:gap-8"
         >
           {cards.map((card, i) => (
             <li
               key={card.platform}
               aria-label={`${i + 1} / ${count}`}
-              className="w-[82vw] max-w-[30rem] shrink-0 snap-start md:w-[64vw] md:max-w-none lg:w-[min(60rem,66vw)]"
+              className="w-[62vw] max-w-[17.5rem] shrink-0 snap-start md:w-[40vw] md:max-w-[22rem] lg:w-[min(40rem,46vw)] lg:max-w-none"
             >
               <Story card={card} index={i} />
             </li>
@@ -128,7 +133,7 @@ export function SocialStories({
         </ul>
       </Reveal>
 
-      {count > 1 && (
+      {count > 1 && scrollable && (
         <div className="wrap mt-6 flex items-center justify-between gap-6 md:mt-8">
           <div className="flex items-center gap-4 text-[0.8125rem] tabular-nums text-ink-soft">
             <span aria-live="polite">
@@ -196,18 +201,18 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
         className="group flex h-full flex-col overflow-hidden rounded-[4px] bg-paper lg:grid lg:grid-cols-[1.45fr_1fr]"
       >
         {card.media && (
-          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[26rem]">
+          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[17.5rem]">
             <Image
               src={card.media.src}
               alt={card.media.alt}
               fill
               priority={false}
-              sizes="(min-width: 1024px) 36rem, (min-width: 768px) 64vw, 82vw"
+              sizes="(min-width: 1024px) 24rem, (min-width: 768px) 40vw, 62vw"
               className="object-cover transition-[scale] duration-[800ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.025] motion-reduce:group-hover:scale-100"
             />
           </div>
         )}
-        <div className="flex flex-1 flex-col px-5 pb-5 pt-5 md:px-7 md:pb-6 md:pt-6 lg:justify-between lg:px-9 lg:py-9">
+        <div className="flex flex-1 flex-col px-4 pb-3 pt-4 md:px-5 md:pb-4 md:pt-5 lg:justify-between lg:px-6 lg:py-6">
           <div>
             <p className="flex items-center gap-2 text-[0.75rem] text-ink-soft">
               <PlatformIcon platform={card.platform} />
@@ -220,16 +225,16 @@ function Story({ card, index }: { card: SocialCardData; index: number }) {
               {card.dateTime ? <time dateTime={card.dateTime}>{card.meta}</time> : <span>{card.meta}</span>}
             </p>
             <p
-              className={`news-excerpt mt-3 line-clamp-4 font-medium leading-[1.3] tracking-[-0.01em] text-green [text-wrap:pretty] md:mt-4 lg:line-clamp-5 ${
+              className={`news-excerpt mt-2 line-clamp-3 font-medium leading-[1.3] tracking-[-0.01em] text-green [text-wrap:pretty] md:mt-2.5 lg:line-clamp-4 ${
                 index === 0
-                  ? "text-[1.25rem] md:text-[1.5rem] lg:text-[1.625rem]"
-                  : "text-[1.25rem] md:text-[1.375rem] lg:text-[1.5rem]"
+                  ? "text-[1.0625rem] md:text-[1.125rem] lg:text-[1.25rem]"
+                  : "text-[1.0625rem] md:text-[1.125rem] lg:text-[1.25rem]"
               }`}
             >
               {card.text}
             </p>
           </div>
-          <span className="mt-4 inline-flex min-h-11 items-center gap-2 text-[0.875rem] font-medium text-green lg:mt-8">
+          <span className="mt-2 inline-flex min-h-11 items-center gap-2 text-[0.8125rem] font-medium text-green lg:mt-4">
             <span className="link-u">{card.action}</span>
             <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
           </span>
