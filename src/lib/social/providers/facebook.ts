@@ -52,13 +52,12 @@ const POST_FIELDS =
 
 type Result<T> = { ok: true; data: T } | { ok: false; status: number; error?: GraphError };
 
-async function graph<T>(path: string, token: string, fresh = false): Promise<Result<T>> {
+async function graph<T>(path: string, token: string): Promise<Result<T>> {
   const sep = path.includes("?") ? "&" : "?";
   try {
-    const res = await fetch(
-      `${API}${path}${sep}access_token=${encodeURIComponent(token)}`,
-      fresh ? { cache: "no-store" } : { next: { revalidate: REVALIDATE, tags: ["facebook"] } },
-    );
+    const res = await fetch(`${API}${path}${sep}access_token=${encodeURIComponent(token)}`, {
+      next: { revalidate: REVALIDATE, tags: ["facebook"] },
+    });
     const body = (await res.json()) as T & { error?: GraphError };
     if (!res.ok || body.error) return { ok: false, status: res.status, error: body.error };
     return { ok: true, data: body };
@@ -77,57 +76,28 @@ function pictureOf(p: Post): string | undefined {
   return a?.media?.image?.src ?? a?.subattachments?.data?.[0]?.media?.image?.src;
 }
 
-/** Meta's error without anything token-like (Meta does not echo tokens; this is belt and braces). */
-function sanitize(r: { status: number; error?: GraphError }, token: string) {
-  const msg = (r.error?.message ?? "")
-    .split(token)
-    .join("[token]")
-    .replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]");
-  return {
-    http: r.status,
-    code: r.error?.code ?? null,
-    subcode: r.error?.error_subcode ?? null,
-    type: r.error?.type ?? null,
-    message: msg || null,
-  };
-}
-
-type Step = { ok: boolean; error?: ReturnType<typeof sanitize> };
-
-async function newestPost(fresh = false) {
+async function newestPost() {
   const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!token) return { reason: "FACEBOOK_PAGE_ACCESS_TOKEN is not set" } as const;
 
   // 1. The Page itself (and, for a user token, the Page's own token).
-  const page = await graph<{ id?: string; name?: string; access_token?: string }>(
-    `/${PAGE_ID}?fields=id,name,access_token`,
-    token,
-    fresh,
-  );
-  const pageStep: Step = page.ok ? { ok: true } : { ok: false, error: sanitize(page, token) };
-  const info = page.ok
-    ? { id: page.data.id ?? PAGE_ID, name: page.data.name ?? "" }
-    : { id: PAGE_ID, name: "" };
+  const page = await graph<{ access_token?: string }>(`/${PAGE_ID}?fields=id,name,access_token`, token);
   const pageToken = page.ok && page.data.access_token ? page.data.access_token : token;
-  const derived = pageToken !== token;
 
   // 2. Its newest published posts.
   const posts = await graph<{ data?: Post[] }>(
     `/${PAGE_ID}/published_posts?fields=${encodeURIComponent(POST_FIELDS)}&limit=5`,
     pageToken,
-    fresh,
   );
-  const postsStep: Step = posts.ok ? { ok: true } : { ok: false, error: sanitize(posts, pageToken) };
-  const steps = { page: pageStep, pageTokenDerived: derived, posts: postsStep };
-  if (!posts.ok) return { info, steps, reason: `posts request failed: ${describe(posts)}` } as const;
+  if (!posts.ok) return { reason: `posts request failed: ${describe(posts)}` } as const;
 
   const list = Array.isArray(posts.data.data) ? posts.data.data : [];
   // Sort defensively by date (the API returns newest first) and take the newest.
   const newest = [...list]
     .filter((p) => p.created_time)
     .sort((a, b) => Date.parse(b.created_time!) - Date.parse(a.created_time!))[0];
-  if (!newest) return { info, steps, reason: "no published posts returned" } as const;
-  return { info, steps, newest } as const;
+  if (!newest) return { reason: "no published posts returned" } as const;
+  return { newest } as const;
 }
 
 export async function latestFacebookPost(): Promise<SocialPost | null> {
@@ -156,30 +126,5 @@ export async function latestFacebookPost(): Promise<SocialPost | null> {
       ? { src: picture, alt: "Najnovija objava Medrese „Mehmed Fatih“ na Facebooku" }
       : undefined,
     source: "meta",
-  };
-}
-
-/**
- * Non-secret status for verifying production: the Page, whether it and its
- * posts are readable (with Meta's sanitized error if not) and the newest post.
- * Never a token (neither the configured nor a derived one) or a request URL.
- */
-export async function facebookStatus() {
-  const r = await newestPost(true);
-  const p = "newest" in r ? r.newest : undefined;
-  return {
-    page: "info" in r ? r.info : null,
-    steps: "steps" in r ? r.steps : null,
-    newest: p
-      ? {
-          id: p.id,
-          created_time: p.created_time,
-          status_type: p.status_type,
-          attachment_type: p.attachments?.data?.[0]?.type,
-          media_found: Boolean(pictureOf(p)),
-          permalink_url: p.permalink_url,
-        }
-      : null,
-    reason: "reason" in r ? r.reason : null,
   };
 }
