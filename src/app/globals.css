@@ -654,3 +654,12 @@ dialog::backdrop {
     display: none;
   }
 }
+
+/* ---------- Medresa iz dana u dan: editorial carousel ---------- */
+.social-track {
+  scrollbar-width: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.social-track::-webkit-scrollbar {
+  display: none;
+}

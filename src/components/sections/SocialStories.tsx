@@ -1,11 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useTransform } from "framer-motion";
-import { useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Platform, SocialMedia } from "@/lib/social/types";
-import { useMotionProfile } from "@/hooks/useMotionProfile";
-import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { GoldRule } from "@/components/news/NewsMotion";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { ArrowRight } from "@/components/ui/icons";
@@ -23,22 +20,17 @@ export type SocialCardData = {
   label: string;
 };
 
-const ease = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
-
 /**
- * Medresa iz dana u dan: the two latest stories (Instagram first, Facebook
- * second) as one layered editorial composition.
+ * Medresa iz dana u dan: the latest stories (Instagram first, then Facebook) as
+ * an editorial carousel. The track is the browser's own horizontal scroller with
+ * snap points — native swipe, momentum and trackpad on every device; the arrow
+ * buttons scroll it with the platform's smooth scrolling. The active card fills
+ * most of the width and the next one peeks in from the right edge of the page.
+ * React state changes only when the active card changes, never per frame.
  *
- * Phones: a short pinned stage. The Instagram story lies on top of the deck
- * with the Facebook story peeking out beneath it; as the page scrolls the top
- * story lifts away and the Facebook story rises into its place. About 60% of a
- * screen of scroll — the page is never held beyond that.
- * Tablet/desktop: no pinning. The Facebook story is a wide panel set back at
- * the upper right; the Instagram story stands in front of its photograph at the
- * lower left. As the composition enters, the back panel slides out from under
- * the front one.
- * Transform/opacity only, driven by scroll MotionValues (no React state).
- * Reduced motion: both stories shown in place, without overlap on phones.
+ * Phones: tall cards (photo 4:5) at ~84% of the screen.
+ * Tablet: wider cards (photo 3:2).
+ * Desktop: each card is a wide panel, photograph left and text right, ~60rem.
  */
 export function SocialStories({
   copy,
@@ -47,44 +39,56 @@ export function SocialStories({
   copy: { eyebrow: string; heading: string; lead: string };
   cards: SocialCardData[];
 }) {
-  const [front, back] = cards;
-  const { reduced } = useMotionProfile();
-  const phone = usePhone();
+  const track = useRef<HTMLUListElement>(null);
+  const [active, setActive] = useState(0);
+  const count = cards.length;
 
-  // Phones: progress through the pinned track.
-  const track = useRef<HTMLDivElement>(null);
-  const t = useTransform(useScrollProgress(track, ["start start", "end end"]), [0.08, 0.9], [0, 1], {
-    ease,
-  });
-  const frontY = useTransform(t, [0, 1], ["0%", "-108%"]);
-  const frontScale = useTransform(t, [0, 1], [1, 0.94]);
-  const frontOpacity = useTransform(t, [0.55, 1], [1, 0]);
-  const frontEvents = useTransform(t, (v) => (v > 0.6 ? "none" : "auto"));
-  const backY = useTransform(t, [0, 1], ["15%", "0%"]);
-  const backScale = useTransform(t, [0, 1], [0.92, 1]);
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const items = [...el.children] as HTMLElement[];
+      const max = el.scrollWidth - el.clientWidth;
+      // At the end of the track the last card is active even if it cannot reach the start edge.
+      const index =
+        el.scrollLeft >= max - 4
+          ? items.length - 1
+          : items.reduce(
+              (best, item, i) =>
+                Math.abs(item.offsetLeft - el.offsetLeft - el.scrollLeft - pad(el)) <
+                Math.abs(items[best].offsetLeft - el.offsetLeft - el.scrollLeft - pad(el))
+                  ? i
+                  : best,
+              0,
+            );
+      setActive((prev) => (prev === index ? prev : index));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
-  // Tablet/desktop: progress while the composition rises into view.
-  const comp = useRef<HTMLDivElement>(null);
-  const d = useTransform(useScrollProgress(comp, ["start end", "center 55%"]), [0, 1], [0, 1], { ease });
-  const wideFrontY = useTransform(d, [0, 1], [56, 0]);
-  const wideBackX = useTransform(d, [0, 1], ["-16%", "0%"]);
-  const wideBackY = useTransform(d, [0, 1], [28, 0]);
-  const wideBackScale = useTransform(d, [0, 1], [0.96, 1]);
-
-  const frontStyle = reduced
-    ? undefined
-    : phone
-      ? { y: frontY, scale: frontScale, opacity: frontOpacity, pointerEvents: frontEvents }
-      : { y: wideFrontY };
-  const backStyle = reduced
-    ? undefined
-    : phone
-      ? { y: backY, scale: backScale }
-      : { x: wideBackX, y: wideBackY, scale: wideBackScale };
+  const go = (index: number) => {
+    const el = track.current;
+    const item = el?.children[index] as HTMLElement | undefined;
+    if (!el || !item) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ left: item.offsetLeft - el.offsetLeft - pad(el), behavior: reduce ? "auto" : "smooth" });
+  };
 
   return (
-    <section aria-labelledby="feed-title" className="news-type relative bg-ivory">
-      <div className="wrap pt-[calc(var(--section-y)*0.85)]">
+    <section
+      aria-labelledby="feed-title"
+      className="news-type relative bg-ivory pb-[var(--section-y)] pt-[calc(var(--section-y)*0.85)]"
+    >
+      <div className="wrap">
         <header className="md:grid md:grid-cols-12 md:items-end md:gap-x-8 lg:gap-x-12">
           <div className="md:col-span-7">
             <Reveal variant="label">
@@ -102,114 +106,130 @@ export function SocialStories({
             </p>
           </Reveal>
         </header>
-        <GoldRule className="mt-7 md:mt-10 lg:mt-12" />
+        <GoldRule className="mt-8 md:mt-10" />
       </div>
 
-      {/* Phones: the pinned track. From tablet up it is an ordinary block. */}
-      <div ref={track} className="relative h-[160svh] motion-reduce:h-auto md:h-auto">
-        <div className="sticky top-0 flex h-svh items-center overflow-hidden pt-14 motion-reduce:static motion-reduce:h-auto motion-reduce:overflow-visible motion-reduce:py-8 md:static md:block md:h-auto md:overflow-visible md:pb-[var(--section-y)] md:pt-10 lg:pt-14">
-          <div className="wrap w-full">
-            <div
-              ref={comp}
-              className="mx-auto grid max-w-[34rem] pb-[18%] md:mx-0 motion-reduce:gap-y-8 motion-reduce:pb-0 md:max-w-[82rem] md:grid-cols-12 md:gap-x-6 md:pb-0 motion-reduce:md:gap-y-0"
+      <Reveal y={18} className="mt-10 md:mt-12">
+        {/* The track: full bleed to the right edge, content aligned with the page grid on the left. */}
+        <ul
+          ref={track}
+          aria-label={copy.heading}
+          className="social-track flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pl-[var(--track-pad)] pr-[var(--gutter)] [--track-pad:calc(var(--gutter)+max(0px,(100%-var(--max))/2))] [scroll-padding-inline-start:var(--track-pad)] md:gap-6 lg:gap-8"
+        >
+          {cards.map((card, i) => (
+            <li
+              key={card.platform}
+              aria-label={`${i + 1} / ${count}`}
+              className="w-[82vw] max-w-[30rem] shrink-0 snap-start md:w-[64vw] md:max-w-none lg:w-[min(60rem,66vw)]"
             >
-              {back && (
-                <motion.div
-                  className="relative z-0 will-change-transform [grid-area:1/1] md:self-start motion-reduce:[grid-area:auto] md:col-start-4 md:col-end-13 md:row-start-1 lg:col-start-5"
-                  style={backStyle}
-                >
-                  <Story card={back} wide />
-                </motion.div>
-              )}
-              {front && (
-                <motion.div
-                  className="relative z-10 will-change-transform [grid-area:1/1] md:self-start motion-reduce:row-start-1 motion-reduce:[grid-area:auto] md:col-start-1 md:col-end-8 md:row-start-1 md:mt-[22%] lg:col-end-7 lg:mt-[18%]"
-                  style={frontStyle}
-                >
-                  <Story card={front} primary />
-                </motion.div>
-              )}
-            </div>
+              <Story card={card} index={i} />
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+
+      {count > 1 && (
+        <div className="wrap mt-6 flex items-center justify-between gap-6 md:mt-8">
+          <div className="flex items-center gap-4 text-[0.8125rem] tabular-nums text-ink-soft">
+            <span aria-live="polite">
+              <span className="text-green">{String(active + 1).padStart(2, "0")}</span> /{" "}
+              {String(count).padStart(2, "0")}
+            </span>
+            <span aria-hidden className="relative block h-px w-16 bg-ink/15 md:w-24">
+              <span
+                className="absolute inset-y-0 left-0 block w-full origin-left bg-gold transition-[scale] duration-500 ease-[var(--ease-out-expo)]"
+                style={{ scale: `${(active + 1) / count} 1` }}
+              />
+            </span>
+          </div>
+          <div className="flex gap-2.5">
+            <NavButton label="Prethodna objava" disabled={active === 0} onClick={() => go(active - 1)} back />
+            <NavButton
+              label="Sljedeća objava"
+              disabled={active >= count - 1}
+              onClick={() => go(active + 1)}
+            />
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
 
-/**
- * One story as an editorial panel: photograph, quiet metadata, excerpt, link.
- * `wide` (the story set back) lays out photograph | text side by side from
- * tablet up, so its text stays clear of the story in front.
- */
-function Story({
-  card,
-  primary = false,
-  wide = false,
+/** Left padding of the track (the snap edge), in px. */
+const pad = (el: HTMLElement) => parseFloat(getComputedStyle(el).paddingLeft) || 0;
+
+function NavButton({
+  label,
+  disabled,
+  onClick,
+  back = false,
 }: {
-  card: SocialCardData;
-  primary?: boolean;
-  wide?: boolean;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  back?: boolean;
 }) {
   return (
-    <article
-      className={`h-full overflow-hidden rounded-[2px] md:h-auto bg-paper ring-1 ring-ink/[0.08] ${
-        primary
-          ? "shadow-[0_1px_2px_rgb(10_42_33/0.06),0_24px_48px_-32px_rgb(10_42_33/0.5)]"
-          : "shadow-[0_1px_2px_rgb(10_42_33/0.05)]"
-      }`}
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid size-11 place-items-center rounded-full text-green ring-1 ring-ink/15 transition-[background-color,opacity,scale] duration-200 ease-out hover:bg-green/[0.06] active:scale-[0.94] disabled:pointer-events-none disabled:opacity-35"
     >
+      <ArrowRight width={16} height={16} className={back ? "rotate-180" : undefined} />
+    </button>
+  );
+}
+
+/** One story: photograph first, then quiet metadata, excerpt and link. */
+function Story({ card, index }: { card: SocialCardData; index: number }) {
+  return (
+    <article className="h-full">
       <a
         href={card.url}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={card.label}
-        className={`group flex h-full flex-col md:h-auto ${wide ? "md:grid md:grid-cols-[1.25fr_1fr]" : ""}`}
+        draggable={false}
+        className="group flex h-full flex-col overflow-hidden rounded-[4px] bg-paper lg:grid lg:grid-cols-[1.45fr_1fr]"
       >
         {card.media && (
-          <div
-            className={`relative overflow-hidden bg-sand ${
-              wide
-                ? "aspect-[4/3] md:aspect-auto md:min-h-[21rem] lg:min-h-[25rem]"
-                : "aspect-[4/3] md:aspect-[5/4]"
-            }`}
-          >
+          <div className="relative aspect-[4/5] overflow-hidden bg-sand md:aspect-[3/2] lg:aspect-auto lg:min-h-[26rem]">
             <Image
               src={card.media.src}
               alt={card.media.alt}
               fill
-              sizes={
-                wide
-                  ? "(min-width: 768px) 38vw, 92vw"
-                  : "(min-width: 1024px) 38vw, (min-width: 768px) 52vw, 92vw"
-              }
-              className="object-cover transition-[scale] duration-[700ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.03] motion-reduce:group-hover:scale-100"
+              priority={false}
+              sizes="(min-width: 1024px) 36rem, (min-width: 768px) 64vw, 82vw"
+              className="object-cover transition-[scale] duration-[800ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.025] motion-reduce:group-hover:scale-100"
             />
           </div>
         )}
-        <div
-          className={`px-5 pb-4 pt-4 md:px-6 md:pb-5 md:pt-5 ${wide ? "md:flex md:flex-col md:justify-end md:px-7 md:pb-7" : ""}`}
-        >
-          <p className="flex items-center gap-2 text-[0.75rem] text-ink-soft">
-            <PlatformIcon platform={card.platform} />
-            <span className="font-medium uppercase tracking-[0.16em] text-gold-deep">
-              {card.platformLabel}
-            </span>
-            <span aria-hidden className="text-gold">
-              ·
-            </span>
-            {card.dateTime ? <time dateTime={card.dateTime}>{card.meta}</time> : <span>{card.meta}</span>}
-          </p>
-          <p
-            className={`news-excerpt mt-2.5 line-clamp-3 text-ink [text-wrap:pretty] ${
-              primary
-                ? "text-[1.0625rem] leading-[1.5] md:text-[1.1875rem]"
-                : "text-[1rem] leading-[1.5] md:text-[1.0625rem]"
-            }`}
-          >
-            {card.text}
-          </p>
-          <span className="mt-2 inline-flex min-h-11 items-center gap-2 text-[0.875rem] font-medium text-green">
+        <div className="flex flex-1 flex-col px-5 pb-5 pt-5 md:px-7 md:pb-6 md:pt-6 lg:justify-between lg:px-9 lg:py-9">
+          <div>
+            <p className="flex items-center gap-2 text-[0.75rem] text-ink-soft">
+              <PlatformIcon platform={card.platform} />
+              <span className="font-medium uppercase tracking-[0.16em] text-gold-deep">
+                {card.platformLabel}
+              </span>
+              <span aria-hidden className="text-gold">
+                ·
+              </span>
+              {card.dateTime ? <time dateTime={card.dateTime}>{card.meta}</time> : <span>{card.meta}</span>}
+            </p>
+            <p
+              className={`news-excerpt mt-3 line-clamp-4 font-medium leading-[1.3] tracking-[-0.01em] text-green [text-wrap:pretty] md:mt-4 lg:line-clamp-5 ${
+                index === 0
+                  ? "text-[1.25rem] md:text-[1.5rem] lg:text-[1.625rem]"
+                  : "text-[1.25rem] md:text-[1.375rem] lg:text-[1.5rem]"
+              }`}
+            >
+              {card.text}
+            </p>
+          </div>
+          <span className="mt-4 inline-flex min-h-11 items-center gap-2 text-[0.875rem] font-medium text-green lg:mt-8">
             <span className="link-u">{card.action}</span>
             <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px] group-focus-visible:translate-x-[5px]" />
           </span>
@@ -247,19 +267,5 @@ function PlatformIcon({ platform }: { platform: Platform }) {
     >
       <path d="M13.5 21v-7.6h2.6l.4-3h-3V8.5c0-.9.3-1.5 1.5-1.5h1.6V4.3c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.8v3h2.6V21h3.1Z" />
     </svg>
-  );
-}
-
-const PHONE = "(max-width: 767px)";
-const subscribe = (cb: () => void) => {
-  const mq = window.matchMedia(PHONE);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-};
-function usePhone() {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(PHONE).matches,
-    () => false,
   );
 }
