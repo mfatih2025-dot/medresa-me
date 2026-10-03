@@ -71,11 +71,15 @@ const describe = (r: { status: number; error?: GraphError }) =>
 
 /** The Page and a token for reading its posts. */
 async function resolvePage(token: string) {
-  const me = await graph<{ id?: string; name?: string; category?: string }>(
-    "/me?fields=id,name,category",
-    token,
-  );
-  if (me.ok && me.data.category && me.data.id) {
+  const me = await graph<{ id?: string; name?: string }>("/me?fields=id,name", token);
+  if (!me.ok) {
+    // 190 = invalid/expired token, 10/200 = permissions, etc.
+    return { ok: false as const, reason: `/me failed: ${describe(me)}` };
+  }
+  if (!me.data.id) return { ok: false as const, reason: "/me returned no id" };
+  // A Page token can read its own published posts through /me; a user token cannot.
+  const probe = await graph<{ data?: unknown[] }>("/me/published_posts?fields=id&limit=1", token);
+  if (probe.ok) {
     return {
       ok: true as const,
       tokenType: "page",
@@ -84,19 +88,15 @@ async function resolvePage(token: string) {
       pageToken: token,
     };
   }
-  if (!me.ok && me.error?.code !== 100) {
-    // 190 = invalid/expired token, 10/200 = permissions, etc.
-    return { ok: false as const, reason: `/me failed: ${describe(me)}`, me };
-  }
-  // Not a Page token (a User token has no `category`): find the Page among the user's Pages.
+  const probeError = probe.ok ? "" : describe(probe);
+  // Not a Page token: find the Medresa Page among the user's Pages.
   const accounts = await graph<{
     data?: { id?: string; name?: string; username?: string; access_token?: string }[];
   }>("/me/accounts?fields=id,name,username,access_token&limit=50", token);
   if (!accounts.ok) {
     return {
       ok: false as const,
-      reason: `token is not a Page token; /me/accounts failed: ${describe(accounts)}`,
-      me,
+      reason: `not readable as a Page (${probeError}); /me/accounts failed: ${describe(accounts)}`,
     };
   }
   const pages = accounts.data.data ?? [];
@@ -107,8 +107,7 @@ async function resolvePage(token: string) {
   if (!page?.id || !page.access_token) {
     return {
       ok: false as const,
-      reason: `user token, but no Medresa Page among ${pages.length} Page(s)`,
-      me,
+      reason: `not readable as a Page (${probeError}); no Medresa Page among ${pages.length} Page(s) via /me/accounts`,
     };
   }
   return {
