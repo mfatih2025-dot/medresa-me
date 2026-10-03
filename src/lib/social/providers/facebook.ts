@@ -24,6 +24,8 @@ const API = "https://graph.facebook.com/v26.0";
 /** 30 minutes, as for Instagram. */
 export const REVALIDATE = 1800;
 const MEDRESA = /medres|mehmed\s*fatih/i;
+/** The Page's @username (facebook.com/medresacg). */
+const USERNAME = "medresacg";
 
 type GraphError = { code?: number; error_subcode?: number; type?: string; message?: string };
 type Media = { image?: { src?: string } };
@@ -87,10 +89,9 @@ async function resolvePage(token: string) {
     return { ok: false as const, reason: `/me failed: ${describe(me)}`, me };
   }
   // Not a Page token (a User token has no `category`): find the Page among the user's Pages.
-  const accounts = await graph<{ data?: { id?: string; name?: string; access_token?: string }[] }>(
-    "/me/accounts?fields=id,name,access_token&limit=50",
-    token,
-  );
+  const accounts = await graph<{
+    data?: { id?: string; name?: string; username?: string; access_token?: string }[];
+  }>("/me/accounts?fields=id,name,username,access_token&limit=50", token);
   if (!accounts.ok) {
     return {
       ok: false as const,
@@ -100,12 +101,15 @@ async function resolvePage(token: string) {
   }
   const pages = accounts.data.data ?? [];
   const page =
-    pages.find((p) => p.name && MEDRESA.test(p.name)) ?? (pages.length === 1 ? pages[0] : undefined);
+    pages.find((p) => p.username?.toLowerCase() === USERNAME) ??
+    pages.find((p) => p.name && MEDRESA.test(p.name)) ??
+    (pages.length === 1 ? pages[0] : undefined);
   if (!page?.id || !page.access_token) {
     return {
       ok: false as const,
       reason: `user token, but no Medresa Page among ${pages.length} Page(s)`,
       me,
+      candidates: pages.map((p) => ({ id: p.id, name: p.name, username: p.username })),
     };
   }
   return {
@@ -128,7 +132,8 @@ async function newestPost() {
   const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!token) return { reason: "FACEBOOK_PAGE_ACCESS_TOKEN is not set" } as const;
   const page = await resolvePage(token);
-  if (!page.ok) return { reason: page.reason } as const;
+  if (!page.ok)
+    return { reason: page.reason, candidates: "candidates" in page ? page.candidates : undefined } as const;
   // published_posts: the Page's own published posts, newest first.
   const posts = await graph<{ data?: Post[] }>(
     `/${page.id}/published_posts?fields=${encodeURIComponent(POST_FIELDS)}&limit=5`,
@@ -194,5 +199,6 @@ export async function facebookDiagnostics() {
         }
       : null,
     reason: "reason" in r ? r.reason : null,
+    candidates: "candidates" in r ? r.candidates : undefined,
   };
 }
