@@ -175,3 +175,27 @@ export async function latestFacebookPost(): Promise<SocialPost | null> {
     source: "meta",
   };
 }
+
+/**
+ * Non-secret status for verifying production: the Medresa Page (only once
+ * found), its newest post and the failure reason. Never a token, a request URL
+ * or any other Page the token can see.
+ */
+export async function facebookStatus() {
+  const r = await newestPost();
+  const p = "newest" in r ? r.newest : undefined;
+  return {
+    page: "page" in r && r.page ? { id: r.page.id, name: r.page.name, tokenType: r.page.tokenType } : null,
+    newest: p
+      ? {
+          id: p.id,
+          created_time: p.created_time,
+          status_type: p.status_type,
+          attachment_type: p.attachments?.data?.[0]?.type,
+          media_found: Boolean(pictureOf(p)),
+          permalink_url: p.permalink_url,
+        }
+      : null,
+    reason: "reason" in r ? r.reason : null,
+  };
+}
