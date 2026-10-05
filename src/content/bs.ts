@@ -353,6 +353,28 @@ export const bs = {
     explore: "Medresa",
     follow: "Pratite nas",
     rights: "Medresa „Mehmed Fatih“ – Crna Gora. Sva prava zadržana.",
+    links: [
+      link("historijat"),
+      link("misija"),
+      link("nastava"),
+      link("upis"),
+      link("vijesti"),
+      link("galerija"),
+      link("donacije"),
+      link("kontakt"),
+    ],
+    support: {
+      label: "Projekat podržao",
+      // The Fund's own logo, unaltered (from medresa.me; white type for dark grounds).
+      logo: {
+        src: "/brand/fond-manjinska-prava.png",
+        alt: "Fond za zaštitu i ostvarivanje manjinskih prava Crne Gore",
+        width: 300,
+        height: 200,
+      },
+      // Wording exactly as on medresa.me.
+      note: "Projekat je podržan od strane Fonda za zaštitu i ostvarivanje manjinskih prava. Fond ne snosi odgovornost za sadržaj, iznesene stavove i interpretacije, koje su u potpunosti u nadležnosti autora i realizatora projekta.",
+    },
   },
 };
 

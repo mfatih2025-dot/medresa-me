@@ -669,3 +669,56 @@ dialog::backdrop {
 .social-track::-webkit-scrollbar {
   display: none;
 }
+
+/* ---------- Footer: the construction drawing (see FooterLines.tsx) ---------- */
+/* Strokes start undrawn only where script can draw them; reduced motion shows all at rest. */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .fl-line {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+  }
+  .fl-mark,
+  .fl-turn {
+    opacity: 0;
+  }
+  .fl-mark {
+    scale: 0.4;
+    transform-origin: 50% 50%;
+    transform-box: fill-box;
+  }
+  /* The footer's own hairlines draw in from the left as part of the sequence. */
+  .fl-rule {
+    scale: 0 1;
+    transform-origin: left;
+  }
+  [data-drawn] .fl-line {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset var(--d) cubic-bezier(0.65, 0, 0.35, 1) var(--t);
+  }
+  [data-drawn] .fl-mark {
+    opacity: 1;
+    scale: 1;
+    transition:
+      opacity var(--d) ease-out var(--t),
+      scale var(--d) var(--ease-out-expo) var(--t);
+  }
+  [data-drawn] .fl-rule {
+    scale: 1 1;
+    transition: scale 1.4s cubic-bezier(0.65, 0, 0.35, 1) var(--t, 0.3s);
+  }
+  [data-drawn] .fl-turn {
+    opacity: 1;
+    transition: opacity 2.4s ease-out 6.4s;
+    animation: fl-turn 240s linear infinite;
+    animation-play-state: paused;
+    will-change: transform;
+  }
+  [data-drawn][data-live] .fl-turn {
+    animation-play-state: running;
+  }
+}
+@keyframes fl-turn {
+  to {
+    rotate: 360deg;
+  }
+}
