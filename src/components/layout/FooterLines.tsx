@@ -3,42 +3,60 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 
 /*
- * The footer's background drawing: a fragment of one large construction drawing,
- * after the Medresa seal (a double ring) and the geometry of its arches. Centred
- * off the top-right of the footer and cropped by its edges.
+ * The footer's background drawing: a fragment of a large mihrab, after the
+ * Medresa's own arches. A rectangular frame (alfiz) around three nested pointed
+ * arches, running past the footer's edges so only part of it is seen, and a
+ * low arcade of small pointed arches along the footer's base.
  *
- * Sequence, once, as the footer comes into view: the horizontal axis → the
- * vertical axis → their intersection → the double ring → the eight-point star
- * (two squares) → its {8/3} star → the pointed arch inside it. Then one quiet
- * continuation: a dashed construction circle turning very slowly (paused while
- * the footer is off screen). It is not redrawn on re-entry: a drawing, once
- * made, stays made.
+ * Sequence, once, as the footer comes into view: the frame → the outer arch,
+ * rising from both jambs to meet at its apex → the second arch → the niche →
+ * the arcade, travelling across the base. Then only the niche breathes, very
+ * slowly, while the footer is on screen. Not redrawn on re-entry.
  *
  * Every stroke has pathLength=1 and is drawn with stroke-dashoffset; the
  * observer only sets data attributes on the footer, never React state.
- * Reduced motion: the complete composition, static (see globals.css).
+ * Reduced motion: the complete drawing, static (see globals.css).
  */
 
-const C = 500;
-const R = 440;
-/** Point k of eight on the star's circle, from the top, clockwise. */
-const pt = (k: number, r = R) => {
-  const a = (k * Math.PI) / 4 - Math.PI / 2;
-  return `${(C + r * Math.cos(a)).toFixed(1)} ${(C + r * Math.sin(a)).toFixed(1)}`;
-};
-const poly = (ks: number[]) => `M${ks.map((k) => pt(k)).join(" L")} Z`;
+const CX = 500;
+const SPRING = 600;
+const BASE = 2000;
 
-// Equilateral pointed arch: springing at y=560, span 240 (380 → 620).
-const ARCH = "M380 760 L380 560 A240 240 0 0 1 500 352.2 A240 240 0 0 1 620 560 L620 760";
+/**
+ * The two halves of an equilateral pointed arch over jambs at ±half (centres on
+ * the outer arch's jambs, so nested arches stay concentric), from the foot of
+ * each jamb up to the apex.
+ */
+function arch(half: number, radius = 600) {
+  const l = CX - half;
+  const r = CX + half;
+  const apex = (SPRING - Math.sqrt(radius ** 2 - 300 ** 2)).toFixed(1);
+  return [
+    `M${l} ${BASE} L${l} ${SPRING} A${radius} ${radius} 0 0 1 ${CX} ${apex}`,
+    `M${r} ${BASE} L${r} ${SPRING} A${radius} ${radius} 0 0 0 ${CX} ${apex}`,
+  ];
+}
+
+/** A row of small equilateral pointed arches on columns, from x=0 to `width`. */
+function arcade(width: number, span: number, rise: number, foot: number) {
+  const h = (span * Math.sqrt(3)) / 2;
+  let d = `M0 ${foot}`;
+  for (let x = 0; x < width; x += span) {
+    d += ` L${x} ${foot - rise} A${span} ${span} 0 0 1 ${x + span / 2} ${(foot - rise - h).toFixed(1)}`;
+    d += ` A${span} ${span} 0 0 1 ${x + span} ${foot - rise} L${x + span} ${foot}`;
+  }
+  return d;
+}
 
 /** Timing of one stroke: delay and duration in seconds. */
 const at = (t: number, d: number) => ({ "--t": `${t}s`, "--d": `${d}s` }) as CSSProperties;
 
 const gold = "var(--color-gold)";
 const ivory = "var(--color-ivory)";
+const line = { fill: "none", vectorEffect: "non-scaling-stroke", pathLength: 1 } as const;
 
 export function FooterLines() {
-  const ref = useRef<SVGSVGElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const footer = ref.current?.closest("footer");
@@ -55,163 +73,122 @@ export function FooterLines() {
     return () => io.disconnect();
   }, []);
 
-  const line = { fill: "none", vectorEffect: "non-scaling-stroke", pathLength: 1 } as const;
+  const [outerL, outerR] = arch(300);
+  const [secondL, secondR] = arch(264, 564);
+  const [nicheL, nicheR] = arch(190, 490);
 
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute -right-[58%] -top-20 aspect-square w-[150%] md:-right-[30%] md:-top-48 md:w-[95%] lg:-right-[32%] lg:top-[-24vw] lg:w-[64%]"
-    >
+    <div ref={ref} aria-hidden className="pointer-events-none absolute inset-0">
+      {/* The mihrab: off the right edge, taller than the footer. */}
       <svg
-        ref={ref}
-        viewBox="0 0 1000 1000"
-        className="absolute inset-0 size-full overflow-visible"
+        viewBox="0 0 1000 2000"
+        className="absolute -right-[46%] -top-6 w-[112%] overflow-visible md:-right-[16%] md:-top-10 md:w-[62%] lg:-right-[4%] lg:-top-16 lg:w-[44%] xl:w-[40%]"
         strokeWidth={1}
       >
-        {/* 1. Axes, running far past the drawing (cropped by the footer). */}
-        <line
-          {...line}
-          className="fl-line"
-          style={at(0.15, 1.8)}
-          x1={-2400}
-          y1={C}
-          x2={3400}
-          y2={C}
-          stroke={ivory}
-          strokeOpacity={0.09}
-        />
-        <line
-          {...line}
-          className="fl-line"
-          style={at(0.75, 1.6)}
-          x1={C}
-          y1={-1400}
-          x2={C}
-          y2={2600}
-          stroke={ivory}
-          strokeOpacity={0.09}
-        />
-        {/* Diagonals of the square grid. */}
-        <line
-          {...line}
-          className="fl-line"
-          style={at(2.6, 2.2)}
-          x1={-400}
-          y1={-400}
-          x2={1400}
-          y2={1400}
-          stroke={ivory}
-          strokeOpacity={0.05}
-        />
-        <line
-          {...line}
-          className="fl-line"
-          style={at(2.8, 2.2)}
-          x1={1400}
-          y1={-400}
-          x2={-400}
-          y2={1400}
-          stroke={ivory}
-          strokeOpacity={0.05}
-        />
-
-        {/* 2. The intersection. */}
-        <g className="fl-mark" style={at(1.55, 0.6)} stroke={gold} strokeOpacity={0.4} fill="none">
-          <circle cx={C} cy={C} r={7} vectorEffect="non-scaling-stroke" />
-        </g>
-
-        {/* 3. The double ring of the seal, drawn from the top. */}
-        <g transform={`rotate(-90 ${C} ${C})`} stroke={gold}>
-          <circle
-            {...line}
-            className="fl-line"
-            style={at(1.8, 2.6)}
-            cx={C}
-            cy={C}
-            r={470}
-            strokeOpacity={0.2}
-          />
-          <circle
-            {...line}
-            className="fl-line"
-            style={at(2.1, 2.6)}
-            cx={C}
-            cy={C}
-            r={R}
-            strokeOpacity={0.16}
-          />
-          <circle
-            {...line}
-            className="fl-line"
-            style={at(4.6, 2)}
-            cx={C}
-            cy={C}
-            r={170}
-            strokeOpacity={0.12}
-          />
-        </g>
-
-        {/* 4. The eight-point star: two squares on the inner ring. */}
+        {/* Alfiz: the rectangular frame, top first, then down both sides. */}
         <path
           {...line}
           className="fl-line"
-          style={at(3.0, 2.4)}
-          d={poly([0, 2, 4, 6])}
-          stroke={gold}
-          strokeOpacity={0.15}
-        />
-        <path
-          {...line}
-          className="fl-line"
-          style={at(3.3, 2.4)}
-          d={poly([1, 3, 5, 7])}
-          stroke={gold}
-          strokeOpacity={0.15}
-        />
-        {/* Its {8/3} star. */}
-        <path
-          {...line}
-          className="fl-line"
-          style={at(4.1, 3.2)}
-          d={poly([0, 3, 6, 1, 4, 7, 2, 5])}
-          stroke={gold}
-          strokeOpacity={0.09}
-        />
-
-        {/* 5. The second structure: a pointed arch, as in the Medresa's arcades. */}
-        <line
-          {...line}
-          className="fl-line"
-          style={at(5.2, 1.2)}
-          x1={300}
-          y1={560}
-          x2={700}
-          y2={560}
+          style={at(0.2, 1.6)}
+          d="M100 0 H900"
           stroke={ivory}
           strokeOpacity={0.08}
         />
         <path
           {...line}
           className="fl-line"
-          style={at(5.5, 2.6)}
-          d={ARCH}
+          style={at(0.6, 2)}
+          d={`M100 0 V${BASE}`}
+          stroke={gold}
+          strokeOpacity={0.14}
+        />
+        <path
+          {...line}
+          className="fl-line"
+          style={at(0.6, 2)}
+          d={`M900 0 V${BASE}`}
+          stroke={gold}
+          strokeOpacity={0.14}
+        />
+
+        {/* The arches rise from both jambs and meet at the apex. */}
+        <path
+          {...line}
+          className="fl-line"
+          style={at(1.2, 2.6)}
+          d={outerL}
           stroke={gold}
           strokeOpacity={0.22}
         />
+        <path
+          {...line}
+          className="fl-line"
+          style={at(1.2, 2.6)}
+          d={outerR}
+          stroke={gold}
+          strokeOpacity={0.22}
+        />
+        <path
+          {...line}
+          className="fl-line"
+          style={at(1.7, 2.6)}
+          d={secondL}
+          stroke={gold}
+          strokeOpacity={0.12}
+        />
+        <path
+          {...line}
+          className="fl-line"
+          style={at(1.7, 2.6)}
+          d={secondR}
+          stroke={gold}
+          strokeOpacity={0.12}
+        />
+
+        {/* Impost: the springing line, drawn across the jambs. */}
+        <path
+          {...line}
+          className="fl-line"
+          style={at(3.2, 1.4)}
+          d={`M100 ${SPRING} H900`}
+          stroke={ivory}
+          strokeOpacity={0.06}
+        />
+
+        {/* The niche: the last arch, which keeps breathing. */}
+        <g className="fl-breathe">
+          <path
+            {...line}
+            className="fl-line"
+            style={at(3.6, 2.4)}
+            d={nicheL}
+            stroke={gold}
+            strokeOpacity={0.18}
+          />
+          <path
+            {...line}
+            className="fl-line"
+            style={at(3.6, 2.4)}
+            d={nicheR}
+            stroke={gold}
+            strokeOpacity={0.18}
+          />
+        </g>
       </svg>
 
-      {/* 6. Continuation: a dashed construction circle, turning very slowly. */}
-      <svg viewBox="0 0 1000 1000" className="fl-turn absolute inset-0 size-full">
-        <circle
-          cx={C}
-          cy={C}
-          r={330}
-          fill="none"
+      {/* The arcade along the base, travelling across the footer. */}
+      <svg
+        viewBox="0 0 3600 120"
+        className="absolute bottom-0 left-0 h-[5.5rem] w-[165rem] overflow-visible md:h-[7.5rem] md:w-[225rem]"
+        strokeWidth={1}
+      >
+        <path
+          {...line}
+          className="fl-line"
+          style={at(4.4, 4.5)}
+          d={arcade(3600, 60, 34, 120)}
           stroke={gold}
-          strokeOpacity={0.14}
-          strokeWidth={1}
-          strokeDasharray="2 10"
-          vectorEffect="non-scaling-stroke"
+          strokeOpacity={0.1}
         />
       </svg>
     </div>

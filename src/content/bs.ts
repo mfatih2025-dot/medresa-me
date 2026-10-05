@@ -365,6 +365,7 @@ export const bs = {
     ],
     support: {
       label: "Projekat podržao",
+      href: "https://www.fzm.me/",
       // The Fund's own logo, unaltered (from medresa.me; white type for dark grounds).
       logo: {
         src: "/brand/fond-manjinska-prava.png",
