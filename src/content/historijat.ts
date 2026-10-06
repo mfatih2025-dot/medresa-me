@@ -7,7 +7,7 @@ import type { Img } from "./bs";
  * word for word (only the quotation marks follow this site's „…“ convention).
  * The chapters follow the history's own dates; chapter labels are descriptive
  * and add no facts. Photographs: the two aerial views published on that page,
- * the first generation's tablo (2008.–2012.) and the Medresa's own photographs.
+ * the first generation's panel (2008.–2012.) and the Medresa's own photographs.
  */
 
 const photo = (src: string, alt: string, position = "50% 50%"): Img => ({
@@ -53,14 +53,18 @@ export const historijat = {
       text: "Od tada do danas, Medresa je iznjedrila preko osam stotina svršenika i svršenica koji su nastavili svoje školovanje na domaćim i međunarodnim univerzitetima, te postali prepoznatljivi nosioci moralnih i intelektualnih vrijednosti u svojoj zajednici. Program Medrese od 2015. godine ima zvaničnu akreditaciju Nacionalnog savjeta za obrazovanje Crne Gore, čime su diplome ove škole potpuno priznate i ravnopravne s gimnazijskim i stručnim školama. To je omogućilo učenicima direktan pristup univerzitetima u Crnoj Gori, regionu i šire.",
       image: photo(
         "generacije/generacija-01",
-        "Tablo I. generacije maturanata Medrese „Mehmed Fatih“, 2008.–2012.",
+        "Prva generacija maturanata Medrese „Mehmed Fatih“, 2008.–2012.",
       ),
-      caption: "Tablo prve generacije maturanata, 2008.–2012.",
+      caption: "Prva generacija maturanata, 2008.–2012.",
     },
     women: {
       label: "Žensko odjeljenje u Tuzima",
       text: "U okviru matične škole u Tuzima razvijeno je i žensko odjeljenje Medrese, u kojoj djevojke pohađaju nastavu, borave u internatu i imaju pristup svim resursima i programima škole – kako vjerskim tako i općeobrazovnim. Time je otvoren prostor za obrazovanje muslimanki u ambijentu koji njeguje islamski moral, pedagošku pažnju i savremene obrazovne standarde.",
-      image: photo("education-arches", "Tri kamena luka na ulazu u Medresu"),
+      image: photo(
+        "historijat/zensko-odjeljenje",
+        "Žensko odjeljenje Medrese „Mehmed Fatih“ u Tuzima",
+        "55% 55%",
+      ),
     },
     rozaje: {
       marker: ["28. 9.", "2015."],
@@ -86,12 +90,6 @@ export const historijat = {
       welcome: "Dobro došli u Medresu „Mehmed Fatih“ – školu znanja, odgoja i vrijednosti.",
       since: "Od 2008. godine odgajamo generacije koje misle srcem, a djeluju znanjem.",
       verse: "Reci: „Zar su isti oni koji znaju i oni koji ne znaju?“",
-      source: "Kur’an, Ez-Zumer, 9",
-    },
-    sq: {
-      welcome: "Mirë se erdhët në Medresenë “Mehmed Fatih” – shkollë e dijes, edukatës dhe vlerave.",
-      since: "Që nga viti 2008, ne edukojmë breza që mendojnë me zemër dhe veprojnë me dije.",
-      verse: "“Thuaj: A janë të barabartë ata që dinë dhe ata që nuk dinë?”",
       source: "Kur’an, Ez-Zumer, 9",
     },
   },

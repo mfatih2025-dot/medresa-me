@@ -12,11 +12,11 @@ import { DrawRule, Marker } from "./HistoryMotion";
  *   Opening   title across the page, the founding place and date, the aerial view
  *   I   2008  Osnivanje — the founding, beside the entrance arch
  *             Od tada do danas — the three figures
- *   II  2015  Svršenici i akreditacija — beside the first generation's tablo
+ *   II  2015  Svršenici i akreditacija — beside the first generation's panel
  *   III       Žensko odjeljenje u Tuzima — beside the arches
  *   IV  28. 9. 2015.  Rožaje — a deep-green pause
  *   V   Danas — 360+, then the campus from the air
- *   Closing   the welcome and the verse, in Bosnian and Albanian
+ *   Closing   the welcome and the verse
  *
  * One gold thread (HistoryThread) runs through it all, arriving at each
  * chapter's rule. Large period markers drift slightly slower than the page.
@@ -86,7 +86,7 @@ export function History() {
     <article className="bg-paper text-ink">
       <HistoryThread>
         {/* ---------- Opening ---------- */}
-        <header className="wrap relative pb-14 pt-32 md:pb-20 md:pt-44 lg:pb-24 lg:pt-48">
+        <header className="wrap relative pb-12 pt-32 md:pb-18 md:pt-44 lg:pb-21 lg:pt-48">
           <Reveal variant="label">
             <p className="eyebrow eyebrow-display mb-5 text-gold-deep md:mb-6">{h.hero.eyebrow}</p>
           </Reveal>
@@ -99,7 +99,7 @@ export function History() {
             />
 
             {/* The founding, as an archival stamp: where and when. */}
-            <div className="relative mt-9 md:mt-12 lg:col-span-3 lg:mt-0 lg:self-end lg:pb-3">
+            <div className="relative mt-8 md:mt-10 lg:col-span-3 lg:mt-0 lg:self-end lg:pb-3">
               <ThreadPoint className={IN_GUTTER} />
               <DrawRule className="bg-gold/70" delay={0.3} />
               <Reveal variant="fade" delay={0.45}>
@@ -118,7 +118,7 @@ export function History() {
               </Reveal>
             </div>
           </div>
-          <figure className="relative z-[1] mt-9 -mx-[var(--gutter)] md:mx-0 md:mt-12 lg:ml-[16.6%] lg:mt-16 lg:-mr-[calc(var(--gutter)+max(0px,(100vw-var(--max))/2))]">
+          <figure className="relative z-[1] mt-8 -mx-[var(--gutter)] md:mx-0 md:mt-10 lg:ml-[16.6%] lg:mt-14 lg:-mr-[calc(var(--gutter)+max(0px,(100vw-var(--max))/2))]">
             <ParallaxImage
               image={h.hero.image}
               priority
@@ -127,14 +127,14 @@ export function History() {
               sizes="(min-width: 1024px) 68vw, 100vw"
               className="aspect-[4/3] md:aspect-[16/10] lg:aspect-[16/9]"
             />
-            <figcaption className="mt-3 px-[var(--gutter)] text-[0.75rem] text-ink-soft md:px-0">
+            <figcaption className="mt-2.5 px-[var(--gutter)] text-[0.75rem] text-ink-soft md:px-0">
               {h.hero.caption}
             </figcaption>
           </figure>
         </header>
 
         {/* ---------- I · 2008 · Osnivanje ---------- */}
-        <section aria-labelledby="h-osnivanje" className="wrap relative pb-14 md:pb-20 lg:pb-28">
+        <section aria-labelledby="h-osnivanje" className="wrap relative pb-12 md:pb-18 lg:pb-24">
           <div className="grid lg:grid-cols-12 lg:gap-x-12">
             <div className="relative lg:col-span-5">
               <Marker>
@@ -146,16 +146,16 @@ export function History() {
                 <ParallaxImage image={c.founding.image} travel={7} sizes="30vw" className="aspect-[4/5]" />
               </div>
             </div>
-            <div className="mt-3 lg:col-span-7 lg:mt-24 lg:pl-[8%]">
+            <div className="mt-3 lg:col-span-7 lg:mt-21 lg:pl-[8%]">
               <div id="h-osnivanje">
                 <ChapterHead numeral="I" label={c.founding.label} time={c.founding.date} />
               </div>
               <Reveal delay={0.08} y={18}>
-                <p className="hist-text mt-6 max-w-[30em] text-[1.25rem] font-light leading-[1.6] text-ink md:mt-8 md:text-[1.4375rem] md:leading-[1.55]">
+                <p className="hist-text mt-5 max-w-[30em] text-[1.25rem] font-light leading-[1.6] text-ink md:mt-7 md:text-[1.4375rem] md:leading-[1.55]">
                   {c.founding.text}
                 </p>
               </Reveal>
-              <div className="relative z-[1] mt-8 -mx-[var(--gutter)] md:mx-0 lg:hidden">
+              <div className="relative z-[1] mt-7 -mx-[var(--gutter)] md:mx-0 lg:hidden">
                 <ParallaxImage image={c.founding.image} travel={6} sizes="100vw" className="aspect-[4/3]" />
               </div>
             </div>
@@ -163,7 +163,7 @@ export function History() {
         </section>
 
         {/* ---------- Od tada do danas: the figures ---------- */}
-        <section aria-label={c.figures.label} className="wrap relative pb-14 md:pb-20 lg:pb-16">
+        <section aria-label={c.figures.label} className="wrap relative pb-12 md:pb-18 lg:pb-14">
           <div className="relative">
             <ThreadPoint className={IN_MARGIN} />
             <DrawRule className="bg-ink/15" />
@@ -171,7 +171,7 @@ export function History() {
           <Reveal variant="label">
             <p className="eyebrow mt-4 text-gold-deep md:mt-5">{c.figures.label}</p>
           </Reveal>
-          <dl className="mt-5 grid md:mt-8 md:grid-cols-3 md:gap-x-10 lg:gap-x-12">
+          <dl className="mt-4 grid md:mt-7 md:grid-cols-3 md:gap-x-10 lg:gap-x-12">
             {c.figures.items.map((f, i) => (
               <Reveal
                 key={f.label}
@@ -191,9 +191,9 @@ export function History() {
         </section>
 
         {/* ---------- II · 2015 · Svršenici i akreditacija ---------- */}
-        <section aria-labelledby="h-akreditacija" className="wrap relative pb-16 md:pb-24 lg:pb-28">
+        <section aria-labelledby="h-akreditacija" className="wrap relative pb-14 md:pb-21 lg:pb-24">
           <div className="grid lg:grid-cols-12 lg:gap-x-12">
-            <div className="order-2 mt-9 lg:order-1 lg:col-span-6 lg:mt-[clamp(7rem,13vw,12rem)]">
+            <div className="order-2 mt-8 lg:order-1 lg:col-span-6 lg:mt-[clamp(6rem,11.5vw,10.5rem)]">
               <Reveal y={24} className="relative z-[1]">
                 <figure>
                   <div className="bg-sand p-2.5 md:p-3.5">
@@ -206,7 +206,7 @@ export function History() {
                       className="h-auto w-full"
                     />
                   </div>
-                  <figcaption className="mt-3 text-[0.75rem] text-ink-soft">
+                  <figcaption className="mt-2.5 text-[0.75rem] text-ink-soft">
                     {c.accreditation.caption}
                   </figcaption>
                 </figure>
@@ -221,7 +221,7 @@ export function History() {
               <div id="h-akreditacija" className="mt-3 lg:-mt-6">
                 <ChapterHead numeral="II" label={c.accreditation.label} />
               </div>
-              <div className="mt-6 md:mt-8">
+              <div className="mt-5 md:mt-7">
                 <Para>{c.accreditation.text}</Para>
               </div>
             </div>
@@ -229,17 +229,17 @@ export function History() {
         </section>
 
         {/* ---------- III · Žensko odjeljenje u Tuzima ---------- */}
-        <section aria-labelledby="h-zensko" className="wrap relative pb-16 md:pb-24 lg:pb-32">
+        <section aria-labelledby="h-zensko" className="wrap relative pb-14 md:pb-21 lg:pb-28">
           <div className="grid lg:grid-cols-12 lg:gap-x-12">
-            <div className="lg:col-span-6 lg:pt-20">
+            <div className="lg:col-span-6 lg:pt-18">
               <div id="h-zensko">
                 <ChapterHead numeral="III" label={c.women.label} anchor={IN_MARGIN} />
               </div>
-              <div className="mt-6 md:mt-8">
+              <div className="mt-5 md:mt-7">
                 <Para>{c.women.text}</Para>
               </div>
             </div>
-            <div className="relative z-[1] mt-9 -mx-[var(--gutter)] md:mx-0 lg:col-span-5 lg:col-start-8 lg:mt-0 lg:-mr-[calc(var(--gutter)+max(0px,(100vw-var(--max))/2))]">
+            <div className="relative z-[1] mt-8 -mx-[var(--gutter)] md:mx-0 lg:col-span-5 lg:col-start-8 lg:mt-0 lg:-mr-[calc(var(--gutter)+max(0px,(100vw-var(--max))/2))]">
               <ParallaxImage
                 image={c.women.image}
                 travel={8}
@@ -253,7 +253,7 @@ export function History() {
 
         {/* ---------- IV · 28. 9. 2015. · Rožaje ---------- */}
         <section aria-labelledby="h-rozaje" className="overflow-x-clip bg-green-deep text-ivory">
-          <div className="wrap grid py-16 md:py-24 lg:grid-cols-12 lg:gap-x-12 lg:py-32">
+          <div className="wrap grid py-14 md:py-21 lg:grid-cols-12 lg:gap-x-12 lg:py-28">
             <div className="lg:col-span-5">
               <Marker travel={72}>
                 <span className={`${markerType} text-[clamp(4.75rem,2rem+13vw,13rem)] text-gold-soft/[0.16]`}>
@@ -263,7 +263,7 @@ export function History() {
                 </span>
               </Marker>
             </div>
-            <div className="mt-5 lg:col-span-7 lg:mt-10">
+            <div className="mt-4 lg:col-span-7 lg:mt-9">
               <div id="h-rozaje">
                 <ChapterHead numeral="IV" label={c.rozaje.label} time={c.rozaje.date} tone="dark" />
               </div>
@@ -273,7 +273,7 @@ export function History() {
                 className="display mt-5 text-[clamp(2.75rem,1.6rem+4.6vw,5.5rem)] leading-[1] tracking-[-0.025em] text-ivory md:mt-6"
               />
               <Reveal delay={0.1} y={18}>
-                <p className="hist-text mt-6 max-w-[34em] text-[1.0625rem] font-light leading-[1.7] text-ivory/85 md:mt-8 md:text-[1.125rem] md:leading-[1.75]">
+                <p className="hist-text mt-5 max-w-[34em] text-[1.0625rem] font-light leading-[1.7] text-ivory/85 md:mt-7 md:text-[1.125rem] md:leading-[1.75]">
                   {c.rozaje.text}
                 </p>
               </Reveal>
@@ -282,7 +282,7 @@ export function History() {
         </section>
 
         {/* ---------- V · Danas ---------- */}
-        <section aria-labelledby="h-danas" className="relative pt-16 md:pt-24 lg:pt-32">
+        <section aria-labelledby="h-danas" className="relative pt-14 md:pt-21 lg:pt-28">
           <div className="wrap grid lg:grid-cols-12 lg:gap-x-12">
             <div className="lg:col-span-5">
               <Marker>
@@ -299,17 +299,17 @@ export function History() {
                 </span>
               </Reveal>
             </div>
-            <div className="mt-10 lg:col-span-7 lg:mt-12">
+            <div className="mt-9 lg:col-span-7 lg:mt-10">
               <div id="h-danas">
                 <ChapterHead numeral="V" label={c.today.marker} />
               </div>
-              <div className="mt-6 md:mt-8">
+              <div className="mt-5 md:mt-7">
                 <Para>{c.today.text}</Para>
               </div>
             </div>
           </div>
           {/* The whole campus today: a full-width pause before the closing. */}
-          <div className="relative z-[1] mt-14 md:mt-20 lg:mt-28">
+          <div className="relative z-[1] mt-12 md:mt-18 lg:mt-24">
             <ParallaxImage
               image={c.today.image}
               travel={9}
@@ -322,7 +322,7 @@ export function History() {
         {/* ---------- Closing: the welcome and the verse ---------- */}
         <section
           aria-label={h.closing.bs.welcome}
-          className="wrap relative pb-20 pt-16 md:pb-28 md:pt-24 lg:pb-36 lg:pt-28"
+          className="wrap relative pb-16 pt-14 md:pb-24 md:pt-21 lg:pb-28 lg:pt-24"
         >
           <div className="mx-auto max-w-[46rem] text-center">
             <div className="relative mx-auto w-32 md:w-40">
@@ -330,13 +330,13 @@ export function History() {
               <DrawRule className="bg-gold" delay={0.2} />
             </div>
             <Reveal y={16}>
-              <p className="hist-text mt-8 text-[1.1875rem] font-light leading-[1.5] text-ink md:mt-10 md:text-[1.5rem]">
+              <p className="hist-text mt-7 text-[1.1875rem] font-light leading-[1.5] text-ink md:mt-9 md:text-[1.5rem]">
                 <span className="block [text-wrap:balance]">{h.closing.bs.welcome}</span>
                 <span className="mt-1 block [text-wrap:balance]">{h.closing.bs.since}</span>
               </p>
             </Reveal>
             <Reveal delay={0.12} y={20}>
-              <blockquote className="mt-10 md:mt-14">
+              <blockquote className="mt-9 md:mt-12">
                 <p className="display hist-text text-[clamp(1.75rem,1.1rem+2.6vw,3.25rem)] leading-[1.15] tracking-[-0.015em] text-green [text-wrap:balance]">
                   {h.closing.bs.verse}
                 </p>
@@ -344,21 +344,6 @@ export function History() {
                   <cite className="not-italic">{h.closing.bs.source}</cite>
                 </footer>
               </blockquote>
-            </Reveal>
-            <Reveal delay={0.2} y={12}>
-              <div
-                lang="sq"
-                className="mx-auto mt-12 max-w-[34rem] border-t border-ink/10 pt-8 md:mt-16 md:pt-10"
-              >
-                <p className="hist-text text-[0.9375rem] font-light leading-[1.6] text-ink-soft">
-                  <span className="block [text-wrap:balance]">{h.closing.sq.welcome}</span>
-                  <span className="block [text-wrap:balance]">{h.closing.sq.since}</span>
-                </p>
-                <p className="hist-text mt-4 text-[1.0625rem] leading-[1.45] text-green/85 md:text-[1.125rem]">
-                  {h.closing.sq.verse}
-                </p>
-                <p className="mt-2 text-[0.75rem] tracking-[0.04em] text-gold-deep">{h.closing.sq.source}</p>
-              </div>
             </Reveal>
           </div>
         </section>
