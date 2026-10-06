@@ -704,3 +704,12 @@ dialog::backdrop {
     opacity: 0.45;
   }
 }
+
+/* ---------- Historijat ---------- */
+/* Long-form Bosnian/Albanian: never hyphenate or break a word; balanced rag. */
+.hist-text {
+  hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
+  text-wrap: pretty;
+}
