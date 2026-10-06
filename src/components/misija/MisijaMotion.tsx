@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion, useInView, useTransform } from "framer-motion";
+import { useRef, type ReactNode } from "react";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 
@@ -114,6 +114,58 @@ export function Horizon({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Type that emerges from a line: the text sits in a mask whose top edge is the
+ * line above it, and drops out from under it once — the heading visibly
+ * belongs to that line. Reduced motion: in place.
+ */
+export function Emerge({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const { reduced } = useMotionProfile();
+  // Observe the mask (always in place), not the text, which starts outside it.
+  const mask = useRef<HTMLSpanElement>(null);
+  const inView = useInView(mask, view);
+  if (reduced) return <span className={`block ${className}`}>{children}</span>;
+  return (
+    <span ref={mask} className={`block overflow-hidden pb-[0.12em] -mb-[0.12em] ${className}`}>
+      <motion.span
+        className="block"
+        initial={{ transform: "translateY(-105%)" }}
+        animate={{ transform: inView ? "translateY(0%)" : "translateY(-105%)" }}
+        transition={{ duration: 0.75, delay, ease: [0.23, 1, 0.32, 1] }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  );
+}
+
+/**
+ * The mission's axis: drawn by reading. Its length follows the scroll through
+ * the mission, reaching the horizon as the mission ends (transform only).
+ */
+export function Axis({ className = "" }: { className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const { reduced } = useMotionProfile();
+  const p = useScrollProgress(ref, ["start 82%", "end 70%"]);
+  const scaleY = useTransform(p, [0, 1], [0, 1]);
+  return (
+    <motion.span
+      ref={ref}
+      aria-hidden
+      className={`block origin-top bg-gold ${className}`}
+      style={reduced ? undefined : { scaleY }}
+    />
   );
 }
 

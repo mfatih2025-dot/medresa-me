@@ -1,6 +1,6 @@
 import { misija as m } from "@/content/misija";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
-import { Horizon, Line, Signature } from "./MisijaMotion";
+import { Axis, Emerge, Horizon, Line, Signature } from "./MisijaMotion";
 
 /*
  * Misija i vizija, read as one statement of purpose.
@@ -10,7 +10,8 @@ import { Horizon, Line, Signature } from "./MisijaMotion";
  *              mission — grounded, structured, left-aligned.
  *   Horizon    the axis descends into the page's own sky photograph and, at its
  *              foot, divides left and right along the horizon.
- *   Vizija     set open and centred under that horizon, with more air.
+ *   Vizija     hung from the horizon by a short drop of the line, set further
+ *              right on desktop and wider than the mission — the expansion.
  *   Closing    the line converges to a short rule; the Reis's signature, name
  *              and title close the statement, as at the foot of a charter.
  */
@@ -42,80 +43,88 @@ export function Misija() {
 
       {/* ---------- Misija: the axis ---------- */}
       <div className="relative mt-12 md:mt-16 lg:mt-20">
-        {/* The rule turns at the content edge and becomes the mission's vertical axis,
-            continuing down behind the horizon photograph to its foot. */}
+        {/* The rule arrives from the page edge and turns at the content edge into the
+            mission's axis, which grows with reading and runs down into the horizon. */}
         <div aria-hidden className="wrap pointer-events-none absolute inset-0">
           <div className="relative h-full">
-            {/* Arrives from the page edge, turns at the content edge… */}
             <Line
               axis="x"
               origin="left"
-              duration={0.9}
-              delay={0.5}
+              duration={0.8}
+              delay={0.45}
               className="absolute right-full top-0 h-px w-[calc(var(--gutter)+max(0px,(100vw-var(--max))/2))]"
             />
-            {/* …and descends beside the mission, into the horizon. */}
-            <Line
-              axis="y"
-              origin="top"
-              duration={2.2}
-              delay={1.25}
-              className="absolute bottom-0 left-0 top-0 w-px"
-            />
+            <Axis className="absolute bottom-0 left-0 top-0 w-px" />
           </div>
         </div>
 
-        <section aria-labelledby="mis-misija" className="wrap pb-14 pt-9 md:pb-20 md:pt-12 lg:pb-24 lg:pt-16">
-          <div className="pl-5 md:pl-10 lg:grid lg:grid-cols-12 lg:gap-x-12 lg:pl-0">
-            <div className="lg:col-span-4 lg:pl-12">
-              <Reveal variant="label">
-                <h2
-                  id="mis-misija"
-                  className="display text-[clamp(2rem,1.4rem+2.6vw,3.75rem)] leading-[1] tracking-[-0.025em] text-green lg:sticky lg:top-[calc(var(--bar-h-compact)+3rem)]"
-                >
-                  {m.mission.label}
-                </h2>
-              </Reveal>
+        {/* The heading nests in the corner: its capitals hang just below the rule. */}
+        <section
+          aria-labelledby="mis-misija"
+          className="wrap pb-14 pt-2.5 md:pb-20 md:pt-3 lg:pb-24 lg:pt-3.5"
+        >
+          <div className="pl-5 md:pl-8 lg:grid lg:grid-cols-12 lg:gap-x-12 lg:pl-0">
+            <div className="lg:col-span-3 lg:pl-8">
+              <h2
+                id="mis-misija"
+                className="display text-[clamp(2rem,1.4rem+2.6vw,3.75rem)] leading-[1] tracking-[-0.025em] text-green lg:sticky lg:top-[calc(var(--bar-h-compact)+3rem)]"
+              >
+                <Emerge delay={0.75}>{m.mission.label}</Emerge>
+              </h2>
             </div>
-            <div className="mt-6 md:mt-8 lg:col-span-7 lg:mt-1">
-              <Reveal y={18}>
+            <div className="mt-5 md:mt-7 lg:col-span-7 lg:col-start-4 lg:mt-[0.7rem]">
+              <Reveal y={16}>
                 <p className="hist-text max-w-[32em] text-[1.1875rem] font-light leading-[1.6] text-ink md:text-[1.375rem] md:leading-[1.58]">
                   {missionLead}
                 </p>
               </Reveal>
-              <Reveal y={18} delay={0.06}>
+              <Reveal y={16} delay={0.06}>
                 <p className={`${body} mt-6 max-w-[34em] md:mt-8`}>{missionRest}</p>
               </Reveal>
             </div>
           </div>
         </section>
 
-        {/* ---------- The horizon ---------- */}
+        {/* ---------- The horizon: the axis divides along the foot of the sky ---------- */}
         <div className="relative isolate z-[1] bg-paper">
           <Horizon {...m.horizon} />
         </div>
       </div>
 
-      {/* ---------- Vizija: open, centred ---------- */}
-      <section aria-labelledby="mis-vizija" className="wrap pb-14 pt-14 md:pb-20 md:pt-20 lg:pb-24 lg:pt-28">
-        <div className="mx-auto max-w-[56rem] text-center">
-          <Reveal variant="fade">
-            <h2
-              id="mis-vizija"
-              className="display text-[clamp(2rem,1.4rem+2.6vw,3.75rem)] leading-[1] tracking-[-0.025em] text-green"
-            >
-              {m.vision.label}
-            </h2>
-          </Reveal>
-          <Reveal y={20} delay={0.08}>
-            <p className="display mx-auto mt-7 max-w-[24em] [hyphens:none] text-[clamp(1.375rem,1rem+1.6vw,2.375rem)] font-normal leading-[1.3] tracking-[-0.012em] text-green [text-wrap:balance] md:mt-10">
-              {visionStatement}
-            </p>
-          </Reveal>
+      {/* ---------- Vizija: hung from the horizon, expanding past the axis ---------- */}
+      <section aria-labelledby="mis-vizija" className="wrap pb-14 md:pb-20 lg:pb-24">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-x-12">
+          <div className="relative lg:col-span-7 lg:col-start-6">
+            {/* A short drop from the horizon to the heading: the line continues into the vision. */}
+            <Line
+              axis="y"
+              origin="top"
+              duration={0.7}
+              delay={0.55}
+              className="absolute left-0 top-0 h-[calc(100%-0rem)] w-px"
+            />
+            <div className="pl-5 pt-2.5 md:pl-8 md:pt-3 lg:pt-3.5">
+              <h2
+                id="mis-vizija"
+                className="display text-[clamp(2rem,1.4rem+2.6vw,3.75rem)] leading-[1] tracking-[-0.025em] text-green"
+              >
+                <Emerge delay={0.95}>{m.vision.label}</Emerge>
+              </h2>
+            </div>
+            <span aria-hidden className="block h-6 md:h-8" />
+          </div>
+          {/* The vision opens out: wider than the mission, beyond its axis. */}
+          <div className="lg:col-span-7 lg:col-start-6">
+            <Reveal y={16} delay={0.1}>
+              <p className="display max-w-[22em] [hyphens:none] text-[clamp(1.375rem,1rem+1.5vw,2.25rem)] font-normal leading-[1.3] tracking-[-0.012em] text-green [text-wrap:pretty]">
+                {visionStatement}
+              </p>
+            </Reveal>
+            <Reveal y={16} delay={0.16}>
+              <p className={`${body} mt-6 max-w-[34em] md:mt-8`}>{visionRest}</p>
+            </Reveal>
+          </div>
         </div>
-        <Reveal y={16} delay={0.12}>
-          <p className={`${body} mx-auto mt-8 max-w-[34em] md:mt-12`}>{visionRest}</p>
-        </Reveal>
       </section>
 
       {/* ---------- Closing: the line converges; the signature ---------- */}
