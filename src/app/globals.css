@@ -1167,10 +1167,3 @@ html[data-gateway] .gw {
     translate: 0 108%;
   }
 }
-
-/* ---------- Misija i vizija ---------- */
-/* The sky band fades in from the page at its top edge (its foot fades in the photograph itself). */
-.mis-sky {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 36%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 36%);
-}

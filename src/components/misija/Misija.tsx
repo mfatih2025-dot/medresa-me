@@ -1,6 +1,6 @@
 import { misija as m } from "@/content/misija";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
-import { Axis, Emerge, Horizon, Line, Signature } from "./MisijaMotion";
+import { Axis, Emerge, HorizonLine, Line, Signature } from "./MisijaMotion";
 
 /*
  * Misija i vizija, read as one statement of purpose.
@@ -8,8 +8,8 @@ import { Axis, Emerge, Horizon, Line, Signature } from "./MisijaMotion";
  *   Title      the source's heading; a gold rule arrives from the page edge…
  *   Misija     …and turns down at the content edge: a vertical axis beside the
  *              mission — grounded, structured, left-aligned.
- *   Horizon    the axis descends into the page's own sky photograph and, at its
- *              foot, divides left and right along the horizon.
+ *   Horizon    the axis descends to a horizon line and divides along it, left
+ *              and right.
  *   Vizija     hung from the horizon by a short drop of the line, set further
  *              right on desktop and wider than the mission — the expansion.
  *   Closing    the line converges to a short rule; the Reis's signature, name
@@ -44,7 +44,7 @@ export function Misija() {
       {/* ---------- Misija: the axis ---------- */}
       <div className="relative mt-12 md:mt-16 lg:mt-20">
         {/* The rule arrives from the page edge and turns at the content edge into the
-            mission's axis, which grows with reading and runs down into the horizon. */}
+            mission's axis, which grows with reading and runs down to the horizon. */}
         <div aria-hidden className="wrap pointer-events-none absolute inset-0">
           <div className="relative h-full">
             <Line
@@ -61,7 +61,7 @@ export function Misija() {
         {/* The heading nests in the corner: its capitals hang just below the rule. */}
         <section
           aria-labelledby="mis-misija"
-          className="wrap pb-14 pt-2.5 md:pb-20 md:pt-3 lg:pb-24 lg:pt-3.5"
+          className="wrap pb-12 pt-2.5 md:pb-16 md:pt-3 lg:pb-20 lg:pt-3.5"
         >
           <div className="pl-5 md:pl-8 lg:grid lg:grid-cols-12 lg:gap-x-12 lg:pl-0">
             <div className="lg:col-span-3 lg:pl-8">
@@ -85,10 +85,8 @@ export function Misija() {
           </div>
         </section>
 
-        {/* ---------- The horizon: the axis divides along the foot of the sky ---------- */}
-        <div className="relative isolate z-[1] bg-paper">
-          <Horizon {...m.horizon} />
-        </div>
+        {/* ---------- The horizon: the axis divides along it ---------- */}
+        <HorizonLine />
       </div>
 
       {/* ---------- Vizija: hung from the horizon, expanding past the axis ---------- */}

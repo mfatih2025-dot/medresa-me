@@ -10,8 +10,8 @@ import { useScrollProgress } from "@/hooks/useScrollProgress";
  * The page's one device: a gold line that gives direction, then horizon.
  *
  *   Line      draws once as it enters, from a chosen origin (left, top, centre)
- *   Horizon   the source's own sky photograph; the vertical line of the mission
- *             meets it and divides along the horizon, left and right
+ *   Horizon   the vertical line of the mission meets it and divides along the
+ *             horizon, left and right
  *   Signature the authentic PNG, revealed by a mask in the direction of writing
  *
  * transform/clip only, ease-in-out for drawn lines (they move on screen),
@@ -59,60 +59,25 @@ export function Line({
 }
 
 /**
- * The horizon: the sky photograph drifts a little slower than the page; its
- * white fade is multiplied into the cream, so the sky dissolves into the page.
- * At its foot the line arriving from the mission divides, left and right.
+ * The horizon: the mission's axis meets it and divides, left and right, along
+ * the full width of the page — the line that the vision then hangs from.
  */
-export function Horizon({
-  src,
-  alt,
-  width,
-  height,
-}: {
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { reduced, compact } = useMotionProfile();
-  const p = useScrollProgress(ref, ["start end", "end start"]);
-  // Drifts down a little as the page rises past it; the top overhang keeps it covered.
-  const y = useTransform(p, [0, 1], compact ? ["0%", "4%"] : ["0%", "7%"]);
+export function HorizonLine() {
   return (
-    <div ref={ref} className="relative">
-      {/* The sky fades in from the page at the top; the photograph's own fade to
-          white (multiplied into the cream) dissolves it at the foot. */}
-      <div className="mis-sky relative aspect-[2.4/1] overflow-hidden md:aspect-[3.2/1] lg:aspect-[3.76/1]">
-        <motion.div
-          className="absolute inset-x-0 -top-[8%] bottom-0 will-change-transform"
-          style={reduced ? undefined : { y }}
-        >
-          <Image
-            src={src}
-            alt={alt}
-            width={width}
-            height={height}
-            sizes="100vw"
-            className="h-full w-full object-cover object-bottom mix-blend-multiply"
-          />
-        </motion.div>
-      </div>
+    <div aria-hidden className="relative h-px">
       {/* The junction is the mission's axis: the content edge of .wrap. */}
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-px">
-        <Line
-          axis="x"
-          origin="right"
-          duration={1.2}
-          className="absolute inset-y-0 left-0 w-[calc(var(--gutter)+max(0px,(100%-var(--max))/2))]"
-        />
-        <Line
-          axis="x"
-          origin="left"
-          duration={1.2}
-          className="absolute inset-y-0 right-0 left-[calc(var(--gutter)+max(0px,(100%-var(--max))/2))]"
-        />
-      </div>
+      <Line
+        axis="x"
+        origin="right"
+        duration={1.2}
+        className="absolute inset-y-0 left-0 w-[calc(var(--gutter)+max(0px,(100%-var(--max))/2))]"
+      />
+      <Line
+        axis="x"
+        origin="left"
+        duration={1.2}
+        className="absolute inset-y-0 right-0 left-[calc(var(--gutter)+max(0px,(100%-var(--max))/2))]"
+      />
     </div>
   );
 }
