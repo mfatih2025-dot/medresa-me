@@ -9,7 +9,9 @@ type Params = { slug: string };
 
 export function generateStaticParams(): Params[] {
   // Pages with their own route (app/<slug>/page.tsx) are excluded here.
-  return pageSlugs.filter((slug) => slug !== "vijesti" && slug !== "historijat").map((slug) => ({ slug }));
+  return pageSlugs
+    .filter((slug) => slug !== "vijesti" && slug !== "historijat" && slug !== "uip")
+    .map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {

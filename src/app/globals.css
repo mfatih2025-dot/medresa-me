@@ -713,3 +713,83 @@ dialog::backdrop {
   overflow-wrap: normal;
   text-wrap: pretty;
 }
+
+/* ---------- Uprava i profesori ---------- */
+/* Controls answer the press, never select their label, and skip the tap delay. */
+.uip-press {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: scale 140ms var(--ease-out-expo);
+}
+.uip-press:active {
+  scale: 0.97;
+}
+.uip-search::-webkit-search-cancel-button {
+  appearance: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .uip-link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--color-gold);
+    text-underline-offset: 5px;
+  }
+}
+/* The followed entry: its leader draws in gold and the row warms, then settles. */
+.uip-leader-gold {
+  scale: 0 1;
+}
+.uip-row[data-hit] .uip-leader-gold {
+  scale: 1 1;
+  transition: scale 700ms cubic-bezier(0.65, 0, 0.35, 1) 120ms;
+}
+.uip-row[data-hit]::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--gutter) * -0.5);
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+  animation: uip-warm 2.6s ease-out forwards;
+}
+.uip-row[data-hit]::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--gutter) * -0.5);
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 2px;
+  background: var(--color-gold);
+  transform-origin: top;
+  animation: uip-tick 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.uip-row:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+@keyframes uip-warm {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes uip-tick {
+  from {
+    scale: 1 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* A new index arranges its leaders: each draws in, briefly staggered. */
+  .uip-leader {
+    animation: uip-lead 520ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation-delay: calc(var(--i, 0) * 22ms);
+    transform-origin: left;
+  }
+  .uip-draw {
+    animation: uip-lead 900ms cubic-bezier(0.65, 0, 0.35, 1) 200ms both;
+    transform-origin: left;
+  }
+}
+@keyframes uip-lead {
+  from {
+    scale: 0 1;
+  }
+}
