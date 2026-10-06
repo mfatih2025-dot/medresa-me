@@ -15,6 +15,7 @@ import type { Dictionary } from "@/content";
 import { site } from "@/content/site";
 import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
 import { Overlay } from "./Overlay";
+import { LanguageSwitch } from "@/components/i18n/LanguageSwitch";
 
 type Props = { dict: Dictionary };
 
@@ -307,9 +308,7 @@ function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => vo
             <a href={site.eMedresa} className="link-u" rel="noopener">
               e-medresa
             </a>
-            <span className="text-ivory/50">
-              {ui.language}: <b className="font-medium text-ivory">BS</b> · {ui.languageSoon}
-            </span>
+            <LanguageSwitch label={ui.language} />
           </div>
         </div>
       </div>

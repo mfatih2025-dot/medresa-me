@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Kanit } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
+import { LOCALE_COOKIE } from "@/i18n/config";
+import { Gateway } from "@/components/i18n/Gateway";
 import { Header } from "@/components/layout/Header";
 import { getDictionary } from "@/content";
 import { site } from "@/content/site";
@@ -74,9 +76,23 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * Homepage, no remembered language, not a crawler → show the gateway. `?intro`
+ * forces it (for testing). Runs before first paint, so there is no flash.
+ */
+const gatewayScript = `(function(){try{var d=document.documentElement,l=location;if(l.pathname!=="/")return;var chosen=/(?:^|;\\s*)${LOCALE_COOKIE}=(bs|sq|en)(?:;|$)/.test(document.cookie);var bot=/bot|crawl|spider|slurp|facebookexternalhit|lighthouse/i.test(navigator.userAgent);if(!bot&&(!chosen||/[?&]intro\\b/.test(l.search)))d.dataset.gateway="1"}catch(e){}})()`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={dict.lang} className={kanit.variable}>
+    // suppressHydrationWarning: the pre-paint script below may set data-gateway on <html>.
+    <html lang={dict.lang} className={kanit.variable} suppressHydrationWarning>
+      <head>
+        <script
+          // Static, build-time code only: decides before first paint whether the
+          // first-visit language gateway is shown (see components/i18n/Gateway.tsx).
+          dangerouslySetInnerHTML={{ __html: gatewayScript }}
+        />
+      </head>
       <body>
         <script
           type="application/ld+json"
@@ -92,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header dict={dict} />
         <main id="main">{children}</main>
         <Footer dict={dict} />
+        <Gateway />
       </body>
     </html>
   );
