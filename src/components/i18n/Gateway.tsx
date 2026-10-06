@@ -15,9 +15,13 @@ import { localeNames, rememberLocale, type Locale } from "@/i18n/config";
  * hidden by CSS otherwise, so a returning visitor never sees a flash of it and
  * a first-time visitor never sees a flash of the homepage.
  *
- *   Act I    the emblem settles into place          (CSS, from first paint)
- *   Act II   MEDRESA „MEHMED FATIH“ and the horizon  (CSS)
- *   Act III  Bosanski · Shqip · English              (interactive from the start)
+ * The intro (CSS only, from first paint; ~3s, see globals.css):
+ *   1  a gold horizon draws outward from the centre
+ *   2  the emblem opens in a circular aperture, settling inside it
+ *   3  the composition lifts into place around it
+ *   4  MEDRESA converges from wide tracking; „MEHMED FATIH“ rises from its masks
+ *   5  the horizon contracts beneath the title, completing the composition
+ *   6  Bosanski · Shqip · English resolve (interactive from the start)
  *
  * Choosing: the other languages dissolve, the horizon extends to the edges and
  * the cream surface parts along it — the emblem rising toward the header's,
@@ -28,6 +32,8 @@ import { localeNames, rememberLocale, type Locale } from "@/i18n/config";
  */
 
 const ORDER: Locale[] = ["bs", "sq", "en"];
+const PRE = [..."Medresa"];
+const NAME = ["„Mehmed", "Fatih“"];
 
 type Phase = "idle" | "off" | "leave" | "open";
 
@@ -135,19 +141,47 @@ export function Gateway() {
     >
       <div className="gw-top">
         <div className="gw-id">
-          <Image
-            src={site.logo.src}
-            alt={site.name}
-            width={site.logo.width}
-            height={site.logo.height}
-            // Same sizes as the header emblem: the browser reuses its (preloaded) file.
-            sizes="(min-width: 768px) 135px, 92px"
-            loading="lazy"
-            className="gw-logo"
-          />
+          {/* The emblem in an aperture: the mask opens while the image settles inside it. */}
+          <span className="gw-emblem">
+            <Image
+              src={site.logo.src}
+              alt={site.name}
+              width={site.logo.width}
+              height={site.logo.height}
+              // Same sizes as the header emblem: the browser reuses its (preloaded) file.
+              sizes="(min-width: 768px) 135px, 92px"
+              loading="lazy"
+              className="gw-logo"
+            />
+          </span>
           <p id="gw-title" className="gw-title">
-            <span className="gw-pre">Medresa</span>
-            <span className="gw-name">„Mehmed Fatih“</span>
+            <span className="gw-pre">
+              <span className="sr-only">Medresa</span>
+              {/* Letters converge from wide tracking into place, like type being set. */}
+              <span aria-hidden>
+                {PRE.map((c, i) => (
+                  <span
+                    key={i}
+                    className="gw-ch"
+                    style={{ "--d": i - (PRE.length - 1) / 2 } as CSSProperties}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </span>
+            </span>
+            <span className="gw-name">
+              {NAME.map((w, i) => (
+                <span key={w}>
+                  {i > 0 && " "}
+                  <span className="gw-mask">
+                    <span className="gw-word" style={{ "--i": i } as CSSProperties}>
+                      {w}
+                    </span>
+                  </span>
+                </span>
+              ))}
+            </span>
           </p>
         </div>
       </div>
