@@ -11,7 +11,8 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import type { Location, LocationId } from "@/content/uip";
+import { plural, uipContent, type Location, type LocationId } from "@/content/uip";
+import { useLocale } from "@/i18n/client";
 import { anchorId, byLetter, fold, matches, people, type Person } from "@/lib/uip";
 
 /*
@@ -38,7 +39,16 @@ type Focus = { kind: "p" | "s"; name: string; tick: number } | null;
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
+/** The interface text for the page's language, and a counter with its noun. */
+function useT() {
+  const locale = useLocale();
+  const t = uipContent[locale].ui;
+  const count = (n: number, forms: readonly string[]) => plural(n, forms, locale === "bs");
+  return { t, count };
+}
+
 export function Directory({ locations, service }: { locations: readonly Location[]; service: ReactNode }) {
+  const { t, count } = useT();
   const [locId, setLocId] = useState<LocationId>("tuzi");
   const [view, setView] = useState<View>("profesori");
   const [query, setQuery] = useState("");
@@ -77,20 +87,20 @@ export function Directory({ locations, service }: { locations: readonly Location
     setFocus({ kind, name, tick: Date.now() });
   };
 
-  const counts = `${list.length} profesora · ${loc.subjects.length} predmeta`;
+  const counts = `${count(list.length, t.teachers)} · ${count(loc.subjects.length, t.subjectsN)}`;
 
   return (
     <MotionConfig reducedMotion="user">
       {/* ---------- Opening ---------- */}
       <header className="wrap pt-32 md:pt-44 lg:pt-48">
-        <p className="eyebrow eyebrow-display text-gold-deep">Medresa „Mehmed Fatih“</p>
+        <p className="eyebrow eyebrow-display text-gold-deep">{t.eyebrow}</p>
         <h1 className="display mt-4 text-[clamp(2.625rem,1.4rem+5.4vw,6rem)] leading-[0.98] tracking-[-0.03em] text-green md:mt-5">
-          Uprava i profesori
+          {t.title}
         </h1>
         <span aria-hidden className="uip-draw mt-7 block h-px w-24 bg-gold md:mt-9 md:w-32" />
 
         <Segmented
-          label="Lokacija"
+          label={t.location}
           value={locId}
           onChange={switchLoc}
           className="mt-8 md:mt-10"
@@ -98,7 +108,7 @@ export function Directory({ locations, service }: { locations: readonly Location
           options={locations.map((l) => ({
             value: l.id,
             label: l.label,
-            note: `${all[l.id].length} profesora`,
+            note: count(all[l.id].length, t.teachers),
           }))}
         />
       </header>
@@ -123,7 +133,7 @@ export function Directory({ locations, service }: { locations: readonly Location
               {/* Desktop rail: title, switch, search, quick index */}
               <aside className="hidden lg:col-span-4 lg:block">
                 <div className="sticky top-[calc(var(--bar-h-compact)+2rem)] pb-8">
-                  <SectionHead id="uip-faculty" title="Profesori" meta={counts} />
+                  <SectionHead id="uip-faculty" title={t.faculty} meta={counts} />
                   <ViewSwitch value={view} onChange={switchView} className="mt-6" />
                   <SearchField value={query} onChange={setQuery} className="mt-6" />
                   <QuickIndex view={view} list={result.people} subjects={result.subjects} loc={loc.id} />
@@ -132,7 +142,7 @@ export function Directory({ locations, service }: { locations: readonly Location
 
               {/* Phones/tablets: title, then a compact sticky bar */}
               <div className="lg:hidden">
-                <SectionHead id="uip-faculty-m" title="Profesori" meta={counts} />
+                <SectionHead id="uip-faculty-m" title={t.faculty} meta={counts} />
               </div>
               <MobileBar view={view} onView={switchView} query={query} onQuery={setQuery} />
 
@@ -151,7 +161,7 @@ export function Directory({ locations, service }: { locations: readonly Location
                     key={view}
                     id="uip-index"
                     role="tabpanel"
-                    aria-label={view === "profesori" ? "Po profesorima" : "Po predmetima"}
+                    aria-label={view === "profesori" ? t.byPeople : t.bySubjects}
                     custom={dir}
                     variants={swap}
                     initial="enter"
@@ -342,16 +352,17 @@ function ViewSwitch({
   onChange: (v: View) => void;
   className?: string;
 }) {
+  const { t } = useT();
   return (
     <Segmented
-      label="Prikaz"
+      label={t.view}
       size="small"
       value={value}
       onChange={onChange}
       className={className}
       options={[
-        { value: "profesori", label: "Po profesorima" },
-        { value: "predmeti", label: "Po predmetima" },
+        { value: "profesori", label: t.byPeople },
+        { value: "predmeti", label: t.bySubjects },
       ]}
     />
   );
@@ -371,10 +382,11 @@ function SearchField({
   onEscape?: () => void;
 }) {
   const id = useId();
+  const { t } = useT();
   return (
     <div className={`relative ${className}`} role="search">
       <label htmlFor={id} className="sr-only">
-        Pretraži profesora ili predmet
+        {t.search}
       </label>
       <svg
         aria-hidden
@@ -399,7 +411,7 @@ function SearchField({
             else onEscape?.();
           }
         }}
-        placeholder="Pretraži profesora ili predmet"
+        placeholder={t.search}
         enterKeyHint="search"
         autoComplete="off"
         spellCheck={false}
@@ -409,7 +421,7 @@ function SearchField({
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label="Obriši pretragu"
+          aria-label={t.clear}
           className="uip-press absolute right-0 top-1/2 grid size-9 -translate-y-1/2 place-items-center text-ink-soft"
         >
           <svg
@@ -440,6 +452,7 @@ function MobileBar({
   query: string;
   onQuery: (q: string) => void;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const searching = open || query.length > 0;
   return (
@@ -461,7 +474,7 @@ function MobileBar({
             }}
             className="uip-press min-h-10 shrink-0 text-[0.875rem] font-medium text-green"
           >
-            Zatvori
+            {t.close}
           </button>
         </div>
       ) : (
@@ -470,7 +483,7 @@ function MobileBar({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Pretraži profesora ili predmet"
+            aria-label={t.search}
             className="uip-press grid size-11 shrink-0 place-items-center rounded-full border border-ink/15 text-green"
           >
             <svg
@@ -503,6 +516,7 @@ function QuickIndex({
   subjects: { name: string }[];
   loc: string;
 }) {
+  const { t } = useT();
   const jump = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -513,7 +527,7 @@ function QuickIndex({
     const letters = byLetter(list).map((g) => g.letter);
     if (!letters.length) return null;
     return (
-      <nav aria-label="Abecedni indeks" className="mt-8 border-t border-ink/10 pt-5">
+      <nav aria-label={t.letters} className="mt-8 border-t border-ink/10 pt-5">
         <ul className="flex flex-wrap gap-x-1 gap-y-1">
           {letters.map((l) => (
             <li key={l}>
@@ -532,7 +546,7 @@ function QuickIndex({
   }
   if (!subjects.length) return null;
   return (
-    <nav aria-label="Predmeti" className="mt-8 border-t border-ink/10 pt-5">
+    <nav aria-label={t.subjects} className="mt-8 border-t border-ink/10 pt-5">
       <ul className="columns-2 gap-x-6 text-[0.875rem]">
         {subjects.map((s) => (
           <li key={s.name} className="break-inside-avoid">
@@ -581,26 +595,28 @@ function ResultNote({
   onOther: () => void;
   onClear: () => void;
 }) {
+  const { t, count: n } = useT();
   if (!fold(query)) return <div aria-live="polite" className="sr-only" />;
   const otherCount = elsewhere?.people.length ?? 0;
   return (
     <div aria-live="polite" className="mt-5 text-[0.875rem] text-ink-soft md:mt-6 lg:mt-0">
       {count > 0 ? (
         <p>
-          {view === "profesori"
-            ? `${count} ${count === 1 ? "profesor" : "profesora"}`
-            : `${count} ${count === 1 ? "predmet" : "predmeta"}`}{" "}
-          za „{query.trim()}“
+          {view === "profesori" ? n(count, t.teachers) : n(count, t.subjectsN)} {t.forQuery} {t.open}
+          {query.trim()}
+          {t.shut}
         </p>
       ) : (
         <p>
-          Nema rezultata za „{query.trim()}“.{" "}
+          {t.noResults} {t.open}
+          {query.trim()}
+          {t.shut}.{" "}
           <button
             type="button"
             onClick={onClear}
             className="uip-press font-medium text-green underline underline-offset-4"
           >
-            Obriši pretragu
+            {t.clear}
           </button>
         </p>
       )}
@@ -611,8 +627,7 @@ function ResultNote({
             onClick={onOther}
             className="uip-press font-medium text-green underline underline-offset-4"
           >
-            {other.id === "rozaje" ? "Rožaje" : "Tuzi"}: {otherCount}{" "}
-            {otherCount === 1 ? "rezultat" : "rezultata"}
+            {other.label}: {n(otherCount, t.results)}
           </button>
         </p>
       )}
@@ -707,6 +722,7 @@ function PersonRow({
   focus?: number;
   onSubject: (s: string) => void;
 }) {
+  const { t } = useT();
   const ref = useFollow(focus !== undefined, focus);
   return (
     <li
@@ -732,7 +748,7 @@ function PersonRow({
             <button
               type="button"
               onClick={() => onSubject(s)}
-              aria-label={`${s} — svi profesori ovog predmeta`}
+              aria-label={`${s} — ${t.toSubject}`}
               className="uip-press uip-link min-h-8 text-[0.875rem] text-gold-deep md:min-h-0 md:text-[0.9375rem]"
             >
               <Mark text={s} query={query} />
@@ -790,6 +806,7 @@ function SubjectRow({
   focus?: number;
   onPerson: (p: string) => void;
 }) {
+  const { t } = useT();
   const ref = useFollow(focus !== undefined, focus);
   return (
     <li
@@ -805,8 +822,8 @@ function SubjectRow({
       </h3>
       <Leader />
       <p className="ml-auto flex flex-wrap items-baseline justify-end gap-x-1 text-right md:max-w-[60%]">
-        {subject.teachers.map((t, k) => (
-          <span key={t} className="inline-flex items-baseline">
+        {subject.teachers.map((name, k) => (
+          <span key={name} className="inline-flex items-baseline">
             {k > 0 && (
               <span aria-hidden className="mx-1 text-gold/80">
                 ·
@@ -814,11 +831,11 @@ function SubjectRow({
             )}
             <button
               type="button"
-              onClick={() => onPerson(t)}
-              aria-label={`${t} — svi predmeti ovog profesora`}
+              onClick={() => onPerson(name)}
+              aria-label={`${name} — ${t.toPerson}`}
               className="uip-press uip-link min-h-8 text-[0.9375rem] text-ink md:min-h-0 md:text-[1rem]"
             >
-              <Mark text={t} query={query} />
+              <Mark text={name} query={query} />
             </button>
           </span>
         ))}
@@ -842,12 +859,13 @@ function Leader() {
 /* ---------- Uprava ---------- */
 
 function Leadership({ loc }: { loc: Location }) {
+  const { t } = useT();
   const [head, ...rest] = loc.management;
   return (
     <section aria-labelledby="uip-uprava" className="wrap pb-14 pt-12 md:pb-20 md:pt-16 lg:pb-24 lg:pt-20">
       <div className="lg:grid lg:grid-cols-12 lg:gap-x-12">
         <div className="lg:col-span-4">
-          <SectionHead id="uip-uprava" title="Uprava" meta={loc.title} />
+          <SectionHead id="uip-uprava" title={t.management} meta={loc.title} />
         </div>
         <div className="mt-6 md:mt-8 lg:col-span-8 lg:mt-0">
           {head && (

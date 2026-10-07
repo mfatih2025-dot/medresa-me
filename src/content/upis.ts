@@ -30,6 +30,8 @@ export type UpisContent = {
   title: readonly string[];
   /** Phones: the title's size (vw) that keeps it on one line in this language. */
   titleFit: number;
+  /** Phones: set the title in its two lines (as on larger screens) when one line would be too small. */
+  phoneSplit: boolean;
   /** The status section's name for assistive technology. */
   statusLabel: string;
   status: { before: string; word: string; after: string };
@@ -42,6 +44,7 @@ const bs: UpisContent = {
   /** „Upis i prijemni ispit“, as the two lines it resolves into. */
   title: ["Upis i prijemni", "ispit"],
   titleFit: 9.6,
+  phoneSplit: false,
   statusLabel: "Status upisa",
 
   status: {
@@ -66,7 +69,8 @@ const bs: UpisContent = {
 /** English: written for this page (the medresa.me English page is a garbled machine translation). */
 const en: Localized<typeof bs> = {
   title: ["Admissions and", "entrance exam"],
-  titleFit: 7.2,
+  titleFit: 10.4,
+  phoneSplit: true,
   statusLabel: "Admission status",
   status: {
     before: "Enrolment of students at the Medresa “Mehmed Fatih” for the 2026/2027 school year is",
@@ -86,7 +90,8 @@ const en: Localized<typeof bs> = {
 /** Shqip: the official Albanian lines of medresa.me/upis („Regjistrimi i nxënësve…“, „Shkarkoni rezultatet në PDF“). */
 const sq: Localized<typeof bs> = {
   title: ["Regjistrimi dhe", "provimi pranues"],
-  titleFit: 6.5,
+  titleFit: 10.4,
+  phoneSplit: true,
   statusLabel: "Statusi i regjistrimit",
   status: {
     before: "Regjistrimi i nxënësve në Medresenë “Mehmed Fatih” për vitin shkollor 2026/2027 është",

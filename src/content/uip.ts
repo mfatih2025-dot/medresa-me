@@ -135,3 +135,246 @@ export const service = {
 } as const;
 
 export const locations = [tuzi, rozaje] as const;
+
+/** Interface text of the directory (Bosnian master). */
+const ui = {
+  eyebrow: "Medresa „Mehmed Fatih“",
+  title: "Uprava i profesori",
+  description:
+    "Uprava, profesori i predmeti Medrese „Mehmed Fatih“ u Tuzima i u Područnom odjeljenju Rožaje, te vaspitna služba.",
+  location: "Lokacija",
+  management: "Uprava",
+  faculty: "Profesori",
+  view: "Prikaz",
+  byPeople: "Po profesorima",
+  bySubjects: "Po predmetima",
+  search: "Pretraži profesora ili predmet",
+  clear: "Obriši pretragu",
+  close: "Zatvori",
+  letters: "Abecedni indeks",
+  subjects: "Predmeti",
+  toSubject: "svi profesori ovog predmeta",
+  toPerson: "svi predmeti ovog profesora",
+  noResults: "Nema rezultata za",
+  /** „for “query”“ after a count. */
+  forQuery: "za",
+  open: "„",
+  shut: "“",
+  service: "Vaspitna služba",
+  coordinator: "Koordinator",
+  /** Plural forms: [one, few (2–4), many]. */
+  teachers: ["profesor", "profesora", "profesora"],
+  subjectsN: ["predmet", "predmeta", "predmeta"],
+  results: ["rezultat", "rezultata", "rezultata"],
+};
+export type UipUi = typeof ui;
+
+/** Count with its noun: Bosnian has one/few/many, Albanian and English one/other. */
+export function plural(n: number, [one, few, many]: readonly string[], bosnian: boolean) {
+  if (!bosnian) return `${n} ${n === 1 ? one : many}`;
+  const t = n % 10;
+  const h = n % 100;
+  if (t === 1 && h !== 11) return `${n} ${one}`;
+  if (t >= 2 && t <= 4 && (h < 12 || h > 14)) return `${n} ${few}`;
+  return `${n} ${many}`;
+}
+
+/*
+ * Albanian and English: roles, subject names and labels are translated; every
+ * person's name is the master's string, untouched (the old Weglot pages
+ * „translated“ several surnames — never used). Subject names follow the
+ * Weglot pages where correct (Fiqh, Tafsir / Hadith, History of Islam, …) and
+ * keep the established Islamic terms where Weglot misread them (Ahlak was
+ * rendered „Morality“). „CSBH“ is the official Montenegrin subject acronym and
+ * stays as published.
+ */
+const words = {
+  en: {
+    Kiraet: "Qiraat",
+    Akaid: "Aqidah",
+    Fikh: "Fiqh",
+    Ahlak: "Akhlaq",
+    "Tefsir / Hadis": "Tafsir / Hadith",
+    Hadis: "Hadith",
+    Tefsir: "Tafsir",
+    "Istorija Islama": "History of Islam",
+    CSBH: "CSBH",
+    "Arapski jezik": "Arabic",
+    "Engleski jezik": "English",
+    "Turski jezik": "Turkish",
+    "Albanski jezik": "Albanian",
+    Matematika: "Mathematics",
+    Fizika: "Physics",
+    Hemija: "Chemistry",
+    Biologija: "Biology",
+    Istorija: "History",
+    Geografija: "Geography",
+    Psihologija: "Psychology",
+    Logika: "Logic",
+    Filozofija: "Philosophy",
+    Sociologija: "Sociology",
+    Informatika: "Informatics",
+    "Pojedinac u grupi": "The Individual in the Group",
+    Etika: "Ethics",
+    "Fizičko vaspitanje": "Physical Education",
+    Direktor: "Director",
+    "Pomoćnik direktora": "Assistant Director",
+    Sekretar: "Secretary",
+    "Pomoćnik direktora za učeničke domove": "Assistant Director for Student Dormitories",
+    Upravnik: "Head",
+  },
+  sq: {
+    Kiraet: "Kiraet",
+    Akaid: "Akaid",
+    Fikh: "Fikh",
+    Ahlak: "Ahlak",
+    "Tefsir / Hadis": "Tefsir / Hadith",
+    Hadis: "Hadith",
+    Tefsir: "Tefsir",
+    "Istorija Islama": "Historia e Islamit",
+    CSBH: "CSBH",
+    "Arapski jezik": "Gjuhë arabe",
+    "Engleski jezik": "Gjuhë angleze",
+    "Turski jezik": "Gjuhë turke",
+    "Albanski jezik": "Gjuhë shqipe",
+    Matematika: "Matematikë",
+    Fizika: "Fizikë",
+    Hemija: "Kimi",
+    Biologija: "Biologji",
+    Istorija: "Histori",
+    Geografija: "Gjeografi",
+    Psihologija: "Psikologji",
+    Logika: "Logjikë",
+    Filozofija: "Filozofi",
+    Sociologija: "Sociologji",
+    Informatika: "Informatikë",
+    "Pojedinac u grupi": "Individi në grup",
+    Etika: "Etikë",
+    "Fizičko vaspitanje": "Edukatë fizike",
+    Direktor: "Drejtor",
+    "Pomoćnik direktora": "Ndihmësdrejtor",
+    Sekretar: "Sekretar",
+    "Pomoćnik direktora za učeničke domove": "Ndihmësdrejtor për konviktet e nxënësve",
+    Upravnik: "Drejtues",
+  },
+} satisfies Record<"en" | "sq", Record<string, string>>;
+
+function translate(loc: Location, w: Record<string, string>, label: string, title: string): Location {
+  const t = (s: string) => {
+    if (!(s in w)) throw new Error(`uip: no translation for „${s}“`);
+    return w[s];
+  };
+  return {
+    ...loc,
+    label,
+    title,
+    management: loc.management.map((m) => ({ role: t(m.role), name: m.name })),
+    subjects: loc.subjects.map((s) => ({ name: t(s.name), teachers: s.teachers })),
+  };
+}
+
+const bsContent = { locations: [tuzi, rozaje] as readonly Location[], service, ui };
+type UipContent = {
+  locations: readonly Location[];
+  service: {
+    location: string;
+    year: string;
+    teams: readonly {
+      title: string;
+      short: string;
+      coordinator: string | null;
+      members: readonly string[];
+    }[];
+  };
+  ui: UipUi;
+};
+
+const [male, female] = service.teams;
+
+const en: UipContent = {
+  locations: [
+    translate(tuzi, words.en, "Tuzi", "Medresa “Mehmed Fatih” – Tuzi"),
+    translate(rozaje, words.en, "Rožaje", "Regional Department Rožaje"),
+  ],
+  service: {
+    location: "Tuzi",
+    year: "school year 2025/26",
+    teams: [
+      { ...male, title: "Educational Service – Boys’ Medresa", short: "Boys’ Medresa" },
+      { ...female, title: "Educational Service – Girls’ Medresa", short: "Girls’ Medresa" },
+    ],
+  },
+  ui: {
+    eyebrow: "Medresa “Mehmed Fatih”",
+    title: "Administration and Teachers",
+    description:
+      "The administration, teachers and subjects of the Medresa “Mehmed Fatih” in Tuzi and in the Regional Department Rožaje, and its educational service.",
+    location: "Location",
+    management: "Administration",
+    faculty: "Teachers",
+    view: "View",
+    byPeople: "By teacher",
+    bySubjects: "By subject",
+    search: "Search for a teacher or subject",
+    clear: "Clear search",
+    close: "Close",
+    letters: "Alphabetical index",
+    subjects: "Subjects",
+    toSubject: "all teachers of this subject",
+    toPerson: "all subjects of this teacher",
+    noResults: "No results for",
+    forQuery: "for",
+    open: "“",
+    shut: "”",
+    service: "Educational Service",
+    coordinator: "Coordinator",
+    teachers: ["teacher", "teachers", "teachers"],
+    subjectsN: ["subject", "subjects", "subjects"],
+    results: ["result", "results", "results"],
+  },
+};
+
+const sq: UipContent = {
+  locations: [
+    translate(tuzi, words.sq, "Tuz", "Medreseja “Mehmed Fatih” – Tuz"),
+    translate(rozaje, words.sq, "Rozhajë", "Njësia rajonale në Rozhajë"),
+  ],
+  service: {
+    location: "Tuz",
+    year: "viti shkollor 2025/26",
+    teams: [
+      { ...male, title: "Shërbimi edukativ – Medreseja e djemve", short: "Medreseja e djemve" },
+      { ...female, title: "Shërbimi edukativ – Medreseja e vajzave", short: "Medreseja e vajzave" },
+    ],
+  },
+  ui: {
+    eyebrow: "Medreseja “Mehmed Fatih”",
+    title: "Drejtoria dhe profesorët",
+    description:
+      "Drejtoria, profesorët dhe lëndët e Medresesë “Mehmed Fatih” në Tuz dhe në Njësinë rajonale në Rozhajë, si dhe shërbimi edukativ.",
+    location: "Vendndodhja",
+    management: "Drejtoria",
+    faculty: "Profesorët",
+    view: "Pamja",
+    byPeople: "Sipas profesorëve",
+    bySubjects: "Sipas lëndëve",
+    search: "Kërkoni profesor ose lëndë",
+    clear: "Fshi kërkimin",
+    close: "Mbyll",
+    letters: "Indeksi alfabetik",
+    subjects: "Lëndët",
+    toSubject: "të gjithë profesorët e kësaj lënde",
+    toPerson: "të gjitha lëndët e këtij profesori",
+    noResults: "Nuk ka rezultate për",
+    forQuery: "për",
+    open: "“",
+    shut: "”",
+    service: "Shërbimi edukativ",
+    coordinator: "Koordinator",
+    teachers: ["profesor", "profesorë", "profesorë"],
+    subjectsN: ["lëndë", "lëndë", "lëndë"],
+    results: ["rezultat", "rezultate", "rezultate"],
+  },
+};
+
+export const uipContent: Record<"bs" | "sq" | "en", UipContent> = { bs: bsContent, sq, en };

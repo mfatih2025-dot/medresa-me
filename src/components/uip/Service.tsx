@@ -1,11 +1,13 @@
-import { service } from "@/content/uip";
+import { uipContent } from "@/content/uip";
+import type { Locale } from "@/i18n/config";
 
 /**
  * Vaspitna služba (Tuzi): the two educational-service teams, set as a
  * personnel register — team, coordinator where the source names one, members.
  * Separate from the academic directory on purpose.
  */
-export function Service() {
+export function Service({ locale }: { locale: Locale }) {
+  const { service, ui } = uipContent[locale];
   return (
     <section aria-labelledby="uip-sluzba" className="bg-ivory">
       <div className="wrap py-14 md:py-20 lg:grid lg:grid-cols-12 lg:gap-x-12 lg:py-24">
@@ -14,7 +16,7 @@ export function Service() {
             id="uip-sluzba"
             className="display text-[clamp(1.75rem,1.2rem+2vw,2.75rem)] leading-[1.05] tracking-[-0.02em] text-green"
           >
-            Vaspitna služba
+            {ui.service}
           </h2>
           <p className="mt-2 text-[0.8125rem] text-ink-soft">
             {service.location} · {service.year}
@@ -24,12 +26,12 @@ export function Service() {
           {service.teams.map((t) => (
             <div key={t.title} className="border-t border-gold/60 pt-4 md:pt-5">
               <h3 className="eyebrow text-[0.6875rem] text-gold-deep md:text-xs">
-                <span className="sr-only">Vaspitna služba – </span>
+                <span className="sr-only">{ui.service} – </span>
                 {t.short}
               </h3>
               {t.coordinator && (
                 <div className="mt-4">
-                  <p className="text-[0.8125rem] text-ink-soft">Koordinator</p>
+                  <p className="text-[0.8125rem] text-ink-soft">{ui.coordinator}</p>
                   <p className="display mt-1 text-[1.5rem] leading-[1.15] tracking-[-0.01em] text-green md:text-[1.625rem]">
                     {t.coordinator}
                   </p>

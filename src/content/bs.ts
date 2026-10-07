@@ -28,7 +28,8 @@ const href = (slug: PageSlug) => pageHref(slug, "bs");
  * It opens that generation's chapter on the Alumni page, in the same language.
  */
 export const genFor =
-  (locale: Locale, alt: (numeral: string, n: number, years: string) => string) => (numeral: string, n: number) => {
+  (locale: Locale, alt: (numeral: string, n: number, years: string) => string) =>
+  (numeral: string, n: number) => {
     const years = `${2007 + n}–${2011 + n}`;
     return {
       numeral,

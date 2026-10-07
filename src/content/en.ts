@@ -77,7 +77,10 @@ export const en: Dictionary = {
     eyebrow: ["Knowledge", "Values", "Responsibility"],
     lead: "Islamic values, contemporary education and upbringing for life, together.",
     video: { label: "Watch the video", href: bs.hero.video.href },
-    image: alt(bs.hero.image, "The Medresa “Mehmed Fatih” building in Tuzi with its minarets and dome, at the foot of a hill"),
+    image: alt(
+      bs.hero.image,
+      "The Medresa “Mehmed Fatih” building in Tuzi with its minarets and dome, at the foot of a hill",
+    ),
   },
   glance: {
     label: "The Medresa at a glance",
@@ -187,22 +190,34 @@ export const en: Dictionary = {
         {
           id: "biblioteka",
           label: "Library",
-          image: alt(bs.life.stack.cards[0].image, "The Medresa library: shelves of Islamic and general literature"),
+          image: alt(
+            bs.life.stack.cards[0].image,
+            "The Medresa library: shelves of Islamic and general literature",
+          ),
         },
         {
           id: "sportska-sala",
           label: "Sports hall",
-          image: alt(bs.life.stack.cards[1].image, "The Medresa sports hall with a basket and a goal in afternoon light"),
+          image: alt(
+            bs.life.stack.cards[1].image,
+            "The Medresa sports hall with a basket and a goal in afternoon light",
+          ),
         },
         {
           id: "internat",
           label: "Boarding",
-          image: alt(bs.life.stack.cards[2].image, "A room in the Medresa boarding house with bunk beds and wardrobes"),
+          image: alt(
+            bs.life.stack.cards[2].image,
+            "A room in the Medresa boarding house with bunk beds and wardrobes",
+          ),
         },
         {
           id: "amfiteatar",
           label: "Amphitheatre",
-          image: alt(bs.life.stack.cards[3].image, "The Medresa amphitheatre with tiered rows of seats and a speakers’ table"),
+          image: alt(
+            bs.life.stack.cards[3].image,
+            "The Medresa amphitheatre with tiered rows of seats and a speakers’ table",
+          ),
         },
       ],
     },
@@ -328,7 +343,10 @@ export const en: Dictionary = {
     support: {
       label: "Project supported by",
       href: bs.footer.support.href,
-      logo: { ...bs.footer.support.logo, alt: "Fund for the Protection and Exercise of Minority Rights of Montenegro" },
+      logo: {
+        ...bs.footer.support.logo,
+        alt: "Fund for the Protection and Exercise of Minority Rights of Montenegro",
+      },
       note: "The project is supported by the Fund for the Protection and Exercise of Minority Rights. The Fund is not responsible for the content, the views expressed or their interpretation, which are entirely the responsibility of the authors and implementers of the project.",
     },
   },

@@ -103,19 +103,30 @@ export function Upis({ locale }: { locale: Locale }) {
       {/* ---------- Title: set line by line, then one title ---------- */}
       <header className="wrap pt-32 md:pt-40 lg:pt-44">
         <h1
-          className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[var(--fit)] md:text-[min(11vw,6.75rem)]"
+          className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[length:var(--fit)] md:text-[min(11vw,6.75rem)]"
           style={{ "--fit": `${u.titleFit}vw` } as CSSProperties}
         >
           <span className="sr-only">{u.title.join(" ")}</span>
           <span aria-hidden className="block">
             {/* Phones: the whole title on one line (letters start closer, to stay in view). */}
-            <Depth px={0} offset={["start start", "end start"]} className="md:hidden">
-              <Letters text={u.title.join(" ")} immediate delay={0.1} duration={1.2} spread={0.02} />
-            </Depth>
-            <Depth px={0} offset={["start start", "end start"]} className="hidden md:block">
+            {!u.phoneSplit && (
+              <Depth px={0} offset={["start start", "end start"]} className="md:hidden">
+                <Letters text={u.title.join(" ")} immediate delay={0.1} duration={1.2} spread={0.02} />
+              </Depth>
+            )}
+            {/* Larger screens (and phones, where one line would be too small for the language): two lines. */}
+            <Depth
+              px={0}
+              offset={["start start", "end start"]}
+              className={u.phoneSplit ? "" : "hidden md:block"}
+            >
               <Letters text={l1} immediate delay={0.1} />
             </Depth>
-            <Depth px={12} offset={["start start", "end start"]} className="hidden md:block">
+            <Depth
+              px={12}
+              offset={["start start", "end start"]}
+              className={u.phoneSplit ? "" : "hidden md:block"}
+            >
               <Letters text={l2} immediate delay={0.42} />
             </Depth>
           </span>

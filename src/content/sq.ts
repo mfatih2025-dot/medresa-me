@@ -74,11 +74,18 @@ export const sq: Dictionary = {
     pre: bs.hero.pre,
     name: bs.hero.name,
     signature: "Faqja zyrtare",
-    admissions: { kicker: "Provimi pranues 2026", label: "Rezultatet e provimit pranues", href: href("upis") },
+    admissions: {
+      kicker: "Provimi pranues 2026",
+      label: "Rezultatet e provimit pranues",
+      href: href("upis"),
+    },
     eyebrow: ["Dija", "Vlerat", "Përgjegjësia"],
     lead: "Ndërthurje e vlerave islame, arsimit bashkëkohor dhe edukimit për jetë.",
     video: { label: "Shikoni videon", href: bs.hero.video.href },
-    image: alt(bs.hero.image, "Ndërtesa e Medresesë “Mehmed Fatih” në Tuz me minaret dhe kupolën, në rrëzë të kodrës"),
+    image: alt(
+      bs.hero.image,
+      "Ndërtesa e Medresesë “Mehmed Fatih” në Tuz me minaret dhe kupolën, në rrëzë të kodrës",
+    ),
   },
   glance: {
     label: "Medreseja shkurt",
@@ -156,7 +163,10 @@ export const sq: Dictionary = {
       {
         title: "Konvikti",
         text: "Dy ndërtesa të veçanta për nxënës dhe nxënëse, me salla leximi dhe hapësira për mësim dhe pushim.",
-        image: alt(bs.life.items[0].image, "Ndërtesa e konviktit të Medresesë pranë një ulliri në perëndim të diellit"),
+        image: alt(
+          bs.life.items[0].image,
+          "Ndërtesa e konviktit të Medresesë pranë një ulliri në perëndim të diellit",
+        ),
       },
       {
         title: "Biblioteka",
@@ -188,22 +198,34 @@ export const sq: Dictionary = {
         {
           id: "biblioteka",
           label: "Biblioteka",
-          image: alt(bs.life.stack.cards[0].image, "Biblioteka e Medresesë: rafte me literaturë islame dhe të përgjithshme"),
+          image: alt(
+            bs.life.stack.cards[0].image,
+            "Biblioteka e Medresesë: rafte me literaturë islame dhe të përgjithshme",
+          ),
         },
         {
           id: "sportska-sala",
           label: "Salla sportive",
-          image: alt(bs.life.stack.cards[1].image, "Salla sportive e Medresesë me kosh dhe portë në dritën e pasdites"),
+          image: alt(
+            bs.life.stack.cards[1].image,
+            "Salla sportive e Medresesë me kosh dhe portë në dritën e pasdites",
+          ),
         },
         {
           id: "internat",
           label: "Konvikti",
-          image: alt(bs.life.stack.cards[2].image, "Dhomë në konviktin e Medresesë me shtretër marinarë dhe dollapë"),
+          image: alt(
+            bs.life.stack.cards[2].image,
+            "Dhomë në konviktin e Medresesë me shtretër marinarë dhe dollapë",
+          ),
         },
         {
           id: "amfiteatar",
           label: "Amfiteatri",
-          image: alt(bs.life.stack.cards[3].image, "Amfiteatri i Medresesë me rreshta ulësesh shkallëzuese dhe tavolinë për folësit"),
+          image: alt(
+            bs.life.stack.cards[3].image,
+            "Amfiteatri i Medresesë me rreshta ulësesh shkallëzuese dhe tavolinë për folësit",
+          ),
         },
       ],
     },

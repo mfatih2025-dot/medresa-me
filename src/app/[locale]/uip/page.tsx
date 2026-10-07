@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { locations } from "@/content/uip";
+import { uipContent } from "@/content/uip";
 import { Directory } from "@/components/uip/Directory";
 import { Service } from "@/components/uip/Service";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: "Uprava i profesori",
-  description:
-    "Uprava, profesori i predmeti Medrese „Mehmed Fatih“ u Tuzima i u Područnom odjeljenju Rožaje, te vaspitna služba.",
-  alternates: { canonical: "/uip" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /uip — Uprava i profesori: leadership, the faculty by person and by subject, and the educational service. */
-export default function UipPage() {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const { ui } = uipContent[locale];
+  return pageMetadata("uip", locale, { title: ui.title, description: ui.description });
+}
+
+/** Uprava i profesori: leadership, the faculty by person and by subject, and the educational service. */
+export default async function Page({ params }: Props) {
+  const locale = asLocale((await params).locale);
   return (
     <article className="bg-paper text-ink">
-      <Directory locations={locations} service={<Service />} />
+      <Directory locations={uipContent[locale].locations} service={<Service locale={locale} />} />
     </article>
   );
 }

@@ -108,7 +108,13 @@ export function Alumni({ dict }: { dict: Dictionary }) {
                         className={`flex items-start gap-x-2.5 pr-2.5 md:gap-x-3.5 md:pr-3.5 lg:gap-x-5 lg:pr-5 ${copy > 0 ? "gen-copy" : ""}`}
                       >
                         {items.map((item, k) => (
-                          <Tile key={item.numeral} item={item} open={a.open} label={dict.ui.generation} rhythm={rhythm[(k + r) % 3]} />
+                          <Tile
+                            key={item.numeral}
+                            item={item}
+                            open={a.open}
+                            label={dict.ui.generation}
+                            rhythm={rhythm[(k + r) % 3]}
+                          />
                         ))}
                       </div>
                     ))}

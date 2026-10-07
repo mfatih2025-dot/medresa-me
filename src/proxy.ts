@@ -11,8 +11,9 @@ import { isPageId, pageBySlug, parsePath, slugs, translatePath } from "@/i18n/ro
  *   /sq/…, /en/…           each language's own slugs, served from the page's
  *                          folder (/en/admissions → app/[locale]/upis); a page
  *                          reached by another language's slug is sent to its
- *                          own (308: /en/upis → /en/admissions)
- *   /bs/…                  served as it is
+ *                          own (308: /en/upis, /en/regjistrimi → /en/admissions)
+ *   /bs/…                  308 to the unprefixed URL (rewrites into /bs are internal
+ *                          and do not pass through here again)
  *
  * Redirects only ever go from an unprefixed URL to a prefixed one, or from a
  * prefixed URL to the same language's slug, so a loop is impossible.
@@ -24,7 +25,14 @@ export function proxy(request: NextRequest) {
 
   if (isLocale(first)) {
     const seg = parts[2];
-    if (first === "bs" || !seg) return NextResponse.next();
+    // Bosnian has no prefix in public: /bs/… is the same page at /… (one URL per page).
+    if (first === "bs") {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.slice(3) || "/";
+      url.search = search;
+      return NextResponse.redirect(url, 308);
+    }
+    if (!seg) return NextResponse.next();
     const tail = parts.slice(3).join("/");
     const id = pageBySlug(seg, first);
     if (id) {
@@ -33,9 +41,11 @@ export function proxy(request: NextRequest) {
       url.pathname = `/${first}/${id}${tail ? `/${tail}` : ""}`;
       return NextResponse.rewrite(url);
     }
-    if (isPageId(seg)) {
+    // Another language's slug (/en/upis, /en/regjistrimi) → this language's own.
+    const other = isPageId(seg) ? seg : (pageBySlug(seg, "sq") ?? pageBySlug(seg, "en"));
+    if (other) {
       const url = request.nextUrl.clone();
-      url.pathname = `/${first}/${slugs[seg][first]}${tail ? `/${tail}` : ""}`;
+      url.pathname = `/${first}/${slugs[other][first]}${tail ? `/${tail}` : ""}`;
       url.search = search;
       return NextResponse.redirect(url, 308);
     }

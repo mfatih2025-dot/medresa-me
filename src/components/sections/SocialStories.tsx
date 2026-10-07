@@ -151,17 +151,8 @@ export function SocialStories({
                 </span>
               </div>
               <div className="flex gap-2.5">
-                <NavButton
-                  label={copy.prev}
-                  disabled={active === 0}
-                  onClick={() => go(active - 1)}
-                  back
-                />
-                <NavButton
-                  label={copy.next}
-                  disabled={active >= count - 1}
-                  onClick={() => go(active + 1)}
-                />
+                <NavButton label={copy.prev} disabled={active === 0} onClick={() => go(active - 1)} back />
+                <NavButton label={copy.next} disabled={active >= count - 1} onClick={() => go(active + 1)} />
               </div>
             </div>
           )}

@@ -10,7 +10,7 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Chrome } from "@/content";
 import { useLocale } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
@@ -48,6 +48,10 @@ type Geo = {
  */
 export function Header({ dicts }: Props) {
   const locale = useLocale();
+  // The root <html> persists across navigation: keep its language in step with the page's.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const dict = dicts[locale];
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
@@ -145,11 +149,7 @@ export function Header({ dicts }: Props) {
                 <SearchIcon />
               </IconButton>
             </motion.div>
-            <motion.nav
-              aria-label={ui.navLeft}
-              className="hidden xl:block"
-              style={{ x: navL }}
-            >
+            <motion.nav aria-label={ui.navLeft} className="hidden xl:block" style={{ x: navL }}>
               <ul className="flex items-center gap-8 2xl:gap-11">
                 {nav.left.map((l) => (
                   <li key={l.href}>
