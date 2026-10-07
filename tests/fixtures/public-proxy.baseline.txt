@@ -20,16 +20,6 @@ import { isPageId, pageBySlug, parsePath, slugs, translatePath } from "@/i18n/ro
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  // Private administration and authenticated renderer previews have their own guards.
-  // Keep them outside locale rewrites; all existing public paths follow the code below.
-  if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin-preview/")) {
-    const response = NextResponse.next();
-    response.headers.set("Cache-Control", "private, no-store, max-age=0");
-    response.headers.set("X-Robots-Tag", "noindex, nofollow");
-    response.headers.set("X-Frame-Options", "SAMEORIGIN");
-    response.headers.set("Referrer-Policy", "same-origin");
-    return response;
-  }
   const parts = pathname.split("/");
   const first = parts[1];
 
