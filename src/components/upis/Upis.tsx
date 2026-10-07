@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { upis as u, type UpisDocument } from "@/content/upis";
+import { upisContent, type UpisDocument } from "@/content/upis";
+import type { Locale } from "@/i18n/config";
 import { ArrowDown } from "@/components/ui/icons";
 import { Depth, Letters, Line, Soft, Stage } from "./UpisMotion";
 
@@ -90,7 +91,8 @@ function DocumentBlock({ doc, index }: { doc: UpisDocument; index: number }) {
   );
 }
 
-export function Upis() {
+export function Upis({ locale }: { locale: Locale }) {
+  const u = upisContent[locale];
   const [l1, l2] = u.title;
   const statusSentence = `${u.status.before} ${u.status.word}${u.status.after}`;
   return (
@@ -100,7 +102,10 @@ export function Upis() {
     >
       {/* ---------- Title: set line by line, then one title ---------- */}
       <header className="wrap pt-32 md:pt-40 lg:pt-44">
-        <h1 className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[9.6vw] md:text-[min(11vw,6.75rem)]">
+        <h1
+          className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[var(--fit)] md:text-[min(11vw,6.75rem)]"
+          style={{ "--fit": `${u.titleFit}vw` } as CSSProperties}
+        >
           <span className="sr-only">{u.title.join(" ")}</span>
           <span aria-hidden className="block">
             {/* Phones: the whole title on one line (letters start closer, to stay in view). */}
@@ -128,7 +133,7 @@ export function Upis() {
       </header>
 
       {/* ---------- Status: the sentence, a threshold, then the status word ---------- */}
-      <section aria-label="Status upisa" className="wrap mt-9 md:mt-12 lg:mt-14">
+      <section aria-label={u.statusLabel} className="wrap mt-9 md:mt-12 lg:mt-14">
         <p className="sr-only">{statusSentence}</p>
         {/* The answer comes after the question: this plays once the title has been set. */}
         <Stage after={1.35}>

@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
-import { upis } from "@/content/upis";
+import { upisContent } from "@/content/upis";
 import { Upis } from "@/components/upis/Upis";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: "Upis i prijemni",
-  description: `${upis.status.before} ${upis.status.word}${upis.status.after}`,
-  alternates: { canonical: "/upis" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /upis — Upis i prijemni: the admission status, its documents, and the welcome. */
-export default function UpisPage() {
-  return <Upis />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const c = upisContent[locale];
+  return pageMetadata("upis", locale, {
+    title: c.title.join(" "),
+    description: `${c.status.before} ${c.status.word}${c.status.after}`,
+  });
+}
+
+/** Upis i prijemni: the admission status and its documents. */
+export default async function Page({ params }: Props) {
+  return <Upis locale={asLocale((await params).locale)} />;
 }

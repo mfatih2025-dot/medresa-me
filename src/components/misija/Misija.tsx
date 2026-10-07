@@ -1,4 +1,5 @@
-import { misija as m } from "@/content/misija";
+import { misijaContent } from "@/content/misija";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Axis, Emerge, HorizonLine, Line, Signature } from "./MisijaMotion";
 
@@ -19,7 +20,8 @@ import { Axis, Emerge, HorizonLine, Line, Signature } from "./MisijaMotion";
 const body =
   "hist-text text-[1.0625rem] font-light leading-[1.75] text-ink md:text-[1.125rem] md:leading-[1.8]";
 
-export function Misija() {
+export function Misija({ locale }: { locale: Locale }) {
+  const m = misijaContent[locale];
   const [missionLead, missionRest] = m.mission.paragraphs;
   const [visionStatement, visionRest] = m.vision.paragraphs;
   return (

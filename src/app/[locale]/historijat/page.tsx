@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
-import { historijat } from "@/content/historijat";
+import { historijatContent } from "@/content/historijat";
 import { History } from "@/components/historijat/History";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: historijat.title,
-  description: historijat.chapters.founding.text,
-  alternates: { canonical: "/historijat" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /historijat — the history of the Medresa, from 6 October 2008 to today. */
-export default function HistorijatPage() {
-  return <History />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const c = historijatContent[locale];
+  return pageMetadata("historijat", locale, { title: c.title, description: c.chapters.founding.text });
+}
+
+/** Historijat: the history of the Medresa, told along its own timeline. */
+export default async function Page({ params }: Props) {
+  return <History locale={asLocale((await params).locale)} />;
 }

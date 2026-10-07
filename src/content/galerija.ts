@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+import type { Localized } from "@/i18n/types";
 /**
  * Galerija — the gallery of medresa.me/galerija, its heading and introduction.
  *
@@ -33,13 +35,21 @@ export type RowKind =
   | "closing";
 export type Row = { kind: RowKind; ids: readonly string[] };
 
-export const galerija = {
+const bs = {
   title: "Galerija",
   /** As the source sets it (in capitals); only the quotation marks follow this site. */
   heading: "GALERIJA KOMPLEKSA MEDRESE „MEHMED FATIH“",
   intro:
     "Dobro došli u prostor u kojem se znanje, vjera i ljepota susreću. Ove fotografije prikazuju cjelinu našeg kompleksa: učionice, džamiju, dvorišta i prostore koji svakodnevno svjedoče predanosti znanju i odgoju. Svaki kadar nosi priču o trudu, zajedništvu i duhovnom miru koji ispunjava naše hodnike.",
   more: "Prikaži cijelu galeriju",
+  /** The viewer and tiles, for assistive technology. `{n}` and `{total}` are filled in. */
+  ui: {
+    open: "Otvori fotografiju",
+    viewer: "Fotografija {n} od {total}",
+    close: "Zatvori",
+    prev: "Prethodna fotografija",
+    next: "Sljedeća fotografija",
+  },
 };
 
 export const photos: Record<string, Photo> = {
@@ -485,3 +495,137 @@ export const archive: readonly string[] = [
   "41",
   "43",
 ];
+
+const en: Localized<typeof bs> = {
+  title: "Gallery",
+  heading: "GALLERY OF THE MEDRESA “MEHMED FATIH” COMPLEX",
+  intro:
+    "Welcome to a place where knowledge, faith and beauty meet. These photographs show our complex as a whole: the classrooms, the mosque, the courtyards and the spaces that bear daily witness to devotion to knowledge and upbringing. Every frame carries a story of effort, togetherness and the spiritual peace that fills our corridors.",
+  more: "Show the whole gallery",
+  ui: {
+    open: "Open photograph",
+    viewer: "Photograph {n} of {total}",
+    close: "Close",
+    prev: "Previous photograph",
+    next: "Next photograph",
+  },
+};
+
+const sq: Localized<typeof bs> = {
+  title: "Galeria",
+  heading: "GALERIA E KOMPLEKSIT TË MEDRESESË “MEHMED FATIH”",
+  intro:
+    "Mirë se vini në hapësirën ku takohen dija, besimi dhe bukuria. Këto fotografi paraqesin kompleksin tonë në tërësi: klasat, xhaminë, oborret dhe hapësirat që çdo ditë dëshmojnë për përkushtimin ndaj dijes dhe edukimit. Çdo kuadër mbart një histori përpjekjeje, bashkimi dhe qetësie shpirtërore që mbush korridoret tona.",
+  more: "Shfaq gjithë galerinë",
+  ui: {
+    open: "Hap fotografinë",
+    viewer: "Fotografia {n} nga {total}",
+    close: "Mbyll",
+    prev: "Fotografia e mëparshme",
+    next: "Fotografia e radhës",
+  },
+};
+
+/** What each photograph shows, per language (for assistive technology; no captions are shown). */
+const altEn: Record<string, string> = {
+  "01": "An aerial view of the Medresa complex",
+  "02": "An aerial view of the complex’s sports ground",
+  "03": "An aerial view of the Medresa complex and its surroundings",
+  "04": "A classroom with desks and windows with blinds",
+  "05": "A corridor with green walls and a stained-glass window at the end",
+  "06": "A classroom with desks and books on the tables",
+  "07": "A classroom with desks, looking towards the windows",
+  "08": "A corridor with windows and a stained-glass window at the end",
+  "09": "A room for reading and spending time together, with tables",
+  "10": "A room with a wooden table and shelves",
+  "11": "A reading room with tables and plants",
+  "12": "A room with shelves, a table and a view of the courtyard",
+  "13": "The mosque with its minaret and the square in front of it",
+  "14": "An arched entrance with a minaret in the background",
+  "15": "The dome of the mosque and a flowering oleander",
+  "16": "The tops of two minarets against the sky",
+  "17": "The Medresa building with minarets behind greenery",
+  "18": "The Medresa building and an olive tree in the sun",
+  "19": "Minarets and a dome behind the Medresa building",
+  "20": "A minaret against a clear sky",
+  "21": "A building with arches and a stone façade",
+  "22": "The arcades of a building and a stone path",
+  "23": "A building with arched windows and an olive tree",
+  "24": "A roof and a minaret behind trees",
+  "25": "The stone arches of a portico",
+  "26": "A classroom with warm light and tables",
+  "27": "A window in a room with warm light",
+  "28": "The inside of a dome with calligraphy",
+  "29": "A wooden door beneath a stone arch",
+  "30": "A covered fountain in the courtyard",
+  "31": "A courtyard with arcades and greenery",
+  "32": "The amphitheatre with red seats",
+  "33": "A dome with calligraphy and ornament",
+  "34": "A stone path towards the Medresa building",
+  "35": "A room with bookshelves and tables",
+  "36": "A classroom with desks and a board",
+  "37": "The façade of the Medresa building",
+  "38": "The library with shelves full of books",
+  "39": "A classroom with desks and a board, another view",
+  "40": "A classroom with desks and a projector",
+  "41": "A meeting room with a table",
+  "42": "The mosque at night",
+  "43": "The mosque at night, with a tree in the foreground",
+  "44": "A minaret and the moon",
+};
+const altSq: Record<string, string> = {
+  "01": "Pamje nga ajri e kompleksit të Medresesë",
+  "02": "Pamje nga ajri e fushës sportive të kompleksit",
+  "03": "Pamje nga ajri e kompleksit të Medresesë dhe rrethinës",
+  "04": "Klasë me banka dhe dritare me perde",
+  "05": "Korridor me mure të gjelbra dhe vitrazh në fund",
+  "06": "Klasë me banka dhe libra mbi tavolina",
+  "07": "Klasë me banka, pamje drejt dritareve",
+  "08": "Korridor me dritare dhe vitrazh në fund",
+  "09": "Hapësirë për lexim dhe shoqërim me tavolina",
+  "10": "Hapësirë me tavolinë druri dhe rafte",
+  "11": "Sallë leximi me tavolina dhe bimë",
+  "12": "Hapësirë me rafte, tavolinë dhe pamje nga oborri",
+  "13": "Xhamia me minare dhe sheshi para saj",
+  "14": "Hyrje me hark dhe minare në sfond",
+  "15": "Kupola e xhamisë dhe një oleandër në lulëzim",
+  "16": "Majat e dy minareve kundrejt qiellit",
+  "17": "Ndërtesa e Medresesë me minare pas gjelbërimit",
+  "18": "Ndërtesa e Medresesë dhe një ulli në diell",
+  "19": "Minaret dhe kupola pas ndërtesës së Medresesë",
+  "20": "Minare kundrejt qiellit të kthjellët",
+  "21": "Ndërtesë me harqe dhe fasadë prej guri",
+  "22": "Arkadat e ndërtesës dhe një shteg guri",
+  "23": "Ndërtesë me dritare në formë harku dhe një ulli",
+  "24": "Çatia e ndërtesës dhe minare pas pemëve",
+  "25": "Harqet prej guri të portikut",
+  "26": "Klasë me dritë të ngrohtë dhe tavolina",
+  "27": "Dritare në një dhomë me dritë të ngrohtë",
+  "28": "Brendësia e kupolës me kaligrafi",
+  "29": "Derë druri nën një hark guri",
+  "30": "Shatërvan i mbuluar në oborr",
+  "31": "Oborr me arkada dhe gjelbërim",
+  "32": "Amfiteatri me ulëse të kuqe",
+  "33": "Kupolë me kaligrafi dhe ornament",
+  "34": "Shteg guri drejt ndërtesës së Medresesë",
+  "35": "Hapësirë me rafte librash dhe tavolina",
+  "36": "Klasë me banka dhe dërrasë",
+  "37": "Fasada e ndërtesës së Medresesë",
+  "38": "Biblioteka me rafte plot libra",
+  "39": "Klasë me banka dhe dërrasë, një pamje tjetër",
+  "40": "Klasë me banka dhe projektor",
+  "41": "Sallë mbledhjesh me tavolinë",
+  "42": "Xhamia natën",
+  "43": "Xhamia natën, me një pemë në plan të parë",
+  "44": "Minare dhe hëna",
+};
+const altBs = Object.fromEntries(Object.values(photos).map((p) => [p.id, p.alt]));
+const alts: Record<Locale, Record<string, string>> = { bs: altBs, sq: altSq, en: altEn };
+
+/** The 44 photographs (one set of files) with their descriptions in a language. */
+export const photosIn = (locale: Locale): Record<string, Photo> =>
+  Object.fromEntries(Object.entries(photos).map(([id, p]) => [id, { ...p, alt: alts[locale][id] ?? p.alt }]));
+
+export const galerijaContent: Record<Locale, Localized<typeof bs>> = { bs, sq, en };
+/** The Bosnian master text (kept for existing callers). */
+export const galerija = bs;

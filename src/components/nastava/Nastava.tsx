@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { nastava as n } from "@/content/nastava";
+import { nastavaContent, type NastavaContent } from "@/content/nastava";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Faq } from "./Faq";
 import { keepWhole } from "./keepWhole";
@@ -46,7 +47,7 @@ function Subject({ text }: { text: string }) {
   );
 }
 
-function Pillar({ pillar }: { pillar: (typeof n.pillars)[number] }) {
+function Pillar({ pillar }: { pillar: NastavaContent["pillars"][number] }) {
   return (
     <>
       <Depth>
@@ -76,7 +77,8 @@ function Pillar({ pillar }: { pillar: (typeof n.pillars)[number] }) {
   );
 }
 
-export function Nastava() {
+export function Nastava({ locale }: { locale: Locale }) {
+  const n = nastavaContent[locale];
   const [general, islamic] = n.pillars;
   return (
     <article

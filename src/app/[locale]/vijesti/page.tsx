@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import { getDictionary } from "@/content";
 import { EDITORIAL_COUNT, sortNews } from "@/content/news";
-import { defaultLocale } from "@/i18n/config";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 import { NewsArchive } from "@/components/news/NewsArchive";
 import { NewsAnnouncement, NewsEditorial, NewsHead } from "@/components/news/NewsLayout";
 
-const { news } = getDictionary(defaultLocale);
+type Props = { params: Promise<{ locale: string }> };
 
-export const metadata: Metadata = { title: news.heading };
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  return pageMetadata("vijesti", locale, { title: getDictionary(locale).news.heading });
+}
 
-/** /vijesti — the full news publication: notice, curated stories, then the archive index. */
-export default function VijestiPage() {
+/** News — the full news publication: notice, curated stories, then the archive index. */
+export default async function VijestiPage({ params }: Props) {
+  const { news } = getDictionary(asLocale((await params).locale));
   const items = sortNews(news.items);
   return (
     <section aria-labelledby="vijesti-title" className="bg-paper pb-20 pt-32 md:pb-28 md:pt-44 lg:pt-48">

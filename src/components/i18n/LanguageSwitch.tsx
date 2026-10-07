@@ -1,18 +1,18 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { localeNames, localizePath, locales, rememberLocale, stripLocale, type Locale } from "@/i18n/config";
+import { localeNames, locales, rememberLocale, type Locale } from "@/i18n/config";
+import { translatePath } from "@/i18n/routes";
 
 /**
  * BS · SQ · EN in the header menu: real links to the same page in each
- * language (/uip → /sq/uip, /en/historijat → /historijat), remembering the
- * choice before leaving. The current language is marked, not only coloured.
+ * language, through the route map (/upis → /en/admissions, /sq/historiku →
+ * /historijat), remembering the choice before leaving. The current language is marked, not only coloured.
  */
 export function LanguageSwitch({ label }: { label: string }) {
   const pathname = usePathname() || "/";
   const first = pathname.split("/")[1];
   const current: Locale = first === "sq" || first === "en" ? first : "bs";
-  const base = stripLocale(pathname);
   return (
     <nav aria-label={label} className="flex items-center gap-1">
       <span className="text-ivory/50">{label}:</span>
@@ -24,7 +24,7 @@ export function LanguageSwitch({ label }: { label: string }) {
             </span>
           )}
           <a
-            href={localizePath(base, l)}
+            href={translatePath(pathname, l)}
             hrefLang={l}
             lang={l}
             aria-current={l === current ? "true" : undefined}

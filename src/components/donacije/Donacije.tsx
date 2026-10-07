@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { donacije as d, type Field, type Party } from "@/content/donacije";
+import { donacijeContent, type Field, type Party } from "@/content/donacije";
+import type { Locale } from "@/i18n/config";
 import { Reveal } from "@/components/ui/Reveal";
 import { CopyValue } from "./CopyValue";
 import { Chain, Emerge, Line, Settle, Slit } from "./DonMotion";
@@ -87,7 +88,8 @@ function PartyBlock({
   );
 }
 
-export function Donacije() {
+export function Donacije({ locale }: { locale: Locale }) {
+  const d = donacijeContent[locale];
   const [intermediary, bank, beneficiary] = d.payment.parties;
   return (
     <article

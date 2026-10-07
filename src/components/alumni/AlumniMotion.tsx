@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { motion, useInView, useTransform } from "framer-motion";
 import { useRef, type CSSProperties, type ReactNode } from "react";
-import type { Generation } from "@/content/alumni";
+import { alumniContent, type Generation } from "@/content/alumni";
+import { useLocale } from "@/i18n/client";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 
@@ -126,6 +127,7 @@ export function PanoFrame({
   onOpen: (n: number) => void;
   className?: string;
 }) {
+  const locale = useLocale();
   const ref = useRef<HTMLButtonElement>(null);
   const { reduced } = useMotionProfile();
   const seen = useInView(ref, { once: true, margin: "0px 0px -8% 0px" });
@@ -133,7 +135,7 @@ export function PanoFrame({
   const image = (
     <Image
       src={pano.src}
-      alt={`Pano: ${label}`}
+      alt={`${alumniContent[locale].ui.pano}: ${label}`}
       fill
       sizes={sizes}
       priority={priority}

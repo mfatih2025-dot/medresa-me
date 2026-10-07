@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+import type { Localized } from "@/i18n/types";
 /**
  * Alumni — medresa.me/alumni: its title, introduction and the generations,
  * each with the pano published on its own generation page.
@@ -29,7 +31,7 @@ export type Generation = {
   source: { page: string; file: string; original: readonly number[] };
 };
 
-export const alumni = {
+const bs = {
   title: "Alumni",
   intro:
     "Generacije naših učenika ostavile su trag znanja, prijateljstva i zajedništva. Njihov doprinos zajednici zauvijek svjedoči o snazi Medrese „Mehmed Fatih“.",
@@ -37,6 +39,17 @@ export const alumni = {
   /** The source's label for each generation, and its link text. */
   label: "Generacija",
   open: "Otvori pano",
+  /** Interface of the index and the viewer (assistive technology and controls). */
+  ui: {
+    index: "indeks",
+    pano: "Pano",
+    close: "Zatvori",
+    prev: "Prethodna generacija",
+    next: "Sljedeća generacija",
+    zoomOut: "Umanji",
+    fit: "Prikaži cijeli pano",
+    zoomIn: "Uvećaj",
+  },
 };
 
 export const generations: readonly Generation[] = [
@@ -311,3 +324,47 @@ export const generations: readonly Generation[] = [
     },
   },
 ];
+
+/** English: the source's intro (medresa.me English page, revised); the rest written for this page. */
+const en: Localized<typeof bs> = {
+  title: "Alumni",
+  intro:
+    "Generations of our students have left a trace of knowledge, friendship and togetherness. Their contribution to the community will always bear witness to the strength of the Medresa “Mehmed Fatih”.",
+  generationsHeading: "Generations",
+  label: "Generation",
+  open: "Open the panel",
+  ui: {
+    index: "index",
+    pano: "Graduation panel",
+    close: "Close",
+    prev: "Previous generation",
+    next: "Next generation",
+    zoomOut: "Zoom out",
+    fit: "Show the whole panel",
+    zoomIn: "Zoom in",
+  },
+};
+
+/** Shqip: the source's intro (medresa.me Albanian page, revised); the rest written for this page. */
+const sq: Localized<typeof bs> = {
+  title: "Alumni",
+  intro:
+    "Gjeneratat e nxënësve tanë kanë lënë gjurmë dijeje, miqësie dhe bashkimi. Kontributi i tyre në bashkësi do të dëshmojë përgjithmonë për forcën e Medresesë “Mehmed Fatih”.",
+  generationsHeading: "Gjeneratat",
+  label: "Gjenerata",
+  open: "Hap tablonë",
+  ui: {
+    index: "indeksi",
+    pano: "Tabloja",
+    close: "Mbyll",
+    prev: "Gjenerata e mëparshme",
+    next: "Gjenerata e radhës",
+    zoomOut: "Zvogëlo",
+    fit: "Shfaq gjithë tablonë",
+    zoomIn: "Zmadho",
+  },
+};
+
+export const alumniContent: Record<Locale, Localized<typeof bs>> = { bs, sq, en };
+/** The Bosnian master text (kept for existing callers). */
+export const alumni = bs;

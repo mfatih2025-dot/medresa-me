@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+import type { Localized } from "@/i18n/types";
 /**
  * Donacije — the text of medresa.me/donacije, word for word and in the
  * source's order. Only typography follows this site: „…“ quotation marks and
@@ -26,7 +28,7 @@ export type Field = {
 
 export type Party = { heading: string; english: string; fields: readonly Field[] };
 
-export const donacije = {
+const bs = {
   title: "Donacije",
   /** The source heading „Donacije – Uložite u znanje, vjeru i budućnost“, as its two parts. */
   heading: { lead: "Donacije", rest: "Uložite u znanje, vjeru i budućnost" },
@@ -111,4 +113,149 @@ export const donacije = {
   },
 
   closing: "Uključite se – postanite dio dobra koje traje.",
+
+  /** The copy control on payment values. */
+  copy: { action: "Kopiraj", done: "Kopirano", announced: "kopiran" },
 } as const;
+
+type DonacijeContent = Localized<typeof bs>;
+
+/**
+ * A party's fields with translated labels; every value (SWIFT, names, numbers,
+ * IBAN, address) is the Bosnian master's, never retyped.
+ */
+const relabel = (
+  party: (typeof bs.payment.parties)[number],
+  heading: string,
+  english: string,
+  labels: Record<string, string>,
+) => ({
+  heading,
+  english,
+  fields: party.fields.map((f) => ({ ...f, label: labels[f.label] ?? f.label })),
+});
+const [intermediary, bank, beneficiary] = bs.payment.parties;
+const [mesihat, medresa] = bs.payment.domestic.accounts;
+
+const enLabels = {
+  SWIFT: "SWIFT",
+  Naziv: "Name",
+  "Identifikacioni broj": "Identification number",
+  IBAN: "IBAN",
+  Adresa: "Address",
+};
+const sqLabels = {
+  SWIFT: "SWIFT",
+  Naziv: "Emri",
+  "Identifikacioni broj": "Numri i identifikimit",
+  IBAN: "IBAN",
+  Adresa: "Adresa",
+};
+
+/** English: the medresa.me English page (Weglot), revised; payment data copied from the master. */
+const en: DonacijeContent = {
+  title: "Donations",
+  heading: { lead: "Donations", rest: "Invest in knowledge, faith and the future" },
+  intro: [
+    "For more than a decade, the Medresa “Mehmed Fatih” has been raising generations of young people devoted to faith, knowledge and responsibility. Through the dedicated work of teachers, tutors and the whole community, we strive to give our male and female students not only an education, but also a stable environment for spiritual, moral and personal growth.",
+    "To continue this noble mission and to improve living and working conditions at the Medresa, we welcome the help and support of good people – individuals, families, companies and institutions – who wish to take part in building a better society through education.",
+  ],
+  image: { ...bs.image, alt: "A minaret of the Medresa against a clear sky, with birds in flight" },
+  support: {
+    heading: "Your support can be:",
+    items: [
+      "A one-time or monthly financial donation",
+      "Sponsoring or funding a scholarship for one male or female student",
+      "Investing in equipment for classrooms, the library or the boarding house",
+      "Donating textbooks, school supplies or technical equipment",
+      "Waqf support with food, hygiene or infrastructure",
+    ],
+  },
+  why: {
+    heading: "Why donate to the Medresa?",
+    reasons: [
+      "You invest directly in the education of future imams, religious teachers, educators, doctors, artists and responsible citizens.",
+      "You support the preservation of Islamic identity and moral values in Montenegro",
+      "You take part in a unique chain of good that brings together knowledge, faith and humanity",
+    ],
+  },
+  hadith: {
+    text: "“When a person dies, his deeds come to an end except in three cases: an ongoing charity, beneficial knowledge, and a righteous child who prays for him.”",
+    source: "(Hadith, Muslim)",
+  },
+  payment: {
+    heading: "Details for donations / payment to the account:",
+    lead: "Below are the details of the account to which you can make a payment:",
+    abroad: "Payments from abroad",
+    parties: [
+      relabel(intermediary, "Intermediary bank", "", enLabels),
+      relabel(bank, "Beneficiary’s bank", "(Account with institution)", enLabels),
+      relabel(beneficiary, "Beneficiary", "", enLabels),
+    ],
+    domestic: {
+      heading: "Payments within Montenegro",
+      accounts: [
+        { ...mesihat, label: "Current account of the Meshihat" },
+        { ...medresa, label: "Current account of the Medresa" },
+      ],
+    },
+  },
+  closing: "Get involved – become part of the good that lasts.",
+  copy: { action: "Copy", done: "Copied", announced: "copied" },
+};
+
+/** Shqip: the medresa.me Albanian page (Weglot), revised; payment data copied from the master. */
+const sq: DonacijeContent = {
+  title: "Donacionet",
+  heading: { lead: "Donacionet", rest: "Investoni në dije, besim dhe të ardhmen" },
+  intro: [
+    "Medreseja “Mehmed Fatih” prej më shumë se një dekade ndërton breza të rinjsh të përkushtuar ndaj besimit, dijes dhe përgjegjësisë. Përmes punës së përkushtuar të mësimdhënësve, edukatorëve dhe gjithë bashkësisë, përpiqemi t’u ofrojmë nxënësve dhe nxënëseve jo vetëm arsim, por edhe një mjedis të qëndrueshëm për zhvillim shpirtëror, moral dhe personal.",
+    "Për të vazhduar këtë mision fisnik dhe për të përmirësuar kushtet e jetës dhe të punës në Medrese, jemi të hapur për ndihmën dhe mbështetjen e njerëzve të mirë – individëve, familjeve, firmave dhe institucioneve – që dëshirojnë të marrin pjesë në ndërtimin e një shoqërie më të mirë përmes arsimit.",
+  ],
+  image: { ...bs.image, alt: "Minare e Medresesë në qiellin e kthjellët, me zogj në fluturim" },
+  support: {
+    heading: "Mbështetja juaj mund të jetë:",
+    items: [
+      "Donacion financiar i njëhershëm ose mujor",
+      "Sponsorizim/bursë për një nxënës ose nxënëse",
+      "Investim në pajisjen e klasave, bibliotekës ose konviktit",
+      "Dhurim tekstesh shkollore, mjetesh shkollore ose pajisjesh teknike",
+      "Ndihmë vakëfi në ushqim, higjienë ose infrastrukturë",
+    ],
+  },
+  why: {
+    heading: "Pse të dhuroni për Medresenë?",
+    reasons: [
+      "Investoni drejtpërdrejt në arsimimin e imamëve, mësuesve të fesë, pedagogëve, mjekëve, artistëve dhe qytetarëve të përgjegjshëm të ardhshëm.",
+      "Mbështetni ruajtjen e identitetit islam dhe të vlerave morale në Mal të Zi",
+      "Merrni pjesë në një zinxhir unik të së mirës që bashkon dijen, besimin dhe humanizmin",
+    ],
+  },
+  hadith: {
+    text: "“Kur vdes njeriu, i ndërpriten veprat, përveç në tri raste: sadakaja e vazhdueshme, dija e dobishme dhe fëmija i mirë që lutet për të.”",
+    source: "(hadith, Muslim)",
+  },
+  payment: {
+    heading: "Të dhënat për pagesën e donacioneve / pagesë në llogari:",
+    lead: "Më poshtë gjenden të dhënat e llogarisë në të cilën mund të kryeni pagesën:",
+    abroad: "Pagesat nga jashtë",
+    parties: [
+      relabel(intermediary, "Banka ndërmjetëse", "(Intermediary bank)", sqLabels),
+      relabel(bank, "Banka e përfituesit", "(Account with institution)", sqLabels),
+      relabel(beneficiary, "Përfituesi", "(Beneficiary)", sqLabels),
+    ],
+    domestic: {
+      heading: "Pagesat brenda Malit të Zi",
+      accounts: [
+        { ...mesihat, label: "Llogaria rrjedhëse e Mesihatit" },
+        { ...medresa, label: "Llogaria rrjedhëse e Medresesë" },
+      ],
+    },
+  },
+  closing: "Përfshihuni – bëhuni pjesë e së mirës që zgjat.",
+  copy: { action: "Kopjo", done: "U kopjua", announced: "u kopjua" },
+};
+
+export const donacijeContent: Record<Locale, typeof sq> = { bs, sq, en };
+/** The Bosnian master (kept for existing callers). */
+export const donacije = bs;

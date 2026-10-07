@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { alumni as a } from "@/content/alumni";
+import { alumniContent } from "@/content/alumni";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Archive } from "./Archive";
 
@@ -13,7 +14,8 @@ import { Archive } from "./Archive";
 
 const edge = "calc(var(--gutter) + max(0px, (100vw - var(--max)) / 2))";
 
-export function Alumni() {
+export function Alumni({ locale }: { locale: Locale }) {
+  const a = alumniContent[locale];
   return (
     <article
       className="overflow-x-clip bg-paper pb-28 text-ink md:pb-32 lg:pb-40"

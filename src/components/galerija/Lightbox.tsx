@@ -58,7 +58,10 @@ export function Lightbox({
   onIndex,
   onClose,
   reduced,
+  ui,
 }: {
+  /** Labels in the page's language; `{n}`/`{total}` are filled in. */
+  ui: { viewer: string; close: string; prev: string; next: string };
   list: readonly Photo[];
   index: number;
   onIndex: (i: number) => void;
@@ -189,7 +192,7 @@ export function Lightbox({
       ref={dialog}
       role="dialog"
       aria-modal="true"
-      aria-label={`Fotografija ${index + 1} od ${list.length}`}
+      aria-label={ui.viewer.replace("{n}", String(index + 1)).replace("{total}", String(list.length))}
       className="fixed inset-0 z-[100]"
     >
       <motion.div
@@ -244,7 +247,7 @@ export function Lightbox({
           ref={closeBtn}
           type="button"
           onClick={close}
-          aria-label="Zatvori"
+          aria-label={ui.close}
           className="pointer-events-auto absolute right-2 top-2 grid size-12 place-items-center text-white/75 transition-colors duration-150 hover:text-white md:right-5 md:top-4"
         >
           <CloseIcon />
@@ -254,7 +257,7 @@ export function Lightbox({
             <button
               type="button"
               onClick={() => go(-1)}
-              aria-label="Prethodna fotografija"
+              aria-label={ui.prev}
               className="pointer-events-auto absolute left-2 top-1/2 hidden size-12 -translate-y-1/2 place-items-center text-white/60 transition-[color,transform] duration-150 hover:-translate-x-0.5 hover:text-white md:grid lg:left-6"
             >
               <ArrowRight className="rotate-180" />
@@ -262,7 +265,7 @@ export function Lightbox({
             <button
               type="button"
               onClick={() => go(1)}
-              aria-label="Sljedeća fotografija"
+              aria-label={ui.next}
               className="pointer-events-auto absolute right-2 top-1/2 hidden size-12 -translate-y-1/2 place-items-center text-white/60 transition-[color,transform] duration-150 hover:translate-x-0.5 hover:text-white md:grid lg:right-6"
             >
               <ArrowRight />

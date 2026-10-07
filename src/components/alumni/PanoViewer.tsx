@@ -4,7 +4,8 @@ import Image from "next/image";
 import { animate, motion, useMotionValue } from "framer-motion";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { alumni as a, type Generation } from "@/content/alumni";
+import { alumniContent, type Generation } from "@/content/alumni";
+import { useLocale } from "@/i18n/client";
 import { ArrowRight, CloseIcon } from "@/components/ui/icons";
 
 /*
@@ -87,6 +88,7 @@ export function PanoViewer({
   onClose: () => void;
   reduced: boolean;
 }) {
+  const a = alumniContent[useLocale()];
   const g = list[index];
   const [rect, setRect] = useState<Rect>(() => targetRect(g));
   const [phase, setPhase] = useState<"open" | "idle" | "closing">(() =>
@@ -375,7 +377,7 @@ export function PanoViewer({
       ref={dialog}
       role="dialog"
       aria-modal="true"
-      aria-label={`Pano: ${name}`}
+      aria-label={`${a.ui.pano}: ${name}`}
       className="fixed inset-0 z-[100]"
     >
       <motion.div aria-hidden className="absolute inset-0 bg-[#0c110f]" style={{ opacity: backdrop }} />
@@ -409,7 +411,7 @@ export function PanoViewer({
               <Image
                 key={`p${g.number}`}
                 src={g.pano.src}
-                alt={`Pano: ${name}`}
+                alt={`${a.ui.pano}: ${name}`}
                 fill
                 sizes="100vw"
                 placeholder="blur"
@@ -456,7 +458,7 @@ export function PanoViewer({
           ref={closeBtn}
           type="button"
           onClick={close}
-          aria-label="Zatvori"
+          aria-label={a.ui.close}
           className="pointer-events-auto absolute right-2 top-1.5 grid size-12 place-items-center text-white/75 transition-colors duration-150 hover:text-white md:right-4 md:top-3"
         >
           <CloseIcon />
@@ -466,7 +468,7 @@ export function PanoViewer({
           type="button"
           onClick={() => go(-1)}
           disabled={index === 0}
-          aria-label="Prethodna generacija"
+          aria-label={a.ui.prev}
           className="pointer-events-auto absolute left-2 top-1/2 hidden size-12 -translate-y-1/2 place-items-center text-white/60 transition-[color,transform,opacity] duration-150 hover:-translate-x-0.5 hover:text-white disabled:opacity-0 md:grid lg:left-5"
         >
           <ArrowRight className="rotate-180" />
@@ -475,7 +477,7 @@ export function PanoViewer({
           type="button"
           onClick={() => go(1)}
           disabled={index === list.length - 1}
-          aria-label="Sljedeća generacija"
+          aria-label={a.ui.next}
           className="pointer-events-auto absolute right-2 top-1/2 hidden size-12 -translate-y-1/2 place-items-center text-white/60 transition-[color,transform,opacity] duration-150 hover:translate-x-0.5 hover:text-white disabled:opacity-0 md:grid lg:right-5"
         >
           <ArrowRight />
@@ -486,7 +488,7 @@ export function PanoViewer({
             type="button"
             onClick={() => zoomTo(zs.get() / 1.6, cx, cy, true)}
             disabled={!zoomed}
-            aria-label="Umanji"
+            aria-label={a.ui.zoomOut}
             className="grid size-11 place-items-center text-white/80 transition-colors hover:text-white disabled:text-white/25"
           >
             <span aria-hidden className="block h-px w-3.5 bg-current" />
@@ -495,7 +497,7 @@ export function PanoViewer({
             type="button"
             onClick={() => zoomTo(1, cx, cy, true)}
             disabled={!zoomed}
-            aria-label="Prikaži cijeli pano"
+            aria-label={a.ui.fit}
             className="grid h-11 place-items-center border-x border-white/15 px-3 text-[0.75rem] tabular-nums tracking-[0.06em] text-white/80 transition-colors hover:text-white disabled:text-white/40"
           >
             <span aria-hidden className="block size-3.5 border border-current" />
@@ -504,7 +506,7 @@ export function PanoViewer({
             type="button"
             onClick={() => zoomTo(zs.get() * 1.6, cx, cy, true)}
             disabled={zs.get() >= maxScale - 0.01 && zoomed}
-            aria-label="Uvećaj"
+            aria-label={a.ui.zoomIn}
             className="grid size-11 place-items-center text-white/80 transition-colors hover:text-white disabled:text-white/25"
           >
             <span aria-hidden className="relative block size-3.5">

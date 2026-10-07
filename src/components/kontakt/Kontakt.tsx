@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { kontakt as k, type ContactField, type Person } from "@/content/kontakt";
+import { kontaktContent, type ContactField, type Person } from "@/content/kontakt";
+import type { Locale } from "@/i18n/config";
 import { ArrowUpRight, ClockIcon, MailIcon, PhoneIcon, PinIcon } from "@/components/ui/icons";
 import { Depth, Emerge, Line, MapReveal, Path, Row } from "./KontaktMotion";
 
@@ -54,7 +55,11 @@ const answer =
   "underline decoration-transparent decoration-1 underline-offset-[6px] transition-[text-decoration-color] duration-200 group-hover:decoration-gold group-focus-visible:decoration-gold";
 
 /** One directory row: icon, label, value. A linked row is one tap target. */
-function Field({ field, index, gold = false }: { field: ContactField; index: number; gold?: boolean }) {
+/** A field as any language writes it (its `kind` is one of ContactField's). */
+type AnyField = Omit<ContactField, "kind"> & { kind: string };
+
+function Field({ field: f, index, gold = false }: { field: AnyField; index: number; gold?: boolean }) {
+  const field = f as ContactField;
   const body = (
     <span className="grid grid-cols-[1.75rem_1fr] items-start gap-x-3 py-4 md:grid-cols-[2rem_1fr] md:gap-x-4 md:py-5">
       <span aria-hidden className="mt-0.5 text-gold-deep">
@@ -83,7 +88,7 @@ function Field({ field, index, gold = false }: { field: ContactField; index: num
   );
 }
 
-function AddressLink({ address, href }: { address: string; href: string }) {
+function AddressLink({ address, href, opens }: { address: string; href: string; opens: string }) {
   return (
     <a
       href={href}
@@ -104,7 +109,7 @@ function AddressLink({ address, href }: { address: string; href: string }) {
             className="ml-1.5 inline-block -translate-y-px align-baseline text-gold-deep transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
           />
         </span>
-        <span className="sr-only"> (otvara Google Maps)</span>
+        <span className="sr-only"> {opens}</span>
       </span>
     </a>
   );
@@ -142,7 +147,8 @@ function Place({ children, className = "" }: { children: ReactNode; className?: 
   );
 }
 
-export function Kontakt() {
+export function Kontakt({ locale }: { locale: Locale }) {
+  const k = kontaktContent[locale];
   const { tuzi, rozaje, map } = k;
   return (
     <article
@@ -179,7 +185,7 @@ export function Kontakt() {
           >
             <Emerge delay={0.2}>{tuzi.place}</Emerge>
           </h2>
-          <AddressLink address={tuzi.address} href={tuzi.addressHref} />
+          <AddressLink address={tuzi.address} href={tuzi.addressHref} opens={k.opensMaps} />
         </Place>
         <div className="mt-6 border-b border-ink/12 lg:col-span-7 lg:col-start-6 lg:mt-2">
           {tuzi.fields.map((f, i) => (
@@ -206,7 +212,7 @@ export function Kontakt() {
               <Emerge>{rozaje.place}</Emerge>
             </span>
           </h2>
-          <AddressLink address={rozaje.address} href={rozaje.addressHref} />
+          <AddressLink address={rozaje.address} href={rozaje.addressHref} opens={k.opensMaps} />
         </Place>
         <div className="mt-6 border-b border-ink/12 lg:col-span-7 lg:col-start-6 lg:mt-7">
           <Row gold>

@@ -5,6 +5,8 @@ import { motion, useInView, useTransform } from "framer-motion";
 import { useRef, type CSSProperties } from "react";
 import type { Photo } from "@/content/galerija";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
+import { galerijaContent } from "@/content/galerija";
+import { useLocale } from "@/i18n/client";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 
 /*
@@ -84,7 +86,7 @@ export function Frame({
   );
 
   const base = `group relative block w-full overflow-hidden bg-sand text-left focus-visible:outline-offset-4 ${className}`;
-  const label = `Otvori fotografiju: ${photo.alt}`;
+  const label = `${galerijaContent[useLocale()].ui.open}: ${photo.alt}`;
   const open = () => ref.current && onOpen(photo.id, ref.current);
   const fadeOut: CSSProperties = { opacity: hidden ? 0 : 1, transition: "opacity 120ms linear" };
 

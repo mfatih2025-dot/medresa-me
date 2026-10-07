@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { Dictionary } from "@/content";
+import type { Chrome } from "@/content";
+import { useLocale } from "@/i18n/client";
+import { localeNames, type Locale } from "@/i18n/config";
 import { site } from "@/content/site";
 import { FooterLines } from "./FooterLines";
 
@@ -47,9 +51,12 @@ const eyebrow = "eyebrow text-[0.6875rem] text-gold md:text-xs";
  * across, contact and index side by side. Desktop: a 12-column editorial grid
  * (5 · 4 · 3) whose lower band continues the same columns.
  */
-export function Footer({ dict }: { dict: Dictionary }) {
+export function Footer({ dicts }: { dicts: Record<Locale, Chrome> }) {
+  const locale = useLocale();
+  const dict = dicts[locale];
   const { footer } = dict;
-  const { contact } = site;
+  // Numbers and e-mail are the same everywhere; address, hours and the branch are written per language.
+  const contact = { ...site.contact, ...dict.contact };
   const { support } = footer;
   const year = new Date().getFullYear();
   const [days, hours] = contact.hours.split(" / ");
@@ -185,7 +192,9 @@ export function Footer({ dict }: { dict: Dictionary }) {
             className="hidden text-ivory/55 lg:flex"
           />
         </div>
-        <span className="sr-only">{dict.ui.language}: BS</span>
+        <span className="sr-only">
+          {dict.ui.language}: {localeNames[locale].short}
+        </span>
       </div>
     </footer>
   );

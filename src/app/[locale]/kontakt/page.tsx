@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
-import { kontakt } from "@/content/kontakt";
+import { kontaktContent } from "@/content/kontakt";
 import { Kontakt } from "@/components/kontakt/Kontakt";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: kontakt.title,
-  description: `${kontakt.heading}: ${kontakt.tuzi.address}, ${kontakt.tuzi.fields[0].value}`,
-  alternates: { canonical: "/kontakt" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /kontakt — Kontakt: Tuzi and the Rožaje department, and the map. */
-export default function KontaktPage() {
-  return <Kontakt />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const c = kontaktContent[locale];
+  return pageMetadata("kontakt", locale, {
+    title: c.title,
+    description: `${c.heading}: ${c.tuzi.address}, ${c.tuzi.fields[0].value}`,
+  });
+}
+
+/** Kontakt: Tuzi and the Rožaje department, and the map. */
+export default async function Page({ params }: Props) {
+  return <Kontakt locale={asLocale((await params).locale)} />;
 }

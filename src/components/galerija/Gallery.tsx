@@ -3,8 +3,9 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   archive,
-  galerija as g,
+  galerijaContent,
   photos,
+  photosIn,
   story,
   type Photo,
   type Row,
@@ -12,6 +13,7 @@ import {
 } from "@/content/galerija";
 import { ArrowDown } from "@/components/ui/icons";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
+import { useLocale } from "@/i18n/client";
 import { Frame, Guide, type Reveal } from "./GalMotion";
 import { Lightbox } from "./Lightbox";
 
@@ -68,7 +70,10 @@ function RowView({
   openId,
   quiet = false,
   first = false,
+  ph,
 }: {
+  /** The photographs, described in the page's language. */
+  ph: Record<string, Photo>;
   row: Row;
   n: number;
   onOpen: OpenFn;
@@ -76,7 +81,7 @@ function RowView({
   quiet?: boolean;
   first?: boolean;
 }) {
-  const [a, b] = row.ids.map((id) => photos[id]);
+  const [a, b] = row.ids.map((id) => ph[id]);
   const flip = n % 2 === 1;
   const f = (
     p: Photo,
@@ -281,6 +286,9 @@ const space = ["mt-3 md:mt-6", "mt-10 md:mt-16 lg:mt-20", "mt-6 md:mt-10 lg:mt-1
 
 export function Gallery() {
   const { reduced } = useMotionProfile();
+  const locale = useLocale();
+  const g = galerijaContent[locale];
+  const ph = useMemo(() => photosIn(locale), [locale]);
   const [expanded, setExpanded] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const firstArchive = useRef<HTMLDivElement>(null);
@@ -289,8 +297,8 @@ export function Gallery() {
   // The viewer walks the photographs in the order shown on the page.
   const list = useMemo(() => {
     const ids = [...story, ...(expanded ? archiveRowsMemo : [])].flatMap((r) => r.ids);
-    return ids.map((id) => photos[id]);
-  }, [expanded, archiveRowsMemo]);
+    return ids.map((id) => ph[id]);
+  }, [expanded, archiveRowsMemo, ph]);
 
   const onOpen = useCallback<OpenFn>((id) => setOpen(list.findIndex((p) => p.id === id)), [list]);
   const openId = open === null ? null : (list[open]?.id ?? null);
@@ -303,7 +311,7 @@ export function Gallery() {
         {story.map((row, i) => (
           <div key={row.ids.join("-")}>
             <div className={`relative ${i === 0 ? "" : space[i % 3]}`}>
-              <RowView row={row} n={i} onOpen={onOpen} openId={openId} first={i === 0} />
+              <RowView ph={ph} row={row} n={i} onOpen={onOpen} openId={openId} first={i === 0} />
               {guides[i]}
             </div>
             {chapterAfter.has(i) && (
@@ -341,7 +349,7 @@ export function Gallery() {
             <Chapter />
             {archiveRowsMemo.map((row, i) => (
               <div key={row.ids.join("-")} className={i === 0 ? "mt-8 md:mt-12" : "mt-6 md:mt-10 lg:mt-12"}>
-                <RowView row={row} n={i} onOpen={onOpen} openId={openId} quiet />
+                <RowView ph={ph} row={row} n={i} onOpen={onOpen} openId={openId} quiet />
               </div>
             ))}
           </div>
@@ -355,6 +363,7 @@ export function Gallery() {
           onIndex={setOpen}
           onClose={() => setOpen(null)}
           reduced={reduced}
+          ui={g.ui}
         />
       )}
     </>

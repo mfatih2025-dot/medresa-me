@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { oiu as o } from "@/content/oiu";
+import { oiuContent } from "@/content/oiu";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Line, Plate, Tick, Wall } from "./OiuMotion";
 
@@ -37,7 +38,8 @@ const room =
 /** Desktop column boundary k (0–12) as a percentage of the content box. */
 const col = (k: number) => `${((k / 12) * 100).toFixed(4)}%`;
 
-export function Oiu() {
+export function Oiu({ locale }: { locale: Locale }) {
+  const o = oiuContent[locale];
   const [internat, biblioteka, amfiteatar, bookCaffe, sala] = o.spaces;
   return (
     <article

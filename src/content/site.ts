@@ -34,38 +34,85 @@ export const site = {
   },
 } as const;
 
-export type PageSlug =
-  | "historijat"
-  | "misija"
-  | "uip"
-  | "oiu"
-  | "nastava"
-  | "tiu"
-  | "alumni"
-  | "galerija"
-  | "kucni-red"
-  | "donacije"
-  | "vijesti"
-  | "upis"
-  | "kontakt";
+import type { Locale } from "@/i18n/config";
+import { pathFor, pageIds, type PageId } from "@/i18n/routes";
 
-/** Existing medresa.me slugs are preserved so future redirects stay trivial. */
-export const pages: Record<PageSlug, { title: string; group: "medresa" | "ucenici" | "aktuelno" }> = {
-  historijat: { title: "Historijat", group: "medresa" },
-  misija: { title: "Misija i vizija", group: "medresa" },
-  uip: { title: "Uprava i profesori", group: "medresa" },
-  oiu: { title: "Objekat i uslovi", group: "medresa" },
-  nastava: { title: "Nastava i predmeti", group: "ucenici" },
-  tiu: { title: "Takmičenja i uspjesi", group: "ucenici" },
-  alumni: { title: "Alumni", group: "ucenici" },
-  galerija: { title: "Galerija", group: "ucenici" },
-  "kucni-red": { title: "Kućni red", group: "ucenici" },
-  donacije: { title: "Donacije", group: "aktuelno" },
-  vijesti: { title: "Vijesti", group: "aktuelno" },
-  upis: { title: "Upis i prijemni", group: "aktuelno" },
-  kontakt: { title: "Kontakt", group: "aktuelno" },
+/** A page's identity (its Bosnian slug); see src/i18n/routes.ts. */
+export type PageSlug = PageId;
+
+type PageInfo = { title: string; group: "medresa" | "ucenici" | "aktuelno" };
+
+const groups: Record<PageId, PageInfo["group"]> = {
+  historijat: "medresa",
+  misija: "medresa",
+  uip: "medresa",
+  oiu: "medresa",
+  nastava: "ucenici",
+  tiu: "ucenici",
+  alumni: "ucenici",
+  galerija: "ucenici",
+  "kucni-red": "ucenici",
+  donacije: "aktuelno",
+  vijesti: "aktuelno",
+  upis: "aktuelno",
+  kontakt: "aktuelno",
 };
 
-export const pageSlugs = Object.keys(pages) as PageSlug[];
+/** Page titles as they appear in menus and the browser tab, per language. */
+export const pageTitles: Record<Locale, Record<PageId, string>> = {
+  bs: {
+    historijat: "Historijat",
+    misija: "Misija i vizija",
+    uip: "Uprava i profesori",
+    oiu: "Objekat i uslovi",
+    nastava: "Nastava i predmeti",
+    tiu: "Takmičenja i uspjesi",
+    alumni: "Alumni",
+    galerija: "Galerija",
+    "kucni-red": "Kućni red",
+    donacije: "Donacije",
+    vijesti: "Vijesti",
+    upis: "Upis i prijemni",
+    kontakt: "Kontakt",
+  },
+  sq: {
+    historijat: "Historiku",
+    misija: "Misioni dhe vizioni",
+    uip: "Drejtoria dhe profesorët",
+    oiu: "Objekti dhe kushtet",
+    nastava: "Mësimi dhe lëndët",
+    tiu: "Garat dhe sukseset",
+    alumni: "Alumni",
+    galerija: "Galeria",
+    "kucni-red": "Rregullat e shtëpisë",
+    donacije: "Donacionet",
+    vijesti: "Lajme",
+    upis: "Regjistrimi dhe provimi pranues",
+    kontakt: "Kontakti",
+  },
+  en: {
+    historijat: "History",
+    misija: "Mission and Vision",
+    uip: "Administration and Teachers",
+    oiu: "Campus and Facilities",
+    nastava: "Teaching and Subjects",
+    tiu: "Competitions and Achievements",
+    alumni: "Alumni",
+    galerija: "Gallery",
+    "kucni-red": "House Rules",
+    donacije: "Donations",
+    vijesti: "News",
+    upis: "Admissions and Entrance Exam",
+    kontakt: "Contact",
+  },
+};
 
-export const href = (slug: PageSlug) => `/${slug}`;
+/** Bosnian titles and groups (kept for existing callers). */
+export const pages: Record<PageId, PageInfo> = Object.fromEntries(
+  pageIds.map((id) => [id, { title: pageTitles.bs[id], group: groups[id] }]),
+) as Record<PageId, PageInfo>;
+
+export const pageSlugs = [...pageIds] as PageId[];
+
+/** A page's URL in a language (Bosnian by default). */
+export const href = (slug: PageId, locale: Locale = "bs") => pathFor(slug, locale);

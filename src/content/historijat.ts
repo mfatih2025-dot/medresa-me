@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+import type { Localized } from "@/i18n/types";
 import type { Img } from "./bs";
 
 /**
@@ -16,8 +18,10 @@ const photo = (src: string, alt: string, position = "50% 50%"): Img => ({
   position,
 });
 
-export const historijat = {
+const bs = {
   title: "Historijat",
+  /** Small labels beside the hero. */
+  labels: { seat: "Sjedište", founded: "Početak rada" },
   hero: {
     eyebrow: "Historijat",
     heading: ["Historijat Medrese", "„Mehmed Fatih“"],
@@ -94,3 +98,148 @@ export const historijat = {
     },
   },
 } as const;
+
+type HistorijatContent = Localized<typeof bs>;
+const ch = bs.chapters;
+
+/** English: the medresa.me English page (Weglot), revised („Meshihat“, not „Mosque“; „the Medresa“). */
+const en: HistorijatContent = {
+  title: "History",
+  labels: { seat: "Seat", founded: "Founded" },
+  hero: {
+    eyebrow: "History",
+    heading: ["History of the Medresa", "“Mehmed Fatih”"],
+    place: bs.hero.place,
+    date: { ...bs.hero.date, label: "6 October 2008" },
+    image: { ...bs.hero.image, alt: "The Medresa “Mehmed Fatih” building in Donji Milješ, from the air" },
+    caption: "Medresa “Mehmed Fatih”, Donji Milješ, Tuzi",
+  },
+  chapters: {
+    founding: {
+      marker: ch.founding.marker,
+      label: "Founding",
+      date: { ...ch.founding.date, label: "6 October 2008" },
+      text: "The Medresa “Mehmed Fatih”, with its seat in Donji Milješ in the municipality of Tuzi, was founded as the first contemporary Islamic secondary school in Montenegro, with the aim of giving young Muslims a quality education in the spirit of faith, knowledge and responsibility. It officially began its work on 6 October 2008, under the auspices of the Meshihat of the Islamic Community in Montenegro.",
+      image: { ...ch.founding.image, alt: "An arched entrance and a minaret in the Medresa courtyard" },
+    },
+    figures: {
+      label: "From then until today",
+      items: [
+        { value: "800 +", label: "male and female graduates" },
+        { value: "10 000 +", label: "meals prepared in the school canteen" },
+        { value: "15 700 +", label: "school lessons held" },
+      ],
+    },
+    accreditation: {
+      marker: ch.accreditation.marker,
+      label: "Graduates and accreditation",
+      text: "Since then, the Medresa has produced more than eight hundred male and female graduates who have continued their education at universities at home and abroad, and have become recognised bearers of moral and intellectual values in their communities. Since 2015 the Medresa’s programme has been officially accredited by the National Council for Education of Montenegro, so the school’s diplomas are fully recognised and equal to those of grammar and vocational schools. This has given students direct access to universities in Montenegro, the region and beyond.",
+      image: {
+        ...ch.accreditation.image,
+        alt: "The first generation of graduates of the Medresa “Mehmed Fatih”, 2008–2012",
+      },
+      caption: "The first generation of graduates, 2008–2012",
+    },
+    women: {
+      label: "The girls’ department in Tuzi",
+      text: "Within the main school in Tuzi, a girls’ department of the Medresa has also been developed, where girls attend lessons, live in the boarding house and have access to all of the school’s resources and programmes – both religious and general. This opened a space for the education of Muslim women in a setting that nurtures Islamic morals, pedagogical care and contemporary educational standards.",
+      image: { ...ch.women.image, alt: "The girls’ department of the Medresa “Mehmed Fatih” in Tuzi" },
+    },
+    rozaje: {
+      marker: ["28 Sep", "2015"],
+      date: { ...ch.rozaje.date, label: "28 September 2015" },
+      label: "Regional girls’ department",
+      place: ch.rozaje.place,
+      text: "In response to the needs of the Muslim community in the northern parts of the country, the Regional Girls’ Department of the Medresa “Mehmed Fatih” in Rožaje was opened on 28 September 2015. Housed in a renovated waqf building, the department is the result of the dedication of the Islamic Community, the support of the Turkish development agency TIKA and local benefactors. From the very beginning, the school in Rožaje has followed the pedagogical and spiritual standards of the main school in Tuzi, offering girls from the region a free, quality education.",
+    },
+    today: {
+      marker: "Today",
+      figure: { value: "360 +", label: "male and female students" },
+      text: "Today the Medresa “Mehmed Fatih” has more than 360 male and female students, in the boys’ department in Tuzi, the girls’ department in Tuzi and the girls’ department in Rožaje. Lessons are taught bilingually – in Bosnian and Albanian – and boarding life is organised so that students receive full care, supervision and guidance throughout their education and upbringing.",
+      image: {
+        ...ch.today.image,
+        alt: "The Medresa “Mehmed Fatih” campus in Tuzi with the mosque, from the air",
+      },
+    },
+  },
+  closing: {
+    bs: {
+      welcome: "Welcome to the Medresa “Mehmed Fatih” – a school of knowledge, upbringing and values.",
+      since:
+        "Since 2008 we have been raising generations who think with their hearts and act with knowledge.",
+      verse: "Say: “Are those who know equal to those who do not know?”",
+      source: "Qur’an, Az-Zumar, 9",
+    },
+  },
+};
+
+/** Shqip: the medresa.me Albanian page (Weglot), revised („Mesihati“, „nxënës“); the closing is the source's own Albanian. */
+const sq: HistorijatContent = {
+  title: "Historiku",
+  labels: { seat: "Selia", founded: "Fillimi i punës" },
+  hero: {
+    eyebrow: "Historiku",
+    heading: ["Historiku i Medresesë", "“Mehmed Fatih”"],
+    place: "Donji Milješ, Tuz",
+    date: { ...bs.hero.date, label: "6 tetor 2008" },
+    image: { ...bs.hero.image, alt: "Ndërtesa e Medresesë “Mehmed Fatih” në Donji Milješ, nga ajri" },
+    caption: "Medreseja “Mehmed Fatih”, Donji Milješ, Tuz",
+  },
+  chapters: {
+    founding: {
+      marker: ch.founding.marker,
+      label: "Themelimi",
+      date: { ...ch.founding.date, label: "6 tetor 2008" },
+      text: "Medreseja “Mehmed Fatih”, me seli në Donji Milješ, komuna e Tuzit, u themelua si institucioni i parë bashkëkohor islam i arsimit të mesëm në Mal të Zi, me qëllim që t’u ofrojë të rinjve myslimanë arsim cilësor në frymën e besimit, dijes dhe përgjegjësisë. Zyrtarisht filloi punën më 6 tetor 2008, nën kujdesin e Mesihatit të Bashkësisë Islame në Mal të Zi.",
+      image: { ...ch.founding.image, alt: "Hyrje me hark dhe minare në oborrin e Medresesë" },
+    },
+    figures: {
+      label: "Nga atëherë e deri sot",
+      items: [
+        { value: "800 +", label: "maturantë dhe maturante" },
+        { value: "10 000 +", label: "vakte të përgatitura në mensën e shkollës" },
+        { value: "15 700 +", label: "orë mësimore të mbajtura" },
+      ],
+    },
+    accreditation: {
+      marker: ch.accreditation.marker,
+      label: "Maturantët dhe akreditimi",
+      text: "Nga atëherë e deri sot, Medreseja ka nxjerrë mbi tetëqind maturantë dhe maturante që kanë vazhduar shkollimin në universitete vendase dhe ndërkombëtare, duke u bërë bartës të njohur të vlerave morale dhe intelektuale në bashkësinë e tyre. Që nga viti 2015, programi i Medresesë ka akreditimin zyrtar të Këshillit Kombëtar për Arsim të Malit të Zi, me çka diplomat e kësaj shkolle janë plotësisht të njohura dhe të barabarta me ato të gjimnazeve dhe shkollave profesionale. Kjo u ka mundësuar nxënësve qasje të drejtpërdrejtë në universitete në Mal të Zi, në rajon dhe më gjerë.",
+      image: {
+        ...ch.accreditation.image,
+        alt: "Gjenerata e parë e maturantëve të Medresesë “Mehmed Fatih”, 2008–2012",
+      },
+      caption: "Gjenerata e parë e maturantëve, 2008–2012",
+    },
+    women: {
+      label: "Paralelja e vajzave në Tuz",
+      text: "Në kuadër të shkollës amë në Tuz është zhvilluar edhe paralelja e vajzave e Medresesë, ku vajzat ndjekin mësimin, qëndrojnë në konvikt dhe kanë qasje në të gjitha burimet dhe programet e shkollës – si fetare, ashtu edhe të arsimit të përgjithshëm. Me këtë u hap hapësirë për arsimimin e grave myslimane në një mjedis që kultivon moralin islam, kujdesin pedagogjik dhe standardet bashkëkohore arsimore.",
+      image: { ...ch.women.image, alt: "Paralelja e vajzave e Medresesë “Mehmed Fatih” në Tuz" },
+    },
+    rozaje: {
+      marker: ch.rozaje.marker,
+      date: { ...ch.rozaje.date, label: "28 shtator 2015" },
+      label: "Paralelja rajonale e vajzave",
+      place: "Rozhajë",
+      text: "Si përgjigje ndaj nevojave të bashkësisë myslimane në pjesët veriore të vendit, më 28 shtator 2015 u hap Paralelja rajonale e vajzave e Medresesë “Mehmed Fatih” në Rozhajë. E vendosur në një ndërtesë vakëfi të rinovuar, kjo paralele është rezultat i përkushtimit të Bashkësisë Islame, mbështetjes së agjencisë turke për zhvillim TIKA dhe bamirësve vendas. Që nga fillimi, shkolla në Rozhajë ndjek standardet pedagogjike dhe shpirtërore të shkollës amë në Tuz, duke u ofruar vajzave nga ai rajon shkollim falas dhe cilësor.",
+    },
+    today: {
+      marker: "Sot",
+      figure: { value: "360 +", label: "nxënës dhe nxënëse" },
+      text: "Sot Medreseja “Mehmed Fatih” numëron mbi 360 nxënës dhe nxënëse, të shpërndarë në paralelen e djemve në Tuz, paralelen e vajzave në Tuz dhe paralelen e vajzave në Rozhajë. Mësimi zhvillohet në dy gjuhë – në boshnjakisht dhe në shqip – ndërsa jeta në konvikt është e organizuar në mënyrë që nxënësit dhe nxënëset të kenë kujdes, mbikëqyrje dhe udhëheqje të plotë gjatë procesit edukativo-arsimor.",
+      image: { ...ch.today.image, alt: "Kampusi i Medresesë “Mehmed Fatih” në Tuz me xhaminë, nga ajri" },
+    },
+  },
+  closing: {
+    bs: {
+      welcome: "Mirë se erdhët në Medresenë “Mehmed Fatih” – shkollë e dijes, edukatës dhe vlerave.",
+      since: "Që nga viti 2008, ne edukojmë breza që mendojnë me zemër dhe veprojnë me dije.",
+      verse: "Thuaj: “A janë të barabartë ata që dinë me ata që nuk dinë?”",
+      source: "Kurani, Ez-Zumer, 9",
+    },
+  },
+};
+
+export const historijatContent: Record<Locale, typeof sq> = { bs, sq, en };
+/** The Bosnian master (kept for existing callers). */
+export const historijat = bs;

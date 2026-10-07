@@ -36,7 +36,7 @@ export function SocialStories({
   copy,
   cards,
 }: {
-  copy: { eyebrow: string; heading: string; lead: string };
+  copy: { eyebrow: string; heading: string; lead: string; prev: string; next: string };
   cards: SocialCardData[];
 }) {
   const track = useRef<HTMLUListElement>(null);
@@ -152,13 +152,13 @@ export function SocialStories({
               </div>
               <div className="flex gap-2.5">
                 <NavButton
-                  label="Prethodna objava"
+                  label={copy.prev}
                   disabled={active === 0}
                   onClick={() => go(active - 1)}
                   back
                 />
                 <NavButton
-                  label="Sljedeća objava"
+                  label={copy.next}
                   disabled={active >= count - 1}
                   onClick={() => go(active + 1)}
                 />

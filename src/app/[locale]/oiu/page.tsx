@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
-import { oiu } from "@/content/oiu";
+import { oiuContent } from "@/content/oiu";
 import { Oiu } from "@/components/oiu/Oiu";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: oiu.title,
-  description: oiu.intro[0],
-  alternates: { canonical: "/oiu" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /oiu — Objekat i uslovi: the building and its spaces, walked through in photographs. */
-export default function OiuPage() {
-  return <Oiu />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const c = oiuContent[locale];
+  return pageMetadata("oiu", locale, { title: c.title, description: c.intro[0] });
+}
+
+/** Objekat i uslovi: the building and its spaces, in photographs. */
+export default async function Page({ params }: Props) {
+  return <Oiu locale={asLocale((await params).locale)} />;
 }

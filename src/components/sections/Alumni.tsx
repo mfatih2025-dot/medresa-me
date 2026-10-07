@@ -108,7 +108,7 @@ export function Alumni({ dict }: { dict: Dictionary }) {
                         className={`flex items-start gap-x-2.5 pr-2.5 md:gap-x-3.5 md:pr-3.5 lg:gap-x-5 lg:pr-5 ${copy > 0 ? "gen-copy" : ""}`}
                       >
                         {items.map((item, k) => (
-                          <Tile key={item.numeral} item={item} open={a.open} rhythm={rhythm[(k + r) % 3]} />
+                          <Tile key={item.numeral} item={item} open={a.open} label={dict.ui.generation} rhythm={rhythm[(k + r) % 3]} />
                         ))}
                       </div>
                     ))}
@@ -120,7 +120,7 @@ export function Alumni({ dict }: { dict: Dictionary }) {
             <button
               type="button"
               onClick={() => setPaused((p) => !p)}
-              aria-label={paused ? "Pokreni kretanje generacija" : "Zaustavi kretanje generacija"}
+              aria-label={paused ? dict.ui.playGenerations : dict.ui.pauseGenerations}
               className="absolute bottom-3 right-3 z-10 grid size-10 place-items-center rounded-full bg-ivory/85 text-green shadow-[0_6px_20px_-10px_rgb(0_0_0/0.35)] ring-1 ring-ink/10 backdrop-blur-md transition-[scale,background-color] duration-150 ease-out hover:bg-ivory active:scale-[0.94] motion-reduce:hidden md:bottom-5 md:right-5 md:size-11"
             >
               {paused ? <PlayIcon className="translate-x-px" /> : <PauseIcon />}
@@ -135,10 +135,12 @@ export function Alumni({ dict }: { dict: Dictionary }) {
 function Tile({
   item,
   open,
+  label,
   rhythm: { aspect, offset },
 }: {
   item: Generation;
   open: string;
+  label: string;
   rhythm: (typeof rhythm)[number];
 }) {
   return (
@@ -150,7 +152,7 @@ function Tile({
         href={item.href}
         rel="noopener"
         draggable={false}
-        aria-label={`Generacija ${item.numeral}, ${item.years} – ${open}`}
+        aria-label={`${label} ${item.numeral}, ${item.years} – ${open}`}
         className="group block select-none [-webkit-touch-callout:none]"
       >
         <div

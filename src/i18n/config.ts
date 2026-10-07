@@ -8,18 +8,16 @@
  *   en  English — /en, /en/historijat …
  *
  * All pages live under app/[locale]/ and are generated for every locale; the
- * proxy (src/proxy.ts) maps unprefixed URLs to /bs internally and sends a
- * visitor who chose sq or en to their prefixed URLs. Albanian and English
- * content is not written yet: until a dictionary exists for a locale, its pages
- * show the Bosnian content with lang="bs", a notice, and noindex (see
- * `translated` and LocaleNotice) — never presented as a translation.
+ * proxy (src/proxy.ts) maps unprefixed URLs to /bs internally, serves each
+ * language's own slugs (src/i18n/routes.ts) and sends a visitor who chose sq
+ * or en to their prefixed URLs. Every page is written in all three languages.
  */
 export const locales = ["bs", "sq", "en"] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = "bs";
 
-/** Locales whose content has actually been translated. */
-export const translated: readonly Locale[] = ["bs"];
+/** Locales whose content has been translated (all three since the SQ/EN localization). */
+export const translated: readonly Locale[] = ["bs", "sq", "en"];
 
 /** The visitor's choice, remembered for a year (read by the proxy and the gateway). */
 export const LOCALE_COOKIE = "medresa-locale";

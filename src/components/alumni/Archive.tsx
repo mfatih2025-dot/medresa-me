@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { alumni as a, generations, type Generation } from "@/content/alumni";
+import { alumniContent, generations, type Generation } from "@/content/alumni";
+import { useLocale } from "@/i18n/client";
+
+/** The Alumni text in the page's language. */
+const useA = () => alumniContent[useLocale()];
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { Emerge, Numeral, PanoFrame, Thread, type PanoReveal } from "./AlumniMotion";
 import { PanoViewer } from "./PanoViewer";
@@ -28,7 +32,7 @@ import { PanoViewer } from "./PanoViewer";
  * faces are never covered.
  */
 
-const roman = (g: Generation) => `${a.label} ${g.roman}`;
+const roman = (g: Generation, label: string) => `${label} ${g.roman}`;
 const id = (g: Generation) => `generacija-${g.number}`;
 const two = (n: number) => String(n).padStart(2, "0");
 
@@ -42,6 +46,7 @@ function Heading({
   align?: "left" | "right";
   className?: string;
 }) {
+  const a = useA();
   return (
     <h3 id={`${id(g)}-h`} className={`text-green ${align === "right" ? "text-right" : ""} ${className}`}>
       <span className="flex items-baseline gap-3 text-[0.8125rem] tracking-[0.18em] text-gold-deep uppercase md:text-[0.875rem]">
@@ -67,6 +72,7 @@ function OpenLabel({
   onOpen: (n: number) => void;
   className?: string;
 }) {
+  const a = useA();
   return (
     <button
       type="button"
@@ -85,7 +91,7 @@ function OpenLabel({
       <span className="underline decoration-transparent decoration-1 underline-offset-[6px] transition-[text-decoration-color] duration-200 group-hover:decoration-gold">
         {a.open}
       </span>
-      <span className="sr-only">: {roman(g)}</span>
+      <span className="sr-only">: {roman(g, a.label)}</span>
     </button>
   );
 }
@@ -101,11 +107,12 @@ function Chapter({
   onOpen: (n: number) => void;
   openN: number | null;
 }) {
+  const a = useA();
   const kind = i % 4;
   const frame = (reveal: PanoReveal, sizes: string, className = "") => (
     <PanoFrame
       generation={g}
-      label={`${a.open}: ${roman(g)}`}
+      label={`${a.open}: ${roman(g, a.label)}`}
       sizes={sizes}
       reveal={reveal}
       priority={i === 0}
@@ -195,6 +202,7 @@ function Chapter({
 }
 
 export function Archive() {
+  const a = useA();
   const { reduced } = useMotionProfile();
   const [active, setActive] = useState<number>(generations[0].number);
   const [inArchive, setInArchive] = useState(false);
@@ -250,7 +258,7 @@ export function Archive() {
       key={g.number}
       href={`#${id(g)}`}
       data-index={g.number}
-      aria-label={roman(g)}
+      aria-label={roman(g, a.label)}
       aria-current={active === g.number && inArchive ? "true" : undefined}
       onClick={(e) => {
         e.preventDefault();
@@ -286,7 +294,7 @@ export function Archive() {
 
       {/* Desktop: a quiet rail in the left margin while the generations are on screen. */}
       <nav
-        aria-label={`${a.generationsHeading} (indeks)`}
+        aria-label={`${a.generationsHeading} (${a.ui.index})`}
         className={`fixed left-[max(0.5rem,calc(var(--edge)/2-1rem))] top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-1.5 transition-opacity duration-300 lg:flex ${
           inArchive && open === null ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
@@ -301,7 +309,7 @@ export function Archive() {
 
       {/* Phones: a thin strip at the bottom, within thumb reach. */}
       <nav
-        aria-label={`${a.generationsHeading} (indeks)`}
+        aria-label={`${a.generationsHeading} (${a.ui.index})`}
         className={`fixed inset-x-0 bottom-0 z-30 border-t border-ink/10 bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm transition-transform duration-300 ease-out lg:hidden ${
           inArchive && open === null ? "translate-y-0" : "translate-y-full"
         }`}

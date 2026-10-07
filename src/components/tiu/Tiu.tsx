@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { tiu as t, type Achievement, type Year } from "@/content/tiu";
+import { tiuContent, type Achievement, type Year } from "@/content/tiu";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Line, Numeral, Resolve, Settle, Stream } from "./TiuMotion";
 
@@ -86,9 +87,9 @@ function Achievement({
   );
 }
 
-const yearOf = (y: string) => t.years.find((x) => x.year === y) as Year;
-
-export function Tiu() {
+export function Tiu({ locale }: { locale: Locale }) {
+  const t = tiuContent[locale];
+  const yearOf = (y: string) => t.years.find((x) => x.year === y) as Year;
   const [y25, y24, y23, y22, y21] = ["2025", "2024", "2023", "2022", "2021"].map(yearOf);
   return (
     <article

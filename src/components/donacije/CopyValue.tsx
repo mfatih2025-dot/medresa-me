@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { donacijeContent } from "@/content/donacije";
+import { useLocale } from "@/i18n/client";
 
 /*
  * A payment value with a quiet copy control.
@@ -47,6 +49,7 @@ export function CopyValue({
   className?: string;
   valueClassName?: string;
 }) {
+  const t = donacijeContent[useLocale()].copy;
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -66,7 +69,7 @@ export function CopyValue({
       <button
         type="button"
         onClick={copy}
-        aria-label={`Kopiraj ${label}: ${value}`}
+        aria-label={`${t.action} ${label}: ${value}`}
         className="-my-2.5 -mr-2 grid min-h-11 min-w-11 shrink-0 touch-manipulation select-none place-items-center rounded-sm px-2 text-[0.8125rem] font-medium tracking-[0.03em] text-gold-deep transition-colors duration-150 hover:text-green md:text-[0.875rem]"
       >
         {/* Both labels share one cell, so the button never changes width. */}
@@ -74,17 +77,17 @@ export function CopyValue({
           aria-hidden
           className={`col-start-1 row-start-1 transition-opacity duration-150 ease-out motion-reduce:transition-none ${copied ? "opacity-0" : "opacity-100"}`}
         >
-          Kopiraj
+          {t.action}
         </span>
         <span
           aria-hidden
           className={`col-start-1 row-start-1 text-green transition-opacity duration-150 ease-out motion-reduce:transition-none ${copied ? "opacity-100" : "opacity-0"}`}
         >
-          Kopirano
+          {t.done}
         </span>
       </button>
       <span role="status" aria-live="polite" className="sr-only">
-        {copied ? `${label} kopiran` : ""}
+        {copied ? `${label} ${t.announced}` : ""}
       </span>
     </div>
   );

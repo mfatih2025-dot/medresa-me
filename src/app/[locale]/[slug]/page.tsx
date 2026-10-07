@@ -2,39 +2,39 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/content";
-import { pages, pageSlugs, type PageSlug } from "@/content/site";
-import { defaultLocale } from "@/i18n/config";
+import { pageTitles } from "@/content/site";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { isPageId, pathFor, type PageId } from "@/i18n/routes";
 
-type Params = { slug: string };
+type Params = { locale: string; slug: string };
 
-export function generateStaticParams(): Params[] {
-  // Pages with their own route (app/<slug>/page.tsx) are excluded here.
-  return pageSlugs
-    .filter((slug) => slug !== "vijesti" && slug !== "historijat" && slug !== "uip" && slug !== "misija" && slug !== "oiu" && slug !== "nastava" && slug !== "tiu" && slug !== "donacije" && slug !== "upis" && slug !== "kontakt" && slug !== "galerija" && slug !== "alumni")
-    .map((slug) => ({ slug }));
+/** Pages not built yet; every other page has its own route (app/[locale]/<page>/page.tsx). */
+const placeholders: PageId[] = ["kucni-red"];
+
+export function generateStaticParams(): Pick<Params, "slug">[] {
+  return placeholders.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
-  const { slug } = await params;
-  return { title: pages[slug as PageSlug]?.title ?? "Medresa" };
+  const { locale: l, slug } = await params;
+  const locale = asLocale(l);
+  if (!isPageId(slug)) return {};
+  return pageMetadata(slug, locale, { title: pageTitles[locale][slug] });
 }
 
-/**
- * Placeholder for the real pages (Historijat, Upis, Alumni, Kontakt …). Each
- * slug mirrors the current medresa.me route; replace per page as it is built.
- */
+/** Placeholder for the pages still to be built (Kućni red). */
 export default async function PlaceholderPage({ params }: { params: Promise<Params> }) {
-  const { slug } = await params;
-  const page = pages[slug as PageSlug];
-  if (!page) notFound();
-  const { ui } = getDictionary(defaultLocale);
+  const { locale: l, slug } = await params;
+  const locale = asLocale(l);
+  if (!isPageId(slug) || !placeholders.includes(slug)) notFound();
+  const { ui } = getDictionary(locale);
   return (
     <section className="geo bg-ivory pb-32 pt-36 md:pt-48">
       <div className="wrap">
         <p className="eyebrow mb-6 text-gold-deep">{ui.comingSoon}</p>
-        <h1 className="display h-section text-green">{page.title}</h1>
+        <h1 className="display h-section text-green">{pageTitles[locale][slug]}</h1>
         <p className="lead mt-8 max-w-[32em] text-ink-soft">{ui.comingSoonBody}</p>
-        <Link href="/" className="btn btn-green mt-10">
+        <Link href={pathFor(null, locale)} className="btn btn-green mt-10">
           {ui.backHome}
         </Link>
       </div>

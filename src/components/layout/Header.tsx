@@ -11,13 +11,16 @@ import {
   type MotionValue,
 } from "framer-motion";
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { Dictionary } from "@/content";
+import type { Chrome } from "@/content";
+import { useLocale } from "@/i18n/client";
+import type { Locale } from "@/i18n/config";
+import { pathFor } from "@/i18n/routes";
 import { site } from "@/content/site";
 import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
 import { Overlay } from "./Overlay";
 import { LanguageSwitch } from "@/components/i18n/LanguageSwitch";
 
-type Props = { dict: Dictionary };
+type Props = { dicts: Record<Locale, Chrome> };
 
 /** Scroll distance over which the large header becomes the compact one. */
 const RANGE = 220;
@@ -43,7 +46,9 @@ type Geo = {
  * opacity and a corner radius on a handful of layers. Nothing here changes
  * layout or re-renders React while scrolling.
  */
-export function Header({ dict }: Props) {
+export function Header({ dicts }: Props) {
+  const locale = useLocale();
+  const dict = dicts[locale];
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const { ui, nav } = dict;
@@ -141,7 +146,7 @@ export function Header({ dict }: Props) {
               </IconButton>
             </motion.div>
             <motion.nav
-              aria-label="Glavna navigacija, lijevo"
+              aria-label={ui.navLeft}
               className="hidden xl:block"
               style={{ x: navL }}
             >
@@ -158,7 +163,7 @@ export function Header({ dict }: Props) {
           <div className="header-spacer" aria-hidden />
 
           <div className="flex items-center justify-between gap-6 pl-4 pr-2 xl:pl-8 xl:pr-3">
-            <motion.nav aria-label="Glavna navigacija, desno" className="hidden xl:block" style={{ x: navR }}>
+            <motion.nav aria-label={ui.navRight} className="hidden xl:block" style={{ x: navR }}>
               <ul className="flex items-center gap-8 2xl:gap-11">
                 {nav.right.map((l) => (
                   <li key={l.href}>
@@ -177,8 +182,8 @@ export function Header({ dict }: Props) {
 
         <MotionLink
           ref={logoRef}
-          href="/"
-          aria-label={`${site.name} – početna`}
+          href={pathFor(null, locale)}
+          aria-label={`${site.name} – ${ui.home}`}
           className="header-logo pointer-events-auto"
           style={{ y: logoY, scale: logoScale }}
         >
@@ -250,9 +255,9 @@ function NavLink({ label, href }: { label: string; href: string }) {
   );
 }
 
-function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => void; dict: Dictionary }) {
+function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => void; dict: Chrome }) {
   const { nav, ui } = dict;
-  const { contact } = site;
+  const contact = { ...site.contact, address: dict.contact.address };
   return (
     <Overlay open={open} onClose={onClose} label={ui.menu} className="menu-overlay">
       <div className="relative flex min-h-dvh flex-col bg-green-deep geo-dark">
@@ -316,7 +321,7 @@ function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => vo
   );
 }
 
-function SearchOverlay({ open, onClose, dict }: { open: boolean; onClose: () => void; dict: Dictionary }) {
+function SearchOverlay({ open, onClose, dict }: { open: boolean; onClose: () => void; dict: Chrome }) {
   const [q, setQ] = useState("");
   const index = useMemo(
     () => [
@@ -325,9 +330,9 @@ function SearchOverlay({ open, onClose, dict }: { open: boolean; onClose: () => 
     ],
     [dict],
   );
-  const needle = q.trim().toLocaleLowerCase("bs");
+  const needle = q.trim().toLocaleLowerCase(dict.lang);
   const results = needle
-    ? index.filter((i) => i.label.toLocaleLowerCase("bs").includes(needle))
+    ? index.filter((i) => i.label.toLocaleLowerCase(dict.lang).includes(needle))
     : index.slice(0, 6);
 
   const close = () => {

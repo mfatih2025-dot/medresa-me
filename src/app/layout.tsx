@@ -4,9 +4,10 @@ import { Footer } from "@/components/layout/Footer";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { Gateway } from "@/components/i18n/Gateway";
 import { Header } from "@/components/layout/Header";
-import { getDictionary } from "@/content";
+import { chromeOf, dictionaries, getDictionary } from "@/content";
+import { SkipLink } from "@/components/i18n/SkipLink";
 import { site } from "@/content/site";
-import { defaultLocale } from "@/i18n/config";
+import { defaultLocale, locales } from "@/i18n/config";
 import "./globals.css";
 
 // Only the weights/styles in use are loaded (no synthesized bold or italic):
@@ -21,6 +22,12 @@ const kanit = Kanit({
 });
 
 const dict = getDictionary(defaultLocale);
+
+/** Header, menu, search and footer in every language: they follow the URL (see Header/Footer). */
+const chrome = Object.fromEntries(locales.map((l) => [l, chromeOf(dictionaries[l])])) as Record<
+  (typeof locales)[number],
+  ReturnType<typeof chromeOf>
+>;
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -80,7 +87,7 @@ export const viewport: Viewport = {
  * Homepage, no remembered language, not a crawler → show the gateway. `?intro`
  * forces it (for testing). Runs before first paint, so there is no flash.
  */
-const gatewayScript = `(function(){try{var d=document.documentElement,l=location;if(l.pathname!=="/")return;var chosen=/(?:^|;\\s*)${LOCALE_COOKIE}=(bs|sq|en)(?:;|$)/.test(document.cookie);var bot=/bot|crawl|spider|slurp|facebookexternalhit|lighthouse/i.test(navigator.userAgent);if(!bot&&(!chosen||/[?&]intro\\b/.test(l.search)))d.dataset.gateway="1"}catch(e){}})()`;
+const gatewayScript = `(function(){try{var d=document.documentElement,l=location,s=l.pathname.split("/")[1];if(s==="sq"||s==="en")d.lang=s;if(l.pathname!=="/")return;var chosen=/(?:^|;\\s*)${LOCALE_COOKIE}=(bs|sq|en)(?:;|$)/.test(document.cookie);var bot=/bot|crawl|spider|slurp|facebookexternalhit|lighthouse/i.test(navigator.userAgent);if(!bot&&(!chosen||/[?&]intro\\b/.test(l.search)))d.dataset.gateway="1"}catch(e){}})()`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -99,15 +106,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           // Static, build-time data only (no user input).
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organization).replace(/</g, "\\u003c") }}
         />
-        <a
-          href="#main"
-          className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-full bg-gold px-5 py-3 text-sm font-medium text-green-deep transition-transform focus:translate-y-0"
-        >
-          {dict.ui.skip}
-        </a>
-        <Header dict={dict} />
+        <SkipLink labels={{ bs: chrome.bs.ui.skip, sq: chrome.sq.ui.skip, en: chrome.en.ui.skip }} />
+        <Header dicts={chrome} />
         <main id="main">{children}</main>
-        <Footer dict={dict} />
+        <Footer dicts={chrome} />
         <Gateway />
       </body>
     </html>

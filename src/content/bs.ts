@@ -1,4 +1,6 @@
-import { href, pages, type PageSlug } from "./site";
+import type { Locale } from "@/i18n/config";
+import { pathFor } from "@/i18n/routes";
+import { href as pageHref, pageTitles, type PageSlug } from "./site";
 
 type Link = { label: string; href: string };
 
@@ -12,25 +14,35 @@ const img = (src: string, alt: string, position = "50% 50%", placeholder = false
   placeholder,
 });
 
-const link = (slug: PageSlug): Link => ({ label: pages[slug].title, href: href(slug) });
+/** A page link in a language: its title there and its URL there. */
+export const linkFor =
+  (locale: Locale) =>
+  (slug: PageSlug): Link => ({ label: pageTitles[locale][slug], href: pageHref(slug, locale) });
+
+const link = linkFor("bs");
+const href = (slug: PageSlug) => pageHref(slug, "bs");
 
 /**
  * One generation panel. Generation n finished (2007 + n)–(2011 + n), as printed on every
  * official panel; from the fifth generation on, the panel also shows the maturantice.
+ * It opens that generation's chapter on the Alumni page, in the same language.
  */
-const gen = (numeral: string, n: number, url: string) => {
-  const years = `${2007 + n}–${2011 + n}`;
-  const who = n >= 5 ? "maturanata i maturantica" : "maturanata";
-  return {
-    numeral,
-    years,
-    href: url,
-    image: img(
-      `generacije/generacija-${String(n).padStart(2, "0")}`,
-      `Tablo ${numeral}. generacije ${who} Medrese „Mehmed Fatih“, ${years}.`,
-    ),
+export const genFor =
+  (locale: Locale, alt: (numeral: string, n: number, years: string) => string) => (numeral: string, n: number) => {
+    const years = `${2007 + n}–${2011 + n}`;
+    return {
+      numeral,
+      years,
+      href: `${pathFor("alumni", locale)}#generacija-${n}`,
+      image: img(`generacije/generacija-${String(n).padStart(2, "0")}`, alt(numeral, n, years)),
+    };
   };
-};
+
+const gen = genFor(
+  "bs",
+  (numeral, n, years) =>
+    `Tablo ${numeral}. generacije ${n >= 5 ? "maturanata i maturantica" : "maturanata"} Medrese „Mehmed Fatih“, ${years}.`,
+);
 
 export const bs = {
   lang: "bs",
@@ -53,6 +65,23 @@ export const bs = {
     comingSoonBody: "Sadržaj Medrese „Mehmed Fatih“ uskoro stiže u novom izdanju.",
     backHome: "Nazad na početnu",
     scrollDown: "Pomaknite se prema dolje",
+    navLeft: "Glavna navigacija, lijevo",
+    navRight: "Glavna navigacija, desno",
+    home: "početna",
+    notFound: "Stranica nije pronađena.",
+    playGenerations: "Pokreni kretanje generacija",
+    pauseGenerations: "Zaustavi kretanje generacija",
+    generation: "Generacija",
+    prevPost: "Prethodna objava",
+    nextPost: "Sljedeća objava",
+    /** Locale for dates and sorting (Intl). */
+    intl: "bs-BA",
+  },
+  /** The Medresa's contact details as written in this language (numbers and e-mail are in site.ts). */
+  contact: {
+    address: ["Donji Milješ, Tuzi", "Crna Gora"],
+    hours: "Pon – Pet / 08:00 – 17:00",
+    branch: { name: "Područno odjeljenje Rožaje", address: "Ulica Raduna Đukića 1, Rožaje" },
   },
   nav: {
     left: [link("historijat"), link("nastava"), link("oiu")],
@@ -244,21 +273,21 @@ export const bs = {
     galleryLabel: "Generacije maturanata Medrese, od I do XV",
     open: "otvori pano",
     items: [
-      gen("I", 1, "https://www.medresa.me/generacija/generacija1/"),
-      gen("II", 2, "https://www.medresa.me/generacija/generacija2/"),
-      gen("III", 3, "https://www.medresa.me/generacija/generacija3/"),
-      gen("IV", 4, "https://www.medresa.me/generacija/generacija-iv-otvori-pano/"),
-      gen("V", 5, "https://www.medresa.me/generacija/generacija-v-otvori-pano/"),
-      gen("VI", 6, "https://www.medresa.me/generacija/generacija-vi-otvori-pano/"),
-      gen("VII", 7, "https://www.medresa.me/generacija/generacija-vii-otvori-pano/"),
-      gen("VIII", 8, "https://www.medresa.me/generacija/generacija-viii-otvori-pano/"),
-      gen("IX", 9, "https://www.medresa.me/generacija/generacija-ix-otvori-pano/"),
-      gen("X", 10, "https://www.medresa.me/generacija/generacija-x-otvori-pano/"),
-      gen("XI", 11, "https://www.medresa.me/generacija/generacija-xi-otvori-pano/"),
-      gen("XII", 12, "https://www.medresa.me/generacija/generacija-xii-otvori-pano/"),
-      gen("XIII", 13, "https://www.medresa.me/generacija/generacija-xiii-otvori-pano/"),
-      gen("XIV", 14, "https://www.medresa.me/generacija/generacija-xiv-otvori-pano/"),
-      gen("XV", 15, "https://www.medresa.me/generacija/generacija-xv-otvori-pano/"),
+      gen("I", 1),
+      gen("II", 2),
+      gen("III", 3),
+      gen("IV", 4),
+      gen("V", 5),
+      gen("VI", 6),
+      gen("VII", 7),
+      gen("VIII", 8),
+      gen("IX", 9),
+      gen("X", 10),
+      gen("XI", 11),
+      gen("XII", 12),
+      gen("XIII", 13),
+      gen("XIV", 14),
+      gen("XV", 15),
     ],
   },
   news: {
@@ -304,6 +333,17 @@ export const bs = {
     heading: "Medresa iz dana u dan.",
     lead: "Trenuci, događaji i priče iz života naše Medrese.",
     platforms: { instagram: "Instagram", facebook: "Facebook" },
+    /** The profile cards (shown until a post is available): their line and photo description. */
+    profiles: {
+      instagram: {
+        text: "Fotografije i kratki trenuci iz svakodnevice Medrese – iz učionica, internata i sa takmičenja.",
+        alt: "Kaligrafija na unutrašnjosti kupole u Medresi",
+      },
+      facebook: {
+        text: "Vijesti, obavještenja i događaji iz Medrese, prvo na našoj Facebook stranici.",
+        alt: "Ulaz s lukom i minaretom u dvorištu Medrese",
+      },
+    },
     open: { post: "Pogledaj objavu", profile: "Posjetite profil" },
   },
   social: {

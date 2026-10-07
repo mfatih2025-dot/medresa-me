@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
-import { misija } from "@/content/misija";
+import { misijaContent } from "@/content/misija";
 import { Misija } from "@/components/misija/Misija";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
-export const metadata: Metadata = {
-  title: misija.title,
-  description: misija.mission.paragraphs[0],
-  alternates: { canonical: "/misija" },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-/** /misija — Misija i vizija: the institution's statement of purpose, signed by the Reis. */
-export default function MisijaPage() {
-  return <Misija />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const c = misijaContent[locale];
+  return pageMetadata("misija", locale, { title: c.title, description: c.mission.paragraphs[0] });
+}
+
+/** Misija i vizija: the institution's statement of purpose, signed by the Reis. */
+export default async function Page({ params }: Props) {
+  return <Misija locale={asLocale((await params).locale)} />;
 }

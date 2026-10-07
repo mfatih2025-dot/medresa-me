@@ -7,26 +7,26 @@ import { News } from "@/components/sections/News";
 import { SocialFeed } from "@/components/sections/SocialFeed";
 import type { Metadata } from "next";
 import { getDictionary } from "@/content";
-import { defaultLocale } from "@/i18n/config";
+import { asLocale, pageMetadata } from "@/i18n/metadata";
 
 // The homepage is regenerated at most every 30 minutes (latest Instagram post).
 export const revalidate = 1800;
 
-// Canonical only here: set in the layout it would be inherited by every subpage.
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-  // A page-level openGraph replaces the layout's, so the shared fields are repeated.
-  openGraph: {
-    url: "/",
-    siteName: getDictionary(defaultLocale).meta.title,
-    type: "website",
-    locale: "bs_BA",
-    images: [{ url: "/images/hero-campus.jpg", width: 1627, height: 1080 }],
-  },
-};
+type Props = { params: Promise<{ locale: string }> };
 
-export default function HomePage() {
-  const dict = getDictionary(defaultLocale);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = asLocale((await params).locale);
+  const { meta } = getDictionary(locale);
+  const m = pageMetadata(null, locale, { description: meta.description });
+  return {
+    ...m,
+    title: { absolute: meta.title },
+    openGraph: { ...m.openGraph, title: meta.title, siteName: meta.title },
+  };
+}
+
+export default async function HomePage({ params }: Props) {
+  const dict = getDictionary(asLocale((await params).locale));
   return (
     <>
       <HeroStage hero={<Hero dict={dict} />}>

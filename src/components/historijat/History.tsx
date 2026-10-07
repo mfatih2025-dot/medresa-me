@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { historijat as h } from "@/content/historijat";
+import { historijatContent } from "@/content/historijat";
+import type { Locale } from "@/i18n/config";
 import { ParallaxImage } from "@/components/ui/ParallaxImage";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { HistoryThread, ThreadPoint } from "./HistoryThread";
@@ -80,7 +81,8 @@ function Para({
   );
 }
 
-export function History() {
+export function History({ locale }: { locale: Locale }) {
+  const h = historijatContent[locale];
   const c = h.chapters;
   return (
     <article className="bg-paper text-ink">
@@ -105,11 +107,11 @@ export function History() {
               <Reveal variant="fade" delay={0.45}>
                 <dl className="mt-4 grid grid-cols-2 gap-x-6 text-[0.8125rem] md:mt-5 lg:grid-cols-1 lg:gap-y-4">
                   <div>
-                    <dt className="eyebrow text-[0.625rem] text-gold-deep">Sjedište</dt>
+                    <dt className="eyebrow text-[0.625rem] text-gold-deep">{h.labels.seat}</dt>
                     <dd className="mt-1 text-[0.9375rem] text-ink">{h.hero.place}</dd>
                   </div>
                   <div>
-                    <dt className="eyebrow text-[0.625rem] text-gold-deep">Početak rada</dt>
+                    <dt className="eyebrow text-[0.625rem] text-gold-deep">{h.labels.founded}</dt>
                     <dd className="mt-1 text-[0.9375rem] text-ink">
                       <time dateTime={h.hero.date.iso}>{h.hero.date.label}</time>
                     </dd>

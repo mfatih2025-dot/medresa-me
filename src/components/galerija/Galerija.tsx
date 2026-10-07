@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { galerija as g } from "@/content/galerija";
+import { galerijaContent } from "@/content/galerija";
+import type { Locale } from "@/i18n/config";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Gallery } from "./Gallery";
 
@@ -12,7 +13,8 @@ import { Gallery } from "./Gallery";
 
 const edge = "calc(var(--gutter) + max(0px, (100vw - var(--max)) / 2))";
 
-export function Galerija() {
+export function Galerija({ locale }: { locale: Locale }) {
+  const g = galerijaContent[locale];
   return (
     <article
       className="overflow-x-clip bg-paper pb-20 text-ink md:pb-28"
@@ -29,7 +31,7 @@ export function Galerija() {
           <Reveal variant="label" delay={0.2}>
             <p className="eyebrow eyebrow-display mt-4 text-gold-deep md:mt-5">
               {/* The name never breaks apart. */}
-              {g.heading.replace("„MEHMED FATIH“", "„MEHMED\u00a0FATIH“")}
+              {g.heading.replace("MEHMED FATIH", "MEHMED\u00a0FATIH")}
             </p>
           </Reveal>
         </div>

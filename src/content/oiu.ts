@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+import type { Localized } from "@/i18n/types";
 /**
  * Objekat i uslovi — the text of medresa.me/oiu, word for word, in the source's
  * order (only the quotation marks follow this site's „…“ convention, and a
@@ -33,7 +35,7 @@ const img = (name: string, width: number, height: number, alt: string, position?
   position,
 });
 
-export const oiu = {
+const bs = {
   title: "Objekat i uslovi",
   eyebrow: "Medresa „Mehmed Fatih“",
 
@@ -102,3 +104,117 @@ export const oiu = {
     },
   ] satisfies OiuSpace[],
 } as const;
+
+type OiuContent = Localized<typeof bs>;
+const im = (i: OiuImage, alt: string): OiuImage => ({ ...i, alt });
+const [sp0, sp1, sp2, sp3, sp4] = bs.spaces;
+
+/** English: the medresa.me English page (Weglot), revised („the Medresa“, Book Caffe kept as its name). */
+const en: OiuContent = {
+  title: "Campus and Facilities",
+  eyebrow: "Medresa “Mehmed Fatih”",
+  banner: im(bs.banner, "An attic room with wooden pillars, pendant lamps and tables"),
+  intro: [
+    "The Medresa “Mehmed Fatih” has contemporary premises that make quality education and a comfortable stay possible for its students. Lessons take place in modernly equipped classrooms, specialist rooms, natural science laboratories and a computer centre.",
+    "The central mosque of the Medresa is the spiritual heart of the institution and enriches the students’ everyday life. Our aim is for students to grow up in a setting that nurtures knowledge, faith and ethical values alike.",
+  ],
+  mosque: im(bs.mosque, "The mosque of the Medresa “Mehmed Fatih” with its minaret"),
+  figures: [
+    { value: "200", unit: "+", label: "Students in boarding accommodation" },
+    { value: "24/7", unit: "", label: "Video surveillance in all common areas" },
+    {
+      value: "6,000",
+      unit: "m²",
+      label: "With all its facilities: boarding house, amphitheatre, sports hall and classrooms",
+    },
+  ],
+  spaces: [
+    {
+      id: sp0.id,
+      heading: "Boarding accommodation",
+      text: "It is organised in two separate buildings – for male and female students – with comfortable rooms, reading rooms, recreation rooms and shared spaces for study and rest. Particular care is given to the students’ nutrition, hygiene and safety.",
+      image: im(sp0.image, "A boarding room with bunk beds and wardrobes"),
+    },
+    {
+      id: sp1.id,
+      heading: "Library",
+      text: "It offers a rich collection of Islamic and general literature, and dedicated hifz classrooms provide space for devoted work on memorising the Qur’an.",
+      image: im(sp1.image, "Bookshelves in the Medresa library"),
+    },
+    {
+      id: sp2.id,
+      heading: "Amphitheatre",
+      text: "Intended for lectures, presentations, workshops and public appearances by students and guests.",
+      image: im(sp2.image, "The Medresa amphitheatre with rows of red seats"),
+    },
+    {
+      id: sp3.id,
+      heading: "Book Caffe",
+      text: "The Medresa also has its Book Caffe – a multipurpose space that serves as a corner for reading, studying, spending time together and holding smaller cultural events.",
+      image: im(sp3.image, "The Book Caffe with a counter, a reading table and bookshelves"),
+    },
+    {
+      id: sp4.id,
+      heading: "Sports hall",
+      text: "The sports hall is intended for male and female students for regular physical activity and extracurricular sport. It is suited to several sports – basketball, volleyball, futsal and other team games.",
+      image: im(sp4.image, "The sports hall with a parquet floor, a basket and a goal"),
+    },
+  ],
+};
+
+/** Shqip: the medresa.me Albanian page (Weglot), revised („nxënës“, Book Caffe as its name). */
+const sq: OiuContent = {
+  title: "Objekti dhe kushtet",
+  eyebrow: "Medreseja “Mehmed Fatih”",
+  banner: im(bs.banner, "Hapësirë në papafingo me shtylla druri, llamba të varura dhe tavolina"),
+  intro: [
+    "Medreseja “Mehmed Fatih” disponon ambiente bashkëkohore që mundësojnë arsim cilësor dhe qëndrim të rehatshëm për nxënësit. Mësimi zhvillohet në klasa të pajisura në mënyrë moderne, kabinete profesionale, laboratorë të shkencave natyrore dhe qendër informatike.",
+    "Xhamia qendrore e Medresesë është zemra shpirtërore e institucionit dhe pasuron jetën e përditshme të nxënësve. Qëllimi ynë është që nxënësit të rriten në një mjedis që kultivon njëlloj dijen, besimin dhe vlerat etike.",
+  ],
+  mosque: im(bs.mosque, "Xhamia e Medresesë “Mehmed Fatih” me minare"),
+  figures: [
+    { value: "200", unit: "+", label: "Nxënës në akomodim në konvikt" },
+    { value: "24/7", unit: "", label: "Mbikëqyrje me video në të gjitha hapësirat e përbashkëta" },
+    {
+      value: "6.000",
+      unit: "m²",
+      label: "Me të gjitha përmbajtjet përcjellëse: konvikt, amfiteatër, sallë sportive dhe klasa",
+    },
+  ],
+  spaces: [
+    {
+      id: sp0.id,
+      heading: "Akomodimi në konvikt",
+      text: "Është i organizuar në dy ndërtesa të veçanta – për nxënës dhe nxënëse – me dhoma komode, salla leximi, hapësira për rekreacion dhe hapësira të përbashkëta për mësim dhe pushim. Vëmendje e veçantë i kushtohet ushqyerjes, higjienës dhe sigurisë së nxënësve.",
+      image: im(sp0.image, "Dhomë në konvikt me shtretër marinarë dhe dollapë"),
+    },
+    {
+      id: sp1.id,
+      heading: "Biblioteka",
+      text: "Ofron një fond të pasur të literaturës islame dhe të përgjithshme, ndërsa klasat e veçanta për hifz ofrojnë hapësirë për punë të përkushtuar në mësimin përmendësh të Kuranit.",
+      image: im(sp1.image, "Rafte me libra në bibliotekën e Medresesë"),
+    },
+    {
+      id: sp2.id,
+      heading: "Amfiteatri",
+      text: "I destinuar për ligjërata, prezantime, punëtori dhe paraqitje publike të nxënësve dhe mysafirëve.",
+      image: im(sp2.image, "Amfiteatri i Medresesë me rreshta ulësesh të kuqe"),
+    },
+    {
+      id: sp3.id,
+      heading: "Book Caffe",
+      text: "Në kuadër të Medresesë funksionon edhe Book Caffe – hapësirë shumëfunksionale që shërben si kënd për lexim, mësim, shoqërim dhe organizimin e programeve më të vogla kulturore.",
+      image: im(sp3.image, "Book Caffe me banak, tavolinë leximi dhe rafte librash"),
+    },
+    {
+      id: sp4.id,
+      heading: "Salla",
+      text: "Salla sportive është e destinuar për nxënësit dhe nxënëset për aktivitete të rregullta fizike dhe përmbajtje sportive jashtëmësimore. Salla është e përshtatur për disa sporte – basketboll, volejboll, futboll të vogël dhe lojëra të tjera ekipore.",
+      image: im(sp4.image, "Salla sportive me parket, kosh dhe portë"),
+    },
+  ],
+};
+
+export const oiuContent: Record<Locale, typeof sq> = { bs, sq, en };
+/** The Bosnian master (kept for existing callers). */
+export const oiu = bs;
