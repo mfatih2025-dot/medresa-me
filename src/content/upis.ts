@@ -6,15 +6,14 @@
  *
  *   status     the admission state as one sentence; `word` is the part the page
  *              lifts out as the answer („otvoren“, later e.g. „završen“)
- *   documents  official documents, in order: instructions now, the results of
- *              the entrance exam later. `href: null` = prepared, not yet linked
- *              (the action is shown but does nothing)
+ *   documents  official documents, in order: the admission results now.
+ *              `href: null` = prepared, not yet linked (the action is shown but
+ *              does nothing until the PDF is set)
  *   closing    an optional short closing note (none at present)
  *
- * The wording here follows the brief for this page (from the earlier version of
- * medresa.me/upis). The live source now reads „…godinu je završen.“ with
- * „Rezultati za upis učenika i učenica za školsku 2026 - 2027.“ /
- * „Preuzmi rezultate u PDF“ — switching to that is a change of the values below.
+ * The document wording is the source's: „Rezultati za upis učenika i učenica
+ * za školsku 2026 - 2027.“ / „Preuzmi rezultate u PDF“. The status sentence
+ * follows the brief („…je otvoren.“; the live source reads „…je završen.“).
  */
 export type UpisDocument = {
   /** The document's own title, as published. */
@@ -45,8 +44,8 @@ export const upis: UpisContent = {
 
   documents: [
     {
-      title: "Uputstvo za upis učenika i učenica za školsku 2026–2027.",
-      action: "Preuzmi uputstvo u PDF",
+      title: "Rezultati za upis učenika i učenica za školsku 2026 - 2027.",
+      action: "Preuzmi rezultate u PDF",
       href: null,
     },
   ],

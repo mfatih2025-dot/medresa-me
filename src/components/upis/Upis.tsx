@@ -59,7 +59,16 @@ function DocumentBlock({ doc, index }: { doc: UpisDocument; index: number }) {
       <div className="grid grid-cols-[auto_1fr] gap-x-4 p-5 md:gap-x-6 md:p-7 lg:p-8">
         <FileMark />
         <h2 className="display hist-text self-center text-[clamp(1.25rem,1.05rem+1vw,1.875rem)] leading-[1.2] tracking-[-0.012em] text-green md:self-start">
-          {doc.title}
+          {/* The text exactly as published; a year range („2026 - 2027.“) never breaks apart. */}
+          {doc.title.split(/(\d{4} - \d{4}\.?)/).map((part, i) =>
+            i % 2 ? (
+              <span key={i} className="whitespace-nowrap">
+                {part}
+              </span>
+            ) : (
+              part
+            ),
+          )}
         </h2>
         <div className="col-span-2 mt-4 flex min-h-11 items-center gap-3 whitespace-nowrap text-[1.0625rem] text-green md:col-span-1 md:col-start-2 md:mt-5 md:text-[1.125rem]">
           <span className="grid size-10 shrink-0 place-items-center border border-gold/70 transition-colors duration-200 ease-out group-hover:bg-gold-soft/30 md:size-11">
@@ -91,13 +100,17 @@ export function Upis() {
     >
       {/* ---------- Title: set line by line, then one title ---------- */}
       <header className="wrap pt-32 md:pt-40 lg:pt-44">
-        <h1 className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[min(11vw,6.75rem)]">
+        <h1 className="display uppercase leading-[0.9] tracking-[-0.022em] text-green text-[9.6vw] md:text-[min(11vw,6.75rem)]">
           <span className="sr-only">{u.title.join(" ")}</span>
           <span aria-hidden className="block">
-            <Depth px={0} offset={["start start", "end start"]}>
+            {/* Phones: the whole title on one line (letters start closer, to stay in view). */}
+            <Depth px={0} offset={["start start", "end start"]} className="md:hidden">
+              <Letters text={u.title.join(" ")} immediate delay={0.1} duration={1.2} spread={0.02} />
+            </Depth>
+            <Depth px={0} offset={["start start", "end start"]} className="hidden md:block">
               <Letters text={l1} immediate delay={0.1} />
             </Depth>
-            <Depth px={12} offset={["start start", "end start"]}>
+            <Depth px={12} offset={["start start", "end start"]} className="hidden md:block">
               <Letters text={l2} immediate delay={0.42} />
             </Depth>
           </span>
