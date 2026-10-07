@@ -9,7 +9,7 @@
  *   documents  official documents, in order: instructions now, the results of
  *              the entrance exam later. `href: null` = prepared, not yet linked
  *              (the action is shown but does nothing)
- *   closing    the welcome; `quran` is rendered only when it has text
+ *   closing    an optional short closing note (none at present)
  *
  * The wording here follows the brief for this page (from the earlier version of
  * medresa.me/upis). The live source now reads „…godinu je završen.“ with
@@ -29,17 +29,13 @@ export type UpisContent = {
   title: readonly string[];
   status: { before: string; word: string; after: string };
   documents: readonly UpisDocument[];
-  closing: {
-    welcome: string;
-    rest: string;
-    since: string;
-    quran: { text: string; source: string } | null;
-  };
+  /** A short, quiet closing note under the document (null: none). */
+  closing: { text: readonly string[] } | null;
 };
 
 export const upis: UpisContent = {
-  /** „Upis i prijemni ispit“, as its three resolving lines. */
-  title: ["Upis", "i prijemni", "ispit"],
+  /** „Upis i prijemni ispit“, as the two lines it resolves into. */
+  title: ["Upis i prijemni", "ispit"],
 
   status: {
     before: "Upis učenika u Medresu „Mehmed Fatih“ za školsku 2026/2027. godinu je",
@@ -55,11 +51,7 @@ export const upis: UpisContent = {
     },
   ],
 
-  closing: {
-    welcome: "Dobro došli",
-    rest: "u Medresu „Mehmed Fatih“ – školu znanja, odgoja i vrijednosti.",
-    since: "Od 2008. godine odgajamo generacije koje misle srcem, a djeluju znanjem.",
-    // The Qur'anic quotation from the earlier source: to be added with its exact text.
-    quran: null,
-  },
+  // The welcome sentences and Qur'anic quotation of an earlier version are not on
+  // the current source page, so none is shown; a short closing note can be set here.
+  closing: null,
 };
