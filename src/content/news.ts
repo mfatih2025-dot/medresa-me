@@ -9,6 +9,3 @@ export function sortNews(items: readonly NewsItem[]): NewsItem[] {
 
 /** Year of publication, taken from the ISO date. */
 export const newsYear = (item: NewsItem) => item.date.slice(0, 4);
-
-/** How many stories the curated editorial layout shows before the archive index takes over. */
-export const EDITORIAL_COUNT = 6;

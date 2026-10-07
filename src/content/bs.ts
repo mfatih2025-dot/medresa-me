@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import { pathFor } from "@/i18n/routes";
 import { href as pageHref, pageTitles, type PageSlug } from "./site";
+import { homeNews } from "./vijesti/home";
 
 type Link = { label: string; href: string };
 
@@ -13,6 +14,12 @@ const img = (src: string, alt: string, position = "50% 50%", placeholder = false
   position,
   placeholder,
 });
+
+/** Photographs of the Medresa for a homepage story that has no image of its own. */
+export const newsFallbacks: readonly Img[] = [
+  img("news-a", "Kameni portal Medrese s lukovima", "50% 50%", true),
+  img("news-b", "Dvorište Medrese s maslinom i kamenim zgradama", "50% 50%", true),
+];
 
 /** A page link in a language: its title there and its URL there. */
 export const linkFor =
@@ -305,28 +312,8 @@ export const bs = {
       title: "Rezultati upisa u Medresu 2026/2027",
       href: href("upis"),
     },
-    items: [
-      {
-        category: "Donacije",
-        date: "2026-09-09",
-        dateLabel: "9. septembar 2026.",
-        title: "Zahvalnica Hazbiji Eroviću i njegovoj porodici za vrijednu donaciju",
-        excerpt:
-          "Za izuzetan doprinos radu Medrese i donaciju 12 klima-uređaja za učionice, direktor Amer Šukurica uručio je zahvalnicu porodici Erović.",
-        href: "https://www.medresa.me/zahvalnica-hazbiji-erovicu-i-njegovoj-porodici-za-vrijednu-donaciju/",
-        image: img("news-a", "Kameni portal Medrese s lukovima", "50% 50%", true),
-      },
-      {
-        category: "Gosti",
-        date: "2026-07-02",
-        dateLabel: "2. juli 2026.",
-        title: "Medresa „Mehmed Fatih“ ugostila polaznike Ljetne škole „Mala medresa“",
-        excerpt:
-          "Projekt Islamske zajednice Bošnjaka Sjeverne Amerike i Medrese „Osman ef. Redžović“ iz Visokog, pokrenut 2013. godine.",
-        href: "https://www.medresa.me/medresa-mehmed-fatih-ugostila-polaznike-ljetne-skole-mala-medresa/",
-        image: img("news-b", "Dvorište Medrese s maslinom i kamenim zgradama", "50% 50%", true),
-      },
-    ],
+    // The newest stories, from the news archive (src/content/vijesti).
+    items: homeNews("bs", newsFallbacks),
   },
   // Homepage social stack (below Riječ direktora).
   feed: {

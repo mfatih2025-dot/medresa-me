@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { isLocale, locales } from "@/i18n/config";
 
-/** Every page exists in each locale; anything else under the first segment is a 404. */
-export const dynamicParams = false;
+/**
+ * Every page exists in each locale; an unknown locale is a 404 (below). Pages under a
+ * locale may still answer addresses not generated ahead — the news pages redirect another
+ * language's article slug, and old-site article addresses, to the right page.
+ */
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }

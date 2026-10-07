@@ -1,4 +1,5 @@
-import { bs, genFor, linkFor, type Dictionary, type Img } from "./bs";
+import { bs, genFor, linkFor, newsFallbacks, type Dictionary, type Img } from "./bs";
+import { homeNews } from "./vijesti/home";
 import { href as pageHref, type PageSlug } from "./site";
 
 /**
@@ -253,29 +254,10 @@ export const en: Dictionary = {
       title: "Admission results for the Medresa, 2026/2027",
       href: href("upis"),
     },
-    // The articles themselves are on medresa.me until the news is migrated; links go to their English version there.
-    items: [
-      {
-        category: "Donations",
-        date: bs.news.items[0].date,
-        dateLabel: "9 September 2026",
-        title: "Acknowledgement to Hazbija Erović and his family for a valuable donation",
-        excerpt:
-          "For an exceptional contribution to the work of the Medresa and the donation of 12 air conditioners for the classrooms, Director Amer Šukurica presented a letter of thanks to the Erović family.",
-        href: bs.news.items[0].href.replace("medresa.me/", "medresa.me/en/"),
-        image: alt(bs.news.items[0].image, "The stone portal of the Medresa with its arches"),
-      },
-      {
-        category: "Guests",
-        date: bs.news.items[1].date,
-        dateLabel: "2 July 2026",
-        title: "The Medresa “Mehmed Fatih” welcomed participants of the “Mala medresa” summer school",
-        excerpt:
-          "A project of the Islamic Community of Bosniaks of North America and the Medresa “Osman ef. Redžović” from Visoko, launched in 2013.",
-        href: bs.news.items[1].href.replace("medresa.me/", "medresa.me/en/"),
-        image: alt(bs.news.items[1].image, "The Medresa courtyard with an olive tree and stone buildings"),
-      },
-    ],
+    items: homeNews("en", [
+      alt(newsFallbacks[0], "The stone portal of the Medresa with its arches"),
+      alt(newsFallbacks[1], "The Medresa courtyard with an olive tree and stone buildings"),
+    ]),
   },
   feed: {
     eyebrow: "Follow life at the Medresa",

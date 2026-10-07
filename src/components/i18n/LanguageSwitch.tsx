@@ -7,7 +7,8 @@ import { translatePath } from "@/i18n/routes";
 /**
  * BS · SQ · EN in the header menu: real links to the same page in each
  * language, through the route map (/upis → /en/admissions, /sq/historiku →
- * /historijat), remembering the choice before leaving. The current language is marked, not only coloured.
+ * /historijat), remembering the choice before leaving. Pages below a route (news articles) are matched
+ * through their hreflang alternates. The current language is marked, not only coloured.
  */
 export function LanguageSwitch({ label }: { label: string }) {
   const pathname = usePathname() || "/";
@@ -29,7 +30,19 @@ export function LanguageSwitch({ label }: { label: string }) {
             lang={l}
             aria-current={l === current ? "true" : undefined}
             aria-label={localeNames[l].native}
-            onClick={() => rememberLocale(l)}
+            onClick={(e) => {
+              rememberLocale(l);
+              // A page outside the route map (a news article) names its own translations in the
+              // head (hreflang alternates): go there, so the reader stays on the same story.
+              const alt = document.head.querySelector<HTMLLinkElement>(
+                `link[rel="alternate"][hreflang="${l}"]`,
+              );
+              const target = alt && new URL(alt.href).pathname;
+              if (target && target !== e.currentTarget.getAttribute("href")) {
+                e.preventDefault();
+                window.location.assign(target);
+              }
+            }}
             className={`inline-flex min-h-11 items-center px-1.5 transition-colors duration-200 ${
               l === current ? "font-medium text-ivory" : "text-ivory/50 hover:text-ivory"
             }`}

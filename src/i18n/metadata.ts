@@ -43,3 +43,38 @@ export function pageMetadata(
     },
   };
 }
+
+/**
+ * Metadata for a page outside the route map (a news article, an archive page):
+ * its own URL in each language as canonical and alternates, like pageMetadata.
+ */
+export function localizedMetadata(
+  paths: Record<Locale, string>,
+  locale: Locale,
+  {
+    title,
+    description,
+    image,
+    publishedTime,
+  }: {
+    title: string;
+    description?: string;
+    image?: { url: string; width: number; height: number; alt?: string };
+    publishedTime?: string;
+  },
+): Metadata {
+  return {
+    title: { absolute: `${title} · ${siteNames[locale]}` },
+    ...(description ? { description } : {}),
+    alternates: { canonical: paths[locale], languages: { ...paths, "x-default": paths.bs } },
+    openGraph: {
+      title,
+      ...(description ? { description } : {}),
+      url: paths[locale],
+      siteName: siteNames[locale],
+      locale: ogLocale[locale],
+      ...(publishedTime ? { type: "article" as const, publishedTime } : { type: "website" as const }),
+      images: [image ?? { url: "/images/hero-campus.jpg", width: 1627, height: 1080 }],
+    },
+  };
+}

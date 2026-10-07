@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getDictionary } from "@/content";
+import { articleByAnySlug, articlePath } from "@/content/vijesti";
 import { pageTitles } from "@/content/site";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
 import { isPageId, pathFor, type PageId } from "@/i18n/routes";
@@ -26,7 +27,13 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 export default async function PlaceholderPage({ params }: { params: Promise<Params> }) {
   const { locale: l, slug } = await params;
   const locale = asLocale(l);
-  if (!isPageId(slug) || !placeholders.includes(slug)) notFound();
+  if (!isPageId(slug)) {
+    // An article's address on the old site (medresa.me/<slug>/, /sq/<slug>/, /en/<slug>/) → its page here.
+    const article = articleByAnySlug(slug);
+    if (article) permanentRedirect(articlePath(article, locale));
+    notFound();
+  }
+  if (!placeholders.includes(slug)) notFound();
   const { ui } = getDictionary(locale);
   return (
     <section className="geo bg-ivory pb-32 pt-36 md:pt-48">

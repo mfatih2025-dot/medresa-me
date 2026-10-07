@@ -1,5 +1,6 @@
 "use client";
 
+import { siteNames } from "@/i18n/metadata";
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
@@ -71,7 +72,7 @@ export function Footer({ dicts }: { dicts: Record<Locale, Chrome> }) {
           <div className="flex items-center gap-3.5 md:col-span-2 md:gap-6 lg:col-span-4 lg:block">
             <Image
               src={site.logo.src}
-              alt={site.name}
+              alt={siteNames[locale]}
               width={site.logo.width}
               height={site.logo.height}
               sizes="(min-width: 1024px) 88px, (min-width: 768px) 72px, 48px"
@@ -140,7 +141,7 @@ export function Footer({ dicts }: { dicts: Record<Locale, Chrome> }) {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="inline-flex min-h-8 items-center whitespace-nowrap text-[0.9375rem] md:min-h-10 text-ivory/80 transition-colors duration-200 hover:text-ivory"
+                    className="inline-flex min-h-8 items-center py-1 text-[0.9375rem] leading-[1.3] [text-wrap:balance] md:min-h-10 lg:py-0 text-ivory/80 transition-colors duration-200 hover:text-ivory"
                   >
                     <span className="link-u">{l.label}</span>
                   </Link>

@@ -1,4 +1,5 @@
-import { bs, genFor, linkFor, type Dictionary, type Img } from "./bs";
+import { bs, genFor, linkFor, newsFallbacks, type Dictionary, type Img } from "./bs";
+import { homeNews } from "./vijesti/home";
 import { href as pageHref, type PageSlug } from "./site";
 
 /**
@@ -261,29 +262,10 @@ export const sq: Dictionary = {
       title: "Rezultatet e regjistrimit në Medrese 2026/2027",
       href: href("upis"),
     },
-    // The articles themselves are on medresa.me until the news is migrated; links go to their Albanian version there.
-    items: [
-      {
-        category: "Donacione",
-        date: bs.news.items[0].date,
-        dateLabel: "9 shtator 2026",
-        title: "Mirënjohje për Hazbija Erović dhe familjen e tij për donacionin e çmuar",
-        excerpt:
-          "Për kontributin e jashtëzakonshëm në punën e Medresesë dhe dhurimin e 12 kondicionerëve për klasat, drejtori Amer Šukurica i dorëzoi familjes Erović një mirënjohje.",
-        href: bs.news.items[0].href.replace("medresa.me/", "medresa.me/sq/"),
-        image: alt(bs.news.items[0].image, "Portali prej guri i Medresesë me harqe"),
-      },
-      {
-        category: "Mysafirë",
-        date: bs.news.items[1].date,
-        dateLabel: "2 korrik 2026",
-        title: "Medreseja “Mehmed Fatih” priti pjesëmarrësit e shkollës verore “Mala medresa”",
-        excerpt:
-          "Projekt i Bashkësisë Islame të Boshnjakëve të Amerikës së Veriut dhe Medresesë “Osman ef. Redžović” nga Visoko, i nisur në vitin 2013.",
-        href: bs.news.items[1].href.replace("medresa.me/", "medresa.me/sq/"),
-        image: alt(bs.news.items[1].image, "Oborri i Medresesë me një ulli dhe ndërtesa prej guri"),
-      },
-    ],
+    items: homeNews("sq", [
+      alt(newsFallbacks[0], "Portali prej guri i Medresesë me harqe"),
+      alt(newsFallbacks[1], "Oborri i Medresesë me një ulli dhe ndërtesa prej guri"),
+    ]),
   },
   feed: {
     eyebrow: "Ndiqni jetën e Medresesë",

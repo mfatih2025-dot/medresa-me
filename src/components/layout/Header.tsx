@@ -1,5 +1,6 @@
 "use client";
 
+import { siteNames } from "@/i18n/metadata";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -183,7 +184,7 @@ export function Header({ dicts }: Props) {
         <MotionLink
           ref={logoRef}
           href={pathFor(null, locale)}
-          aria-label={`${site.name} – ${ui.home}`}
+          aria-label={`${siteNames[locale]} – ${ui.home}`}
           className="header-logo pointer-events-auto"
           style={{ y: logoY, scale: logoScale }}
         >
