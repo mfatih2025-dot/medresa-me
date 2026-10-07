@@ -68,3 +68,36 @@ export const MenuIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 8h16M4 16h16" />
   </svg>
 );
+
+export const PhoneIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <path d="M5.5 4h2.8l1.5 3.8-1.9 1.3a10.5 10.5 0 0 0 5 5l1.3-1.9 3.8 1.5v2.8a2 2 0 0 1-2 2A15.5 15.5 0 0 1 3.5 6a2 2 0 0 1 2-2Z" />
+  </svg>
+);
+
+export const MailIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <rect x="3.25" y="5.5" width="17.5" height="13" rx="1.25" />
+    <path d="m4 6.5 8 6 8-6" />
+  </svg>
+);
+
+export const PinIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <path d="M12 20.5s-6.25-5.4-6.25-10.6a6.25 6.25 0 0 1 12.5 0c0 5.2-6.25 10.6-6.25 10.6Z" />
+    <circle cx="12" cy="9.9" r="2.3" />
+  </svg>
+);
+
+export const ClockIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="8.25" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
+
+export const ArrowUpRight = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} width={18} height={18} {...p}>
+    <path d="M7 17 17 7M9 7h8v8" />
+  </svg>
+);
