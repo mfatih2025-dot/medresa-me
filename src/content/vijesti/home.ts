@@ -2,8 +2,8 @@ import type { Locale } from "@/i18n/config";
 import type { Img } from "../bs";
 import { articlePath, articles, excerpt, formatDate, imageOf, topicLabels } from "./index";
 
-/** How many stories the homepage's news section shows (the lead and one beside it, then the notice). */
-const HOME_COUNT = 2;
+/** How many stories the homepage's news section shows: the newest three, the first as its lead. */
+const HOME_COUNT = 3;
 
 /**
  * The homepage's news items, newest first, in the shape its (unchanged) news

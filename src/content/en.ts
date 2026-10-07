@@ -249,11 +249,6 @@ export const en: Dictionary = {
     archive: "Archive",
     filterAll: "All",
     more: "Show older news",
-    notice: {
-      label: "Admissions",
-      title: "Admission results for the Medresa, 2026/2027",
-      href: href("upis"),
-    },
     items: homeNews("en", [
       alt(newsFallbacks[0], "The stone portal of the Medresa with its arches"),
       alt(newsFallbacks[1], "The Medresa courtyard with an olive tree and stone buildings"),

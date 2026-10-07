@@ -307,11 +307,6 @@ export const bs = {
     archive: "Arhiva",
     filterAll: "Sve",
     more: "Prikaži starije vijesti",
-    notice: {
-      label: "Upis",
-      title: "Rezultati upisa u Medresu 2026/2027",
-      href: href("upis"),
-    },
     // The newest stories, from the news archive (src/content/vijesti).
     items: homeNews("bs", newsFallbacks),
   },

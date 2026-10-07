@@ -257,11 +257,6 @@ export const sq: Dictionary = {
     archive: "Arkivi",
     filterAll: "Të gjitha",
     more: "Shfaq lajmet më të vjetra",
-    notice: {
-      label: "Regjistrimi",
-      title: "Rezultatet e regjistrimit në Medrese 2026/2027",
-      href: href("upis"),
-    },
     items: homeNews("sq", [
       alt(newsFallbacks[0], "Portali prej guri i Medresesë me harqe"),
       alt(newsFallbacks[1], "Oborri i Medresesë me një ulli dhe ndërtesa prej guri"),

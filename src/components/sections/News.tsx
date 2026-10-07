@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Dictionary } from "@/content";
 import { sortNews, type NewsItem } from "@/content/news";
 import { NewsHead } from "@/components/news/NewsLayout";
@@ -16,8 +15,9 @@ const arrow =
  * The featured story stands on a gold column — a hairline carrying its category and
  * date vertically, like a pillar of the Medresa's arcades. The photograph breaks
  * the text grid and runs off the right edge of the page; the headline sits on a
- * paper plate that cuts into the photograph's lower-left corner. Below, the Upis
- * notice and the next stories form one compact index band.
+ * paper plate that cuts into the photograph's lower-left corner. Below, the next
+ * two stories form one compact index band. The three are the newest articles of
+ * the news archive (src/content/vijesti), by date.
  */
 export function News({ dict }: { dict: Dictionary }) {
   const { news } = dict;
@@ -31,7 +31,7 @@ export function News({ dict }: { dict: Dictionary }) {
       <div className="wrap">
         <NewsHead id="news-title" eyebrow={news.eyebrow} heading={news.heading} link={news.all} />
         {lead && <Featured item={lead} readLabel={news.read} />}
-        <NewsIndex notice={news.notice} items={rest} />
+        <NewsIndex items={rest} />
       </div>
     </section>
   );
@@ -94,11 +94,11 @@ function Featured({ item, readLabel }: { item: NewsItem; readLabel: string }) {
 }
 
 /**
- * The index band: the Upis notice first, then the next stories. One ruled row per
- * entry on phones; side by side, divided by hairlines, from tablet up.
+ * The index band: the next stories. One ruled row per entry on phones; side by
+ * side, divided by hairlines, from tablet up.
  */
-function NewsIndex({ notice, items }: { notice: Dictionary["news"]["notice"]; items: readonly NewsItem[] }) {
-  const count = items.length + 1;
+function NewsIndex({ items }: { items: readonly NewsItem[] }) {
+  const count = items.length;
   const cols = count >= 3 ? "md:grid-cols-2 lg:grid-cols-3" : count === 2 ? "md:grid-cols-2" : "";
   // Hairline between neighbours in a row (two per row on tablets, all in one row on desktop).
   const divider = (i: number) =>
@@ -117,25 +117,13 @@ function NewsIndex({ notice, items }: { notice: Dictionary["news"]["notice"]; it
 
   return (
     <ol className={`mt-10 grid border-t border-ink/15 md:mt-12 lg:mt-14 ${cols}`}>
-      <Reveal as="li" y={10} className={`border-b border-ink/12 ${divider(0)}`}>
-        <Link href={notice.href} className={row}>
-          <span className="grid aspect-square place-items-center border border-gold/60 bg-gold/[0.08] text-[0.625rem] font-medium uppercase tracking-[0.2em] text-gold-deep">
-            {notice.label}
-          </span>
-          <span className={title}>
-            <span className="link-u">{notice.title}</span>
-          </span>
-          <ArrowRight className={arrow} />
-          {accent}
-        </Link>
-      </Reveal>
       {items.map((item, i) => (
         <Reveal
           key={item.href}
           as="li"
           y={10}
-          delay={(i + 1) * 0.06}
-          className={`border-b border-ink/12 ${divider(i + 1)}`}
+          delay={i * 0.06}
+          className={`border-b border-ink/12 ${divider(i)}`}
         >
           <a href={item.href} rel="noopener" className={row}>
             <NewsImage image={item.image} sizes="5rem" className="aspect-square" quiet />
