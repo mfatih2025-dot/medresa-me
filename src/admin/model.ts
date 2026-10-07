@@ -27,6 +27,20 @@ export type NewsDraft = {
   images: SharedImage[];
   coverImageId: string | null;
   review: Record<Locale, Review>;
+  /** Immutable import provenance. Never an editor styling control. */
+  legacy?: { original: import("@/content/vijesti/types").NewsArticle; blocks: ContentBlock[]; imageIds: string[] };
+};
+
+export type ManagedArticle = {
+  draft: NewsDraft; archivedAt: string | null; deletedAt: string | null;
+  createdAt: string | null; updatedAt: string | null; publishedAt: string | null;
+  publishedRevision: number | null; source: "database" | "static";
+};
+export type BackendState = { state: "connected" | "not-connected" | "error"; message: string; writable: boolean };
+export type NewsListRow = {
+  id: string; revision: number; title: LocalizedText; date: string; status: EditorialStatus;
+  cover: SharedImage | null; complete: Record<Locale, boolean>;
+  archivedAt: string | null; deletedAt: string | null; source: "database" | "static";
 };
 
 export function emptyText(): LocalizedText { return { bs: "", sq: "", en: "" }; }

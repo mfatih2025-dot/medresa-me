@@ -34,7 +34,7 @@ export function Shell({ active, title, intro, children, action }: { active: stri
     <div className={styles.workspace}>
       <header className={styles.topbar}><span>MEDRESA / <b>KONTROLNI CENTAR</b></span><span className={styles.private}><i />Privatni prostor</span></header>
       <main id="admin-main" className={styles.main} tabIndex={-1}><div className={styles.pageHead}><div><p className={styles.eyebrow}>Medresa Mehmed Fatih</p><h1>{title}</h1><p>{intro}</p></div>{action}</div>{children}</main>
-      <footer className={styles.adminFooter}>Znanje. Vrijednosti. Odgovornost.<span>Administracija / Faza 1</span></footer>
+      <footer className={styles.adminFooter}>Znanje. Vrijednosti. Odgovornost.<span>Administracija / Urednički prostor</span></footer>
     </div>
   </div>;
 }

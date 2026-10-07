@@ -1,0 +1,173 @@
+import { createRequire } from "node:module";
+import { randomBytes, scryptSync } from "node:crypto";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import assert from "node:assert/strict";
+import http from "node:http";
+
+// Local-only integration fixture. No external Supabase or production calls.
+process.env.NODE_ENV = "production";
+const requireProject = createRequire(resolve('package.json'));
+const { chromium } = requireProject('playwright');
+const { PGlite } = requireProject('@electric-sql/pglite');
+const sharp = requireProject('sharp');
+const next = requireProject('next');
+const origin = 'http://127.0.0.1:3212';
+const provider = 'https://abcdefghijklmnopqrst.supabase.co';
+const objects = new Map();
+(async () => {
+  const { moduleLoader } = await import('../scripts/lib/load-typescript.mjs');
+  const load = moduleLoader();
+  const db = new PGlite();
+  await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
+  await db.exec(readFileSync('supabase/migrations/202610070001_admin_news.sql','utf8'));
+  const { articles } = load('src/content/vijesti');
+  const { importArticle } = load('src/admin/import.ts');
+  const plan = articles.map((a,i) => ({document:importArticle(a).draft,snapshot:a,fingerprint:'explicit-in-memory-browser-fixture-'+i,source_order:i}));
+  await db.query('select medresa_admin_import($1,$2)', [JSON.stringify(plan),'browser-test-fixture']);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!address.startsWith(provider + '/')) return realFetch(input, init);
+    const url = new URL(address); const headers = new Headers(init.headers);
+    const json = (value,status=200) => new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
+    try {
+      if (url.pathname.startsWith('/rest/v1/rpc/')) {
+        const name = url.pathname.split('/').pop(); const body = JSON.parse(init.body);
+        const fields = {medresa_admin_save:['p_document','p_expected','p_actor'],medresa_admin_publish:['p_id','p_expected','p_snapshot','p_actor'],medresa_admin_transition:['p_id','p_expected','p_action','p_actor']}[name];
+        assert.ok(fields,'Only reviewed RPCs allowed in fixture');
+        const values=fields.map(k=>typeof body[k]==='object'?JSON.stringify(body[k]):body[k]);
+        const result = await db.query(`select to_jsonb(${name}(${fields.map((_,i)=>'$'+(i+1)).join(',')})) as result`,values);
+        return json(result.rows[0].result);
+      }
+      if (url.pathname.startsWith('/rest/v1/')) {
+        const table=url.pathname.split('/').pop(); assert.ok(['medresa_admin_articles','medresa_admin_assets','medresa_admin_public_feed'].includes(table));
+        if(init.method==='POST') {
+          assert.equal(table,'medresa_admin_assets'); const value=JSON.parse(init.body);
+          const fields=['id','origin','bucket','object_path','original_path','mime','bytes','metadata','created_by'];
+          await db.query(`insert into ${table}(${fields.join(',')}) values(${fields.map((_,i)=>'$'+(i+1)).join(',')})`,fields.map(k=>typeof value[k]==='object'?JSON.stringify(value[k]):value[k]));
+          return json({},201);
+        }
+        const clauses=[]; const args=[];
+        for(const [key,value] of url.searchParams) if(['id','origin'].includes(key)) {
+          if(value.startsWith('eq.')) {args.push(value.slice(3)); clauses.push(`${key}=$${args.length}`);}
+          if(value.startsWith('in.(')) {args.push(value.slice(4,-1).split(',')); clauses.push(`${key}=any($${args.length}::text[])`);}
+        }
+        const result=await db.query(`select * from ${table}${clauses.length?' where '+clauses.join(' and '):''}` ,args);
+        return json(result.rows);
+      }
+      const prefix='/storage/v1/object/'; assert.ok(url.pathname.startsWith(prefix));
+      const path=url.pathname.slice(prefix.length).replace(/^authenticated\//,'');
+      if(init.method==='POST') {assert.equal(headers.get('x-upsert'),'false'); assert.ok(!objects.has(path)); objects.set(path,{bytes:Buffer.from(init.body),mime:headers.get('content-type')}); return json({});}
+      const object=objects.get(path); return object ? new Response(new Uint8Array(object.bytes),{headers:{'Content-Type':object.mime}}):json({code:'notfound'},404);
+    } catch(error) {return json({code:error.code||'fixture-error'},500);}
+  };
+  // Test fixtures only, never provider credentials and never written to a file.
+  const password=randomBytes(24).toString('base64url'); const salt=randomBytes(16).toString('hex');
+  Object.assign(process.env,{NEXT_TELEMETRY_DISABLED:'1',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'codex/admin-panel',SUPABASE_URL:provider,SUPABASE_SERVICE_ROLE_KEY:'explicit-browser-fixture-no-real-key',MEDRESA_SUPABASE_PROJECT_REF:'abcdefghijklmnopqrst',MEDRESA_SUPABASE_WRITE_ENABLED:'true',MEDRESA_ADMIN_USER:'browser-test-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
+  const app=next({dev:false,dir:process.cwd(),hostname:'127.0.0.1',port:3212}); await app.prepare();
+  const server=http.createServer(app.getRequestHandler()); await new Promise(resolve=>server.listen(3212,'127.0.0.1',resolve));
+  const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),headless:true,args:['--no-sandbox']});
+  const context=await browser.newContext({viewport:{width:390,height:844}}); const page=await context.newPage();
+  const errors=[]; page.on('pageerror',error=>errors.push(error.message)); page.on('dialog',dialog=>dialog.accept());
+  for(const path of ['/admin','/admin/vijesti','/admin/vijesti/nova','/admin/vijesti/2026-05-03-kurban','/admin-preview/editor']) {
+    const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/admin/login');
+  }
+  assert.equal((await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{}})).status(),401);
+  const login=await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:'browser-test-fixture',password}}); assert.equal(login.status(),200);
+  await page.goto(origin+'/admin/vijesti'); assert.equal(await page.getByRole('article').count(),17);
+  await page.getByRole('searchbox').fill('TIKA'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('searchbox').fill('');
+  await page.getByRole('button',{name:'＋ Nova vijest',exact:true}).click();
+  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+$/);
+  const newId=page.url().split('/').pop();
+  assert.equal((await db.query('select status from medresa_admin_articles where id=$1',[newId])).rows[0].status,'draft');
+  await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'');
+  // Existing editor and actual renderer: unsaved content, languages, reorder and gallery.
+  await page.goto(origin+'/admin/vijesti/2026-05-03-kurban');
+  await page.getByLabel('Naslov · BS',{exact:true}).fill('Nespremljeni naslov');
+  await page.getByRole('button',{name:'Osvježi pregled',exact:true}).click();
+  await page.frameLocator('iframe').getByRole('heading',{name:'Nespremljeni naslov',exact:true}).waitFor();
+  await page.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:'EN',exact:true}).click();
+  await page.frameLocator('iframe').getByRole('heading',{name:/Donate a kurban/i}).waitFor();
+  await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).first().click();
+  assert.ok(await page.getByRole('button',{name:/^Odaberi:/}).count()>0);
+  // Create a real draft using actual service/RPCs against in-memory PostgreSQL fixture.
+  await page.goto(origin+'/admin/vijesti/nova');
+  await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-07');
+  await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
+  const jpeg=await sharp({create:{width:96,height:64,channels:3,background:{r:23,g:62,b:43}}}).jpeg().toBuffer();
+  const chooserPromise=page.waitForEvent('filechooser'); await page.getByRole('button',{name:'Odaberi sliku',exact:true}).click();
+  const chooser=await chooserPromise; await chooser.setFiles({name:'phone-gallery-test.jpg',mimeType:'image/jpeg',buffer:jpeg});
+  await page.getByText('Slika je spremljena u zajedničku biblioteku.',{exact:true}).waitFor();
+  assert.equal(objects.size,2);
+  for(const l of ['bs','sq','en']) {
+    await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
+    await page.getByLabel('Naslov · '+l.toUpperCase(),{exact:true}).fill('Browser draft '+l.toUpperCase());
+    await page.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('browser-draft-'+l);
+    await page.getByLabel('Tekst 1 · '+l.toUpperCase(),{exact:true}).fill('Browser body '+l.toUpperCase());
+    await page.getByLabel('Opis naslovne slike · '+l.toUpperCase(),{exact:true}).fill('Browser image '+l.toUpperCase());
+  }
+  await page.getByRole('button',{name:'Osvježi pregled',exact:true}).click();
+  await page.frameLocator('iframe').getByRole('heading',{name:'Browser draft BS',exact:true}).waitFor();
+  assert.equal(await page.frameLocator('iframe').locator('article img').first().evaluate(img=>img.naturalWidth),96);
+  // Add an image block sharing the existing upload without a second upload.
+  await page.getByRole('button',{name:'＋ Slika',exact:true}).click();
+  await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).nth(1).click();
+  await page.getByRole('region',{name:'Biblioteka · Slika bloka 2',exact:true}).getByRole('button',{name:/^Odaberi:/}).first().click();
+  assert.equal(objects.size,2);
+  await page.getByRole('button',{name:'Pomjeri blok 2 gore',exact:true}).click();
+  assert.equal(await page.getByLabel('Tekst 2 · EN',{exact:true}).count(),1);
+  await page.getByRole('button',{name:'Povuci blok 2',exact:true}).dragTo(page.getByRole('button',{name:'Povuci blok 1',exact:true}));
+  assert.equal(await page.getByLabel('Tekst 1 · EN',{exact:true}).count(),1);
+  await page.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).click();
+  await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
+  const savedUrl=page.url().split('?')[0]; assert.match(savedUrl,/\/admin\/vijesti\/[a-f0-9-]+$/);
+  await page.getByRole('link',{name:'← Sve vijesti',exact:true}).click();
+  await page.waitForURL(origin+'/admin/vijesti');
+  await page.goBack(); await page.waitForURL(savedUrl+'?saved=1');
+  assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Browser draft BS');
+  await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Browser draft BS');
+  for(const l of ['bs','sq','en']) {
+    await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
+    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
+  }
+  await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click(); await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).isEnabled(),true);
+  await page.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).click();
+  assert.equal(await page.getByRole('dialog').count(),1); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Sva tri jezika objavljena su u bazi. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+  const id=savedUrl.split('/').pop(); const published=(await db.query('select * from medresa_admin_articles where id=$1',[id])).rows[0]; assert.equal(published.status,'published');
+  // All requested mobile widths including native input attributes, thumbnails and preview controls.
+  for(const width of [360,390,412,430]) {
+    await page.setViewportSize({width,height:900});
+    for(const path of ['/admin/vijesti', '/admin/vijesti/nova','/admin/vijesti/'+id,'/admin/vijesti/2026-05-03-kurban']) {
+      await page.goto(origin+path); const size=await page.evaluate(()=>({view:document.documentElement.clientWidth,content:document.documentElement.scrollWidth})); if(size.content>size.view+1) { console.log('OVERFLOW',path,width,size,await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).map(e=>({tag:e.tagName,class:e.className,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width,text:e.textContent.slice(0,70)})).filter(e=>e.right>document.documentElement.clientWidth+1).slice(0,15)));  } assert.ok(size.content<=size.view+1,path+' overflow at '+width);
+    }
+    const input=page.getByLabel('Datoteka · Naslovna slika',{exact:true}); assert.equal(await input.getAttribute('type'),'file'); assert.match(await input.getAttribute('accept'),/image\/jpeg.*image\/png.*image\/webp/);
+    await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).first().click();
+    const size=await page.evaluate(()=>({view:document.documentElement.clientWidth,content:document.documentElement.scrollWidth})); assert.ok(size.content<=size.view+1,'gallery overflow '+width);
+  }
+  // Archive, cancel/confirm trash, restore, and dialog geometry at every width.
+  for(const width of [360,390,412,430]) {
+    await page.setViewportSize({width,height:900}); await page.goto(origin+'/admin/vijesti');
+    const row=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Browser draft BS',exact:true})});
+    await row.getByRole('button',{name:'Obriši',exact:true}).click();
+    const bounds=await page.getByRole('dialog').boundingBox(); assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width+1); await page.getByRole('button',{name:'Odustani',exact:true}).click();
+  }
+  let row=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Browser draft BS',exact:true})});
+  await row.getByRole('button',{name:'Arhiviraj',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Arhiviraj',exact:true}).click();
+  await page.getByText('Vijest je arhivirana u bazi. Javni izvor još nije povezan.',{exact:true}).waitFor();
+  await page.getByLabel('Status',{exact:true}).selectOption('archive'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('button',{name:'Vrati',exact:true}).click();
+  await page.getByText('Vijest je vraćena.',{exact:true}).waitFor(); await page.getByLabel('Status',{exact:true}).selectOption('active');
+  row=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Browser draft BS',exact:true})});
+  await row.getByRole('button',{name:'Obriši',exact:true}).click(); await page.getByRole('button',{name:'Premjesti u smeće',exact:true}).click();
+  await page.getByText('Vijest je premještena u smeće. Možete je vratiti; slike su sačuvane.',{exact:true}).waitFor();
+  await page.getByLabel('Status',{exact:true}).selectOption('trash'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('button',{name:'Vrati',exact:true}).click();
+  await page.getByText('Vijest je vraćena.',{exact:true}).waitFor(); assert.equal(objects.size,2);
+  assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
+  await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
+  assert.deepEqual(errors,[]);
+  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser; shared upload; persisted drafts/reload; three-language review/publication; DND/mobile reorder; archive/trash/restore; logout; 360/390/412/430 px grids, editor controls and dialogs. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
+})().catch(error=>{console.error(error.message.split('Call log:')[0]);process.exit(1);});

@@ -2,7 +2,8 @@ import type { Locale } from "@/i18n/config";
 import type { AnalyticsPeriod, AnalyticsResult, AnalyticsSource, Campaign, ExamPublication, NewsDraft, SharedImage } from "./model";
 import type { TranslationDraft } from "./translation";
 
-/** No adapter is connected in Phase 1. Implement these only in server modules. */
+/** Server-owned boundaries. Phase 2 news/media services live in src/server/admin.
+ * Other provider implementations remain disconnected; public renderers stay independent. */
 export interface NewsRepository {
   getDraft(id: string): Promise<NewsDraft | null>;
   saveDraft(draft: NewsDraft, expectedRevision: number): Promise<NewsDraft>;

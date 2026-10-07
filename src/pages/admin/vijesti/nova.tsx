@@ -1,9 +1,9 @@
 import type { GetServerSideProps } from "next";
-import { articles } from "@/content/vijesti";
 import { protectPage } from "@/server/admin/auth";
-import { DraftEditor } from "@/admin/DraftEditor";
+import { DraftEditor, type EditorProps } from "@/admin/DraftEditor";
+import { editorProps } from "@/server/admin/editor";
 export const getServerSideProps: GetServerSideProps = async context => {
   if (!protectPage(context)) return { redirect: { destination: "/admin/login", permanent: false } };
-  return { props: { assets: articles.flatMap(a => a.photos.map((p, i) => ({ ...p, id: `archive-${a.id}-${i + 1}` }))) } };
+  return { props: (await editorProps())! };
 };
-export default DraftEditor;
+export default function NewArticle(props: EditorProps) { return <DraftEditor key="new" {...props} />; }

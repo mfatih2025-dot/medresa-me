@@ -30,6 +30,7 @@ export function publicationChecklist(d: NewsDraft): Check[] {
 export function toPublicArticle(d: NewsDraft): NewsArticle {
   const ids = [...new Set([
     ...(d.coverImageId ? [d.coverImageId] : []),
+    ...(d.legacy?.imageIds ?? []),
     ...d.blocks.flatMap(b => b.type === "image" ? [b.assetId] : []),
   ])];
   const images = ids.map(id => {
@@ -39,7 +40,8 @@ export function toPublicArticle(d: NewsDraft): NewsArticle {
   });
   const version = (locale: Locale): NewsVersion => ({
     title: d.title[locale], slug: d.slug[locale], ...(d.lead[locale].trim() ? { lead: d.lead[locale] } : {}),
-    body: d.blocks.map(b => {
+    body: d.legacy && JSON.stringify(d.blocks.map(b => b.type === "image" ? b : { id: b.id, type: b.type, text: b.text[locale] })) === JSON.stringify(d.legacy.blocks.map(b => b.type === "image" ? b : { id: b.id, type: b.type, text: b.text[locale] })) && JSON.stringify(ids) === JSON.stringify(d.legacy.imageIds)
+      ? d.legacy.original[locale].body : d.blocks.map(b => {
       if (b.type === "image") {
         const n = images.findIndex(i => i.id === b.assetId);
         if (n < 0) throw new Error("Image block references a missing shared asset");
@@ -51,7 +53,7 @@ export function toPublicArticle(d: NewsDraft): NewsArticle {
     }).join("\n\n"),
   });
   return {
-    id: d.id, date: d.date, topic: d.topic,
+    id: d.id, date: d.date, topic: d.topic, ...(d.legacy?.original.source ? { source: d.legacy.original.source } : {}),
     photos: images.map(({ id: _id, ...photo }) => { void _id; return photo; }),
     bs: version("bs"), sq: version("sq"), en: version("en"),
   };
