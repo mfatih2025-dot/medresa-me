@@ -1,11 +1,12 @@
 "use client";
 
 import { useId, useState } from "react";
+import { ChevronDown } from "@/components/ui/icons";
 import { keepWhole } from "./keepWhole";
 
 /*
  * The questions as a quiet disclosure list: thin rules, the question set in
- * type, a hairline plus that becomes a minus. Each question is a button in its
+ * type, a chevron that turns to point up when the answer is open. Each question is a button in its
  * heading (aria-expanded / aria-controls); its answer is a labelled region,
  * inert while closed. Opening animates the row height (grid 0fr → 1fr, ease-out,
  * 320ms); reduced motion opens at once.
@@ -39,15 +40,13 @@ export function Faq({ items }: { items: readonly Item[] }) {
                 <span className="hist-text text-[1.125rem] leading-[1.4] text-green transition-colors duration-200 md:text-[1.3125rem] md:group-hover:text-green-deep">
                   {keepWhole(item.q)}
                 </span>
-                {/* A hairline plus; its vertical stroke folds away when open. */}
-                <span aria-hidden className="relative mt-[0.55em] block size-3.5 shrink-0 md:size-4">
-                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gold-deep" />
-                  <span
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gold-deep transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
-                      isOpen ? "scale-y-0" : "scale-y-100"
-                    }`}
-                  />
-                </span>
+                {/* One chevron: down when closed, turned to point up when open. */}
+                <ChevronDown
+                  strokeWidth={1.25}
+                  className={`mt-[0.2em] size-[1.125rem] shrink-0 text-gold-deep transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none md:size-5 ${
+                    isOpen ? "rotate-180" : "rotate-0"
+                  }`}
+                />
               </button>
             </h3>
             <div

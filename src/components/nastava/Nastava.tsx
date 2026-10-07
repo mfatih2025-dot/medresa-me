@@ -93,7 +93,7 @@ export function Nastava() {
             "",
             "mt-3 text-[clamp(1.25rem,0.95rem+1.5vw,2.25rem)] font-normal leading-[1.2] tracking-[-0.01em] text-green/70 md:mt-4",
           ]}
-          className="display hist-text text-[clamp(2.75rem,1.3rem+6.4vw,7.25rem)] leading-[0.98] tracking-[-0.03em] text-green"
+          className="display hist-text text-[min(10.8vw,clamp(2.75rem,1.3rem+6.4vw,7.25rem))] leading-[0.98] tracking-[-0.03em] text-green"
         />
       </header>
 
@@ -218,28 +218,31 @@ export function Nastava() {
       <section aria-labelledby="nas-cilj" className="wrap">
         <div className="relative pt-8 md:pt-10 lg:pt-12">
           <Line origin="right" duration={1.3} className="top-0 left-0 right-0" />
-          <h2 id="nas-cilj" className="eyebrow eyebrow-display text-gold-deep">
-            {n.goals.heading}
-          </h2>
-          <ul className="mt-8 md:mt-10">
-            {n.goals.items.map((g, i) => (
-              <li
-                key={g}
-                className={`mt-6 first:mt-0 md:mt-8 ${["", "lg:ml-[16.6667%]", "lg:ml-[33.3333%]"][i]}`}
-              >
-                <Reveal y={18} delay={i * 0.08}>
-                  <Depth>
-                    <p
-                      className="display hist-text max-w-[16em] text-[clamp(1.875rem,0.95rem+3.8vw,4.25rem)] font-normal leading-[1.06] tracking-[-0.025em] text-green"
-                      style={{ textWrap: "balance" }}
-                    >
-                      {g}
-                    </p>
-                  </Depth>
-                </Reveal>
-              </li>
-            ))}
-          </ul>
+          {/* The goals as one sequence: a label beside a single aligned column (desktop). */}
+          <div className="lg:grid lg:grid-cols-12">
+            <h2
+              id="nas-cilj"
+              className="eyebrow eyebrow-display text-gold-deep lg:col-span-2 lg:pt-[0.55rem]"
+            >
+              {n.goals.heading}
+            </h2>
+            <ul className="mt-6 md:mt-8 lg:col-span-8 lg:col-start-3 lg:mt-0">
+              {n.goals.items.map((g, i) => (
+                <li key={g} className="mt-5 first:mt-0 md:mt-6">
+                  <Reveal y={18} delay={i * 0.08}>
+                    <Depth>
+                      <p
+                        className="display hist-text max-w-[22em] text-[clamp(1.375rem,1.1rem+1.35vw,2.375rem)] font-normal leading-[1.22] tracking-[-0.015em] text-green"
+                        style={{ textWrap: "balance" }}
+                      >
+                        {g}
+                      </p>
+                    </Depth>
+                  </Reveal>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
