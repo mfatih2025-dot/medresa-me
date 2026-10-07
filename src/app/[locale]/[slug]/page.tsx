@@ -10,7 +10,7 @@ type Params = { slug: string };
 export function generateStaticParams(): Params[] {
   // Pages with their own route (app/<slug>/page.tsx) are excluded here.
   return pageSlugs
-    .filter((slug) => slug !== "vijesti" && slug !== "historijat" && slug !== "uip" && slug !== "misija" && slug !== "oiu" && slug !== "nastava" && slug !== "tiu" && slug !== "donacije" && slug !== "upis" && slug !== "kontakt" && slug !== "galerija")
+    .filter((slug) => slug !== "vijesti" && slug !== "historijat" && slug !== "uip" && slug !== "misija" && slug !== "oiu" && slug !== "nastava" && slug !== "tiu" && slug !== "donacije" && slug !== "upis" && slug !== "kontakt" && slug !== "galerija" && slug !== "alumni")
     .map((slug) => ({ slug }));
 }
 
