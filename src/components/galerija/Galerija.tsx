@@ -6,8 +6,8 @@ import { Gallery } from "./Gallery";
 /*
  * Galerija: the life of the Medresa, through its spaces.
  *
- * A compact opening — the page title, the source heading, the source's
- * introduction — and then the photographs take over (components/galerija/Gallery).
+ * A compact opening — the page title, then the source heading as a gold
+ * eyebrow, then the source's introduction — and then the photographs take over (components/galerija/Gallery).
  */
 
 const edge = "calc(var(--gutter) + max(0px, (100vw - var(--max)) / 2))";
@@ -20,15 +20,18 @@ export function Galerija() {
     >
       <header className="wrap pt-32 md:pt-40 lg:grid lg:grid-cols-12 lg:items-end lg:pt-44">
         <div className="lg:col-span-6">
-          <Reveal variant="label">
-            <p className="eyebrow eyebrow-display text-gold-deep">{g.heading}</p>
-          </Reveal>
           <LineReveal
             as="h1"
             immediate
             lines={[g.title]}
-            className="display mt-4 text-[clamp(2.75rem,1.6rem+5vw,6.5rem)] leading-[0.95] tracking-[-0.03em] text-green md:mt-5"
+            className="display text-[clamp(2.75rem,1.6rem+5vw,6.5rem)] leading-[0.95] tracking-[-0.03em] text-green"
           />
+          <Reveal variant="label" delay={0.2}>
+            <p className="eyebrow eyebrow-display mt-4 text-gold-deep md:mt-5">
+              {/* The name never breaks apart. */}
+              {g.heading.replace("„MEHMED FATIH“", "„MEHMED\u00a0FATIH“")}
+            </p>
+          </Reveal>
         </div>
         <Reveal y={14} delay={0.15} className="mt-5 md:mt-7 lg:col-span-5 lg:col-start-8 lg:mt-0 lg:pb-2">
           <p className="hist-text max-w-[34em] text-[1.0625rem] font-light leading-[1.7] text-ink md:text-[1.125rem]">

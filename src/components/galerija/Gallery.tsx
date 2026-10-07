@@ -12,7 +12,7 @@ import {
 } from "@/content/galerija";
 import { ArrowDown } from "@/components/ui/icons";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
-import { Frame, type Reveal } from "./GalMotion";
+import { Frame, Guide, type Reveal } from "./GalMotion";
 import { Lightbox } from "./Lightbox";
 
 /*
@@ -83,6 +83,7 @@ function RowView({
     o: {
       sizes: string;
       reveal: Reveal;
+      duration?: number;
       className?: string;
       delay?: number;
       travel?: number;
@@ -95,6 +96,7 @@ function RowView({
       sizes={o.sizes}
       reveal={quiet ? (o.reveal === "fade" ? "fade" : "up") : o.reveal}
       delay={o.delay}
+      duration={o.duration}
       travel={quiet ? 0 : o.travel}
       position={o.position}
       priority={first}
@@ -107,6 +109,19 @@ function RowView({
   // second smaller on the other side) so no photograph is shrunk to a thumbnail;
   // from md up they sit side by side.
   const kinds: Record<RowKind, () => ReactNode> = {
+    // The threshold: the first photograph, edge to edge at every size, opening
+    // vertically from a narrow band and drifting a little deeper than the rest.
+    threshold: () => (
+      <div className="mx-[calc(-1*var(--edge))]">
+        {f(a, {
+          sizes: "100vw",
+          reveal: "threshold",
+          duration: 1.5,
+          travel: 9,
+          className: "aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/9]",
+        })}
+      </div>
+    ),
     cinema: () => (
       <div className="mx-[calc(-1*var(--edge))]">
         {f(a, {
@@ -223,6 +238,45 @@ function Chapter() {
   return <span aria-hidden className="block h-px w-16 bg-gold/80 md:w-24" />;
 }
 
+/*
+ * The guide: a thin muted-gold line at four moments of the journey only.
+ *   1  beside the right edge of the mosque, growing down it (wider screens)
+ *   4  in from the right page edge under the courtyard
+ *   6  beside the corridor's portrait, from above its top edge (wider screens)
+ *  12  in from the left page edge toward the last photograph, at its middle
+ * On phones only moments 4 and 12 appear, fainter.
+ */
+const guides: Record<number, ReactNode> = {
+  1: (
+    <Guide
+      axis="y"
+      from="top"
+      className="top-0 bottom-[18%] hidden md:block md:left-[calc(80%+1rem)] lg:left-[calc(66.6667%+1.5rem)]"
+    />
+  ),
+  4: (
+    <Guide
+      axis="x"
+      from="right"
+      className="-bottom-4 right-[calc(-1*var(--edge))] w-[45%] opacity-60 md:-bottom-6 md:w-[30%] md:opacity-100"
+    />
+  ),
+  6: (
+    <Guide
+      axis="y"
+      from="top"
+      className="-top-12 bottom-[35%] hidden md:block md:left-[calc(20%-1.25rem)] lg:left-[calc(33.3333%-1.5rem)]"
+    />
+  ),
+  12: (
+    <Guide
+      axis="x"
+      from="left"
+      className="top-1/2 left-[calc(-1*var(--edge))] w-[calc(var(--edge)+28%-0.75rem)] opacity-60 md:w-[calc(var(--edge)+52%-1.25rem)] md:opacity-100 lg:w-[calc(var(--edge)+57.6667%-1.5rem)]"
+    />
+  ),
+};
+
 const space = ["mt-3 md:mt-6", "mt-10 md:mt-16 lg:mt-20", "mt-6 md:mt-10 lg:mt-14"];
 
 export function Gallery() {
@@ -248,8 +302,9 @@ export function Gallery() {
       <div className="wrap">
         {story.map((row, i) => (
           <div key={row.ids.join("-")}>
-            <div className={i === 0 ? "" : space[i % 3]}>
+            <div className={`relative ${i === 0 ? "" : space[i % 3]}`}>
               <RowView row={row} n={i} onOpen={onOpen} openId={openId} first={i === 0} />
+              {guides[i]}
             </div>
             {chapterAfter.has(i) && (
               <div className="mt-10 md:mt-16 lg:mt-20">

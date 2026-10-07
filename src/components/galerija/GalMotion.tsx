@@ -20,7 +20,7 @@ import { useScrollProgress } from "@/hooks/useScrollProgress";
 const draw = [0.65, 0, 0.35, 1] as const;
 const settle = [0.23, 1, 0.32, 1] as const;
 
-export type Reveal = "up" | "down" | "left" | "right" | "center" | "fade";
+export type Reveal = "up" | "down" | "left" | "right" | "center" | "fade" | "threshold";
 
 const closed: Record<Reveal, string> = {
   up: "inset(100% 0% 0% 0%)",
@@ -28,6 +28,8 @@ const closed: Record<Reveal, string> = {
   left: "inset(0% 100% 0% 0%)",
   right: "inset(0% 0% 0% 100%)",
   center: "inset(0% 50% 0% 50%)",
+  // The first photograph opens like a door onto the complex: from a narrow band, vertically.
+  threshold: "inset(44% 0% 44% 0%)",
   fade: "inset(0% 0% 0% 0%)",
 };
 
@@ -36,6 +38,7 @@ export function Frame({
   sizes,
   reveal = "up",
   delay = 0,
+  duration,
   travel = 0,
   priority = false,
   position,
@@ -47,6 +50,8 @@ export function Frame({
   sizes: string;
   reveal?: Reveal;
   delay?: number;
+  /** Override of the reveal's duration (s). */
+  duration?: number;
   /** Drift inside the frame, % of its height each way (0: still). */
   travel?: number;
   priority?: boolean;
@@ -114,7 +119,7 @@ export function Frame({
           ? { opacity: seen ? (hidden ? 0 : 1) : 0 }
           : { clipPath: seen ? "inset(0% 0% 0% 0%)" : closed[reveal] }
       }
-      transition={{ duration: isFade ? 0.7 : 1.05, delay, ease: isFade ? settle : draw }}
+      transition={{ duration: duration ?? (isFade ? 0.7 : 1.05), delay, ease: isFade ? settle : draw }}
     >
       <motion.span
         className="absolute inset-0 block"
@@ -132,5 +137,35 @@ export function Frame({
       {/* A quiet answer to hover: the photograph dims a touch. */}
       <span className="pointer-events-none absolute inset-0 bg-ink/0 transition-colors duration-300 group-hover:bg-ink/[0.04]" />
     </motion.button>
+  );
+}
+
+/**
+ * The gallery's one signature: a thin muted-gold line that accompanies the
+ * journey at a few moments only — entering from an edge or running beside a
+ * photograph's edge — its length drawn by the scroll through its row.
+ */
+export function Guide({
+  axis,
+  from,
+  className = "",
+}: {
+  axis: "x" | "y";
+  /** The end it grows from. */
+  from: "left" | "right" | "top";
+  className?: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const { reduced } = useMotionProfile();
+  const p = useScrollProgress(ref, ["start 88%", "end 40%"]);
+  const origin = from === "left" ? "origin-left" : from === "right" ? "origin-right" : "origin-top";
+  const shape = axis === "x" ? "h-px" : "w-px";
+  return (
+    <motion.span
+      ref={ref}
+      aria-hidden
+      className={`pointer-events-none absolute block bg-gold/70 ${shape} ${origin} ${className}`}
+      style={reduced ? undefined : axis === "x" ? { scaleX: p } : { scaleY: p }}
+    />
   );
 }

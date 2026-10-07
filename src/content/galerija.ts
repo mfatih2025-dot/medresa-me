@@ -22,6 +22,7 @@ export type Photo = {
 };
 
 export type RowKind =
+  | "threshold"
   | "cinema"
   | "wide"
   | "wideRight"
@@ -441,7 +442,7 @@ export const photos: Record<string, Photo> = {
 };
 
 export const story: readonly Row[] = [
-  { kind: "cinema", ids: ["01"] },
+  { kind: "threshold", ids: ["01"] },
   { kind: "wide", ids: ["13"] },
   { kind: "pairPortrait", ids: ["44", "15"] },
   { kind: "wideRight", ids: ["21"] },
