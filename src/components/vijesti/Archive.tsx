@@ -284,8 +284,8 @@ function Year({ year }: { year: string }) {
   );
 }
 
-function Pagination({ page, locale, t }: { page: number; locale: Locale; t: NewsUi }) {
-  if (pageCount < 2) return null;
+function Pagination({ page, locale, t, totalPages }: { page: number; locale: Locale; t: NewsUi; totalPages: number }) {
+  if (totalPages < 2) return null;
   const link = "inline-flex min-h-11 items-center gap-2 text-[0.9375rem] font-medium text-green";
   return (
     <nav aria-label={t.pages} className="mt-16 border-t border-gold/50 pt-6 md:mt-24 md:pt-8">
@@ -299,7 +299,7 @@ function Pagination({ page, locale, t }: { page: number; locale: Locale; t: News
           )}
         </div>
         <ol className="flex items-center gap-1">
-          {Array.from({ length: pageCount }, (_, k) => k + 1).map((n) => (
+          {Array.from({ length: totalPages }, (_, k) => k + 1).map((n) => (
             <li key={n}>
               <Link
                 href={archivePath(locale, n)}
@@ -315,7 +315,7 @@ function Pagination({ page, locale, t }: { page: number; locale: Locale; t: News
           ))}
         </ol>
         <div className="min-w-0">
-          {page < pageCount && (
+          {page < totalPages && (
             <Link href={archivePath(locale, page + 1)} className={`group ${link}`}>
               {t.olderPage}
               <ArrowRight className="transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:translate-x-[5px]" />
@@ -332,12 +332,14 @@ export function Archive({
   page,
   items,
   prevYear,
+  totalPages = pageCount,
 }: {
   locale: Locale;
   page: number;
   items: readonly NewsArticle[];
   /** Year of the last story on the previous page (so a page opens with its year when it changes). */
   prevYear?: string;
+  totalPages?: number;
 }) {
   const t = newsUi[locale];
   const blocks = compose(items, page === 1, prevYear);
@@ -381,7 +383,7 @@ export function Archive({
       </div>
 
       <div className="wrap">
-        <Pagination page={page} locale={locale} t={t} />
+        <Pagination page={page} locale={locale} t={t} totalPages={totalPages} />
       </div>
     </section>
   );

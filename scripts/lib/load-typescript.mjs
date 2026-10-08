@@ -13,7 +13,7 @@ export function moduleLoader(overrides = {}) {
     if (!file) throw new Error(`Module missing: ${path}`);
     if (cache.has(file)) return cache.get(file).exports;
     const compiledModule = { exports: {} }; cache.set(file, compiledModule);
-    const compiled = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    const compiled = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const localRequire = spec => spec in overrides ? overrides[spec] : spec.startsWith("@/") ? load(resolve("src", spec.slice(2))) : spec.startsWith(".") ? load(resolve(dirname(file), spec)) : require(spec);
     new Script(`(function(require,module,exports){${compiled}\n})`, { filename: file }).runInThisContext()(localRequire, compiledModule, compiledModule.exports);
     return compiledModule.exports;

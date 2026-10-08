@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import type { Img } from "../bs";
+import type { NewsArticle } from "./types";
 import { articlePath, articles, excerpt, formatDate, imageOf, topicLabels } from "./index";
 
 /** How many stories the homepage's news section shows: the newest three, the first as its lead. */
@@ -10,8 +11,8 @@ const HOME_COUNT = 3;
  * section reads. A story without any image falls back to a photograph of the
  * Medresa, flagged as a placeholder.
  */
-export function homeNews(locale: Locale, fallbacks: readonly Img[]) {
-  return articles.slice(0, HOME_COUNT).map((a, i) => {
+export function homeNews(locale: Locale, fallbacks: readonly Img[], source: readonly NewsArticle[] = articles) {
+  return source.slice(0, HOME_COUNT).map((a, i) => {
     const v = a[locale];
     const photo = imageOf(a);
     const image: Img = photo

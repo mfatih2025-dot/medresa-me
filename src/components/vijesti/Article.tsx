@@ -181,7 +181,7 @@ function BodyBlock({ b, tiles }: { b: Block; tiles: Photo[] }): ReactNode {
   }
 }
 
-export function Article({ a, locale }: { a: NewsArticle; locale: Locale }) {
+export function Article({ a, locale, navigation }: { a: NewsArticle; locale: Locale; navigation?: { newer?: NewsArticle; older?: NewsArticle; page: number } }) {
   const t = newsUi[locale];
   const v = a[locale];
   const tiles = a.photos.map((p, i) => asTile(a, p, i + 1, locale));
@@ -189,8 +189,8 @@ export function Article({ a, locale }: { a: NewsArticle; locale: Locale }) {
   const placed = placedPhotos(blocks);
   const [lead, ...others] = tiles;
   const rest = others.filter((_, i) => !placed.has(i + 2));
-  const { newer, older } = neighbours(a);
-  const back = archivePath(locale, pageOf(a));
+  const { newer, older } = navigation ?? neighbours(a);
+  const back = archivePath(locale, navigation?.page ?? pageOf(a));
 
   return (
     <PhotoViewer photos={tiles} labels={t.lightbox}>

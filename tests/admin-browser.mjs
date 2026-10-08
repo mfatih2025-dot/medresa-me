@@ -12,7 +12,7 @@ const { chromium } = requireProject('playwright');
 const { PGlite } = requireProject('@electric-sql/pglite');
 const sharp = requireProject('sharp');
 const next = requireProject('next');
-const origin = 'http://127.0.0.1:3212';
+const origin = 'http://localhost:3212';
 const provider = 'https://abcdefghijklmnopqrst.supabase.co';
 const objects = new Map();
 let providerRequests = 0;
@@ -45,7 +45,7 @@ let providerRequests = 0;
         return json(result.rows[0].result);
       }
       if (url.pathname.startsWith('/rest/v1/')) {
-        const table=url.pathname.split('/').pop(); assert.ok(['medresa_admin_articles','medresa_admin_assets','medresa_admin_public_feed','medresa_admin_locale_publication_state'].includes(table));
+        const table=url.pathname.split('/').pop(); assert.ok(['medresa_admin_articles','medresa_admin_assets','medresa_admin_public_feed','medresa_admin_locale_publication_state','medresa_admin_public_locale_feed'].includes(table));
         if(init.method==='POST') {
           assert.equal(table,'medresa_admin_assets'); const value=JSON.parse(init.body);
           const fields=['id','origin','bucket','object_path','original_path','mime','bytes','metadata','created_by'];
@@ -58,7 +58,8 @@ let providerRequests = 0;
           if(value.startsWith('in.(')) {args.push(value.slice(4,-1).split(',')); clauses.push(`${key}=any($${args.length}::text[])`);}
         }
         const result=await db.query(`select * from ${table}${clauses.length?' where '+clauses.join(' and '):''}` ,args);
-        return json(url.searchParams.get('limit')==='1' ? result.rows.slice(0,1) : result.rows);
+        const offset=Number(url.searchParams.get('offset')||0); const limit=Number(url.searchParams.get('limit')||result.rows.length);
+        return json(result.rows.slice(offset,offset+limit));
       }
       const prefix='/storage/v1/object/'; assert.ok(url.pathname.startsWith(prefix));
       const path=url.pathname.slice(prefix.length).replace(/^authenticated\//,'');
@@ -69,11 +70,12 @@ let providerRequests = 0;
   // Test fixtures only, never provider credentials and never written to a file.
   const password=randomBytes(24).toString('base64url'); const salt=randomBytes(16).toString('hex');
   Object.assign(process.env,{NEXT_TELEMETRY_DISABLED:'1',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'codex/admin-panel',SUPABASE_URL:provider,SUPABASE_SERVICE_ROLE_KEY:'explicit-browser-fixture-no-real-key',MEDRESA_SUPABASE_PROJECT_REF:'abcdefghijklmnopqrst',MEDRESA_SUPABASE_WRITE_ENABLED:'true',MEDRESA_ADMIN_USER:'browser-test-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
-  const app=next({dev:false,dir:process.cwd(),hostname:'127.0.0.1',port:3212}); await app.prepare();
-  const server=http.createServer(app.getRequestHandler()); await new Promise(resolve=>server.listen(3212,'127.0.0.1',resolve));
+  const app=next({dev:false,dir:process.cwd(),hostname:'localhost',port:3212}); await app.prepare();
+  const server=http.createServer(app.getRequestHandler()); await new Promise(resolve=>server.listen(3212,'localhost',resolve));
   const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),headless:true,args:['--no-sandbox']});
   const context=await browser.newContext({viewport:{width:390,height:844}}); const page=await context.newPage();
-  const errors=[]; page.on('pageerror',error=>errors.push(error.message)); page.on('dialog',dialog=>dialog.accept());
+  const publicContext=await browser.newContext({viewport:{width:390,height:844}}); const publicPage=await publicContext.newPage();
+  const errors=[]; publicPage.on('pageerror',error=>errors.push(error.message)); page.on('pageerror',error=>errors.push(error.message)); page.on('dialog',dialog=>dialog.accept());
   for(const path of ['/admin','/admin/vijesti','/admin/vijesti/nova','/admin/vijesti/2026-05-03-kurban','/admin-preview/editor']) {
     const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/admin/login');
   }
@@ -116,6 +118,12 @@ let providerRequests = 0;
   // Publish a photo-free BS article, then SQ and EN independently through the real API.
   await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
   await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
+  for(const l of ['sq','en']) {
+    await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
+    await page.getByLabel('Naslov · '+l.toUpperCase(),{exact:true}).fill('PRIVATE '+l.toUpperCase()+' DRAFT');
+    await page.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('private-'+l+'-draft');
+    await page.getByLabel('Tekst 1 · '+l.toUpperCase(),{exact:true}).fill('PRIVATE '+l.toUpperCase()+' BODY');
+  }
   const localeRows = async () => (await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[newId])).rows;
   let preservedBs, preservedEn;
   for(const l of ['bs','sq','en','sq']) {
@@ -152,6 +160,25 @@ let providerRequests = 0;
     if(l==='bs') {
       preservedBs=rows[0]; assert.equal(rows.length,1); assert.equal(rows[0].snapshot.photos.length,0);
       assert.deepEqual(rows[0].snapshot.sq,{title:'',slug:'',body:''}); assert.deepEqual(rows[0].snapshot.en,{title:'',slug:'',body:''});
+    }
+    // Public pages require no Admin session and use only published locale rows.
+    const bases={bs:'/vijesti',sq:'/sq/lajme',en:'/en/news'};
+    const publicArchive=await publicPage.goto(origin+bases[l]); assert.equal(publicArchive.status(),200);
+    await publicPage.getByRole('heading',{name:'Independent '+l.toUpperCase()+(update?' updated':''),exact:true}).waitFor();
+    const publicArticle=await publicPage.goto(origin+bases[l]+'/independent-'+l); assert.equal(publicArticle.status(),200);
+    await publicPage.getByRole('heading',{name:'Independent '+l.toUpperCase()+(update?' updated':''),exact:true}).waitFor();
+    assert.equal(await publicPage.locator('.news-body').textContent(),'Independent body '+l.toUpperCase()+(update?' updated':''));
+    assert.ok(!(await publicArticle.text()).includes('explicit-browser-fixture-no-real-key'));
+    if(l==='bs') {
+      await publicPage.goto(origin+'/');
+      assert.deepEqual(await publicPage.locator('section[aria-labelledby="news-title"] a[href^="/vijesti/"]').evaluateAll(links=>links.map(a=>a.getAttribute('href'))),['/vijesti/independent-bs',...articles.slice(0,2).map(a=>'/vijesti/'+a.bs.slug)]);
+      for(const hidden of ['sq','en']) {
+        const archive=await publicContext.request.get(origin+bases[hidden]); assert.equal(archive.status(),200); assert.ok(!(await archive.text()).includes('PRIVATE'));
+        assert.equal((await publicContext.request.get(origin+bases[hidden]+'/private-'+hidden+'-draft')).status(),404);
+        assert.equal((await publicContext.request.get(origin+bases[hidden]+'/independent-bs')).status(),404);
+      }
+      assert.equal(await publicPage.locator('link[rel="alternate"][hreflang="sq"]').count(),1); // homepage alternates are unchanged
+      await publicPage.goto(origin+'/vijesti/independent-bs'); assert.equal(await publicPage.locator('link[rel="alternate"][hreflang="sq"]').count(),0);
     }
     if(l==='en') preservedEn=rows.find(r=>r.locale==='en');
     await page.reload();
@@ -271,6 +298,16 @@ let providerRequests = 0;
   assert.equal(await page.getByRole('dialog').count(),1); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
   await page.getByText('Objavljeno: BS, SQ, EN. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
   const id=savedUrl.split('/').pop(); const published=(await db.query('select * from medresa_admin_articles where id=$1',[id])).rows[0]; assert.equal(published.status,'published');
+  const uploadedId=published.document.images[0].id;
+  const publicImage=await publicContext.request.get(origin+'/api/news/media/'+uploadedId); assert.equal(publicImage.status(),200); assert.equal(publicImage.headers()['content-type'],'image/webp');
+  assert.equal((await publicContext.request.get(origin+'/api/admin/media/'+uploadedId)).status(),401);
+  const unreferenced=await db.query("select id from medresa_admin_assets where origin='upload' and id<>$1",[uploadedId]);
+  for(const unused of unreferenced.rows) assert.equal((await publicContext.request.get(origin+'/api/news/media/'+unused.id)).status(),404);
+  // Every original URL still opens with the existing Article renderer.
+  for(const locale of ['bs','sq','en']) for(const legacy of articles) {
+    const base={bs:'/vijesti',sq:'/sq/lajme',en:'/en/news'}[locale]; const response=await publicContext.request.get(origin+base+'/'+legacy[locale].slug);
+    assert.equal(response.status(),200); assert.ok((await response.text()).includes(legacy[locale].title.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')));
+  }
   // All requested mobile widths including native input attributes, thumbnails and preview controls.
   for(const width of [360,390,412,430]) {
     await page.setViewportSize({width,height:900});
@@ -389,10 +426,12 @@ let providerRequests = 0;
     assert.equal((await db.query('select * from medresa_admin_public_locale_feed where article_id=$1',[disposableId])).rows.length,0);
     assert.ok((await db.query('select * from medresa_admin_locale_publications where article_id=$1',[disposableId])).rows.length>0);
   }
+  assert.equal((await publicContext.request.get(origin+'/vijesti/independent-bs')).status(),404);
+  await publicContext.close();
   await touchContext.close();
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
 })().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);process.exit(1);});

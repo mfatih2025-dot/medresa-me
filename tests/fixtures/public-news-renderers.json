@@ -1,0 +1,7 @@
+{
+  "baselineCommit": "f7ef27024807d524eb48e41cb844d7e35d6003f4",
+  "sha256": {
+    "src/components/vijesti/Archive.tsx": "07ab292d8244ea805136de5765cbef4a574d734f8bd2bc371fd88f3af8863f78",
+    "src/components/vijesti/Article.tsx": "3281f69b97e6f7e19f479e2367dc44894bfe562580adbf46031b060ce76d1f0d"
+  }
+}

@@ -6,6 +6,7 @@ import { LifeStack } from "@/components/sections/LifeStack";
 import { News } from "@/components/sections/News";
 import { SocialFeed } from "@/components/sections/SocialFeed";
 import type { Metadata } from "next";
+import { publicHomeDictionary } from "@/server/public/news";
 import { getDictionary } from "@/content";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
 
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function HomePage({ params }: Props) {
-  const dict = getDictionary(asLocale((await params).locale));
+  const dict = await publicHomeDictionary(asLocale((await params).locale));
   return (
     <>
       <HeroStage hero={<Hero dict={dict} />}>

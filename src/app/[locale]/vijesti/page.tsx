@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { articlesOnPage } from "@/content/vijesti";
+import { publicNews } from "@/server/public/news";
 import { newsUi } from "@/content/vijesti/ui";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
 import { Archive } from "@/components/vijesti/Archive";
@@ -15,5 +15,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Vijesti: the newest stories, led by the latest; older pages at /vijesti/2, /vijesti/3… */
 export default async function VijestiPage({ params }: Props) {
   const locale = asLocale((await params).locale);
-  return <Archive locale={locale} page={1} items={articlesOnPage(1)} />;
+  const news = await publicNews(locale);
+  return <Archive locale={locale} page={1} items={news.onPage(1)} totalPages={news.pageCount} />;
 }

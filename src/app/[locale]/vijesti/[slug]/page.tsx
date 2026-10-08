@@ -2,20 +2,17 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import {
   archivePath,
-  articleAlternates,
-  articleByAnySlug,
-  articleBySlug,
   articlePath,
   articles,
-  articlesOnPage,
   excerpt,
   pageCount,
   photoOf,
   imageOf,
   yearOf,
 } from "@/content/vijesti";
+import { publicNews } from "@/server/public/news";
 import { newsUi } from "@/content/vijesti/ui";
-import { locales, type Locale } from "@/i18n/config";
+import { locales } from "@/i18n/config";
 import { asLocale, localizedMetadata } from "@/i18n/metadata";
 import { Archive } from "@/components/vijesti/Archive";
 import { Article } from "@/components/vijesti/Article";
@@ -41,18 +38,20 @@ export function generateStaticParams({ params }: { params: { locale: string } })
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: l, slug } = await params;
   const locale = asLocale(l);
+  const news = await publicNews(locale);
   const n = pageNumber(slug);
   if (n !== null && n >= 2) {
-    const paths = Object.fromEntries(locales.map((x) => [x, archivePath(x, n)])) as Record<Locale, string>;
+    const archiveLocales = await Promise.all(locales.map(async x => ({ locale: x, count: (await publicNews(x)).pageCount })));
+    const paths = Object.fromEntries(archiveLocales.filter(x => n <= x.count).map(x => [x.locale, archivePath(x.locale, n)]));
     return localizedMetadata(paths, locale, {
       title: newsUi[locale].pageTitle(n),
       description: newsUi[locale].description,
     });
   }
-  const a = articleBySlug(slug, locale);
+  const a = news.bySlug(slug);
   if (!a) return {};
   const img = photoOf(a) ?? imageOf(a);
-  return localizedMetadata(articleAlternates(a), locale, {
+  return localizedMetadata(news.paths(a.id), locale, {
     title: a[locale].title,
     description: excerpt(a[locale], 180),
     publishedTime: a.date,
@@ -63,20 +62,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function NewsSubPage({ params }: Props) {
   const { locale: l, slug } = await params;
   const locale = asLocale(l);
+  const news = await publicNews(locale);
   const n = pageNumber(slug);
   if (n !== null) {
     if (n === 1) permanentRedirect(archivePath(locale));
-    if (n < 1 || n > pageCount) notFound();
-    const prev = articlesOnPage(n - 1);
+    if (n < 1 || n > news.pageCount) notFound();
+    const prev = news.onPage(n - 1);
     return (
-      <Archive locale={locale} page={n} items={articlesOnPage(n)} prevYear={yearOf(prev[prev.length - 1])} />
+      <Archive locale={locale} page={n} items={news.onPage(n)} totalPages={news.pageCount} prevYear={yearOf(prev[prev.length - 1])} />
     );
   }
-  const a = articleBySlug(slug, locale);
+  const a = news.bySlug(slug);
   if (!a) {
-    const other = articleByAnySlug(slug);
+    const other = news.byOtherSlug(slug);
     if (other) permanentRedirect(articlePath(other, locale));
     notFound();
   }
-  return <Article a={a} locale={locale} />;
+  return <Article a={a} locale={locale} navigation={news.navigation(a)} />;
 }

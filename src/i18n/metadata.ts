@@ -49,7 +49,7 @@ export function pageMetadata(
  * its own URL in each language as canonical and alternates, like pageMetadata.
  */
 export function localizedMetadata(
-  paths: Record<Locale, string>,
+  paths: Partial<Record<Locale, string>>,
   locale: Locale,
   {
     title,
@@ -66,7 +66,7 @@ export function localizedMetadata(
   return {
     title: { absolute: `${title} · ${siteNames[locale]}` },
     ...(description ? { description } : {}),
-    alternates: { canonical: paths[locale], languages: { ...paths, "x-default": paths.bs } },
+    alternates: { canonical: paths[locale], languages: { ...paths, "x-default": paths.bs ?? paths[locale] } },
     openGraph: {
       title,
       ...(description ? { description } : {}),
