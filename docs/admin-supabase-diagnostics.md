@@ -20,6 +20,15 @@ The probe has a 20-second deadline, refuses redirects and never performs a POST,
 RPC, migration, import or Storage operation. It neither changes nor depends on
 the write flag. Existing news reads/writes and public rendering are unchanged.
 
-For this investigation, share only the `runtime` and `connectivity` objects.
+Run the check from Admin → Pregled using **Provjeri Preview vezu**. The control
+is available only on the dedicated Admin Preview branch and is behind the
+existing page authentication. It sends a relative, same-origin GET, so the
+browser includes the existing HttpOnly `SameSite=Strict` session cookie.
+Do not send administrators cross-site links directly to the JSON endpoint:
+the browser can omit a Strict cookie on that initial navigation even while the
+administrator remains signed in on the destination site. No cookie policy,
+session verification or API guard is relaxed to accommodate external links.
+
+For this investigation, share only the displayed `runtime` and `connectivity` objects.
 The existing `writeFlagIsFalse:false` check is expected when Preview writes have
 been explicitly enabled; it is not a connection error.

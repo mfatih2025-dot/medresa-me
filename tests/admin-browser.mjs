@@ -101,6 +101,10 @@ let providerRequests = 0;
     const production=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(production.status(),404); const productionReport=await production.json(); assert.equal(productionReport.checks,undefined); assert.equal(productionReport.runtime,undefined);
     assert.equal(providerRequests,beforeDiagnostic);
   } finally { process.env.VERCEL_ENV='preview'; process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel'; process.env.MEDRESA_SUPABASE_PROJECT_REF='abcdefghijklmnopqrst'; process.env.MEDRESA_SUPABASE_WRITE_ENABLED='true'; }
+  await page.goto(origin+'/admin');
+  await page.getByRole('button',{name:'Provjeri Preview vezu',exact:true}).click();
+  const result=page.getByLabel('Rezultat Preview dijagnostike',{exact:true}); await result.waitFor();
+  assert.deepEqual(JSON.parse(await result.textContent()).connectivity,{state:'connected',httpStatus:200});
   await page.goto(origin+'/admin/vijesti'); assert.equal(await page.getByRole('article').count(),17);
   await page.getByRole('searchbox').fill('TIKA'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('searchbox').fill('');
   await page.getByRole('button',{name:'＋ Nova vijest',exact:true}).click();
