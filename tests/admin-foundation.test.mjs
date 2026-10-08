@@ -42,11 +42,14 @@ function completeDraft() {
   return d;
 }
 
-test("publication requires all languages, real date, cover, valid slugs and current human reviews", () => {
+test("publication validates only the selected locale, date, referenced media and current review; cover is optional", () => {
   const d = completeDraft(); assert.ok(publication.publicationChecklist(d).every(c => c.complete));
-  for (const mutate of [x => { x.title.sq = " "; }, x => { x.date = "2026-02-31"; }, x => { x.coverImageId = null; }, x => { x.slug.en = "2"; }, x => { x.review.en.reviewedRevision = -1; }, x => { x.blocks[1].assetId = "missing"; }, x => { x.images[1].alt.bs = ""; }]) {
+  for (const mutate of [x => { x.title.bs = " "; }, x => { x.date = "2026-02-31"; }, x => { x.slug.bs = "2"; }, x => { x.review.bs.reviewedRevision = -1; }, x => { x.blocks[1].assetId = "missing"; }, x => { x.images[1].alt.bs = ""; }]) {
     const candidate = structuredClone(d); mutate(candidate); assert.ok(publication.publicationChecklist(candidate).some(c => !c.complete));
   }
+  d.title.sq = ""; d.slug.en = ""; d.review.sq.approved = false; d.review.en.approved = false; d.coverImageId = null;
+  assert.ok(publication.publicationChecklist(d, "bs").every(c => c.complete));
+  assert.ok(publication.publicationChecklist(d, "sq").some(c => !c.complete));
 });
 test("adapter preserves typed block order for every locale, shares images and omits unused assets", () => {
   const d = completeDraft(); const a = publication.toPublicArticle(d);
@@ -66,7 +69,7 @@ test("translation drafts cannot overwrite BS, reorder blocks, change assets or r
   const result = translation.applyTranslationDraft(d, draft);
   assert.equal(result.title.bs, d.title.bs); assert.equal(result.blocks[0].text.bs, d.blocks[0].text.bs);
   assert.deepEqual(result.blocks.map(b => b.id), d.blocks.map(b => b.id)); assert.deepEqual(result.images, d.images);
-  assert.ok(Object.values(result.review).every(r => !r.approved)); assert.equal(result.status, "draft");
+  assert.ok(result.review.bs.approved); assert.ok(!result.review.sq.approved && !result.review.en.approved); assert.equal(result.status, "draft");
   assert.throws(() => translation.applyTranslationDraft(d, { ...draft, blocks: [...draft.blocks].reverse() }));
 });
 test("authentication fails closed, checks credentials, expires sessions, rejects tampering and foreign origins", async () => {

@@ -1,5 +1,6 @@
 import { publicationChecklist } from "./publication";
 import type { NewsDraft } from "./model";
+import type { Locale } from "@/i18n/config";
 
 export class AdminError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -32,7 +33,7 @@ export function validateDraft(value: unknown): asserts value is NewsDraft {
     if (!record(r) || typeof r.approved !== "boolean" || (r.reviewedRevision !== null && !Number.isSafeInteger(r.reviewedRevision))) throw new AdminError(422, "Neispravan ljudski pregled.");
   }
 }
-export function assertPublishable(draft: NewsDraft) {
-  const missing = publicationChecklist(draft).filter(c => !c.complete);
+export function assertPublishable(draft: NewsDraft, locale: Locale = "bs") {
+  const missing = publicationChecklist(draft, locale).filter(c => !c.complete);
   if (missing.length) throw new AdminError(422, `Objava nije spremna: ${missing.map(c => c.label).join(", ")}.`);
 }

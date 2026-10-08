@@ -24,5 +24,6 @@ export function importArticle(a: NewsArticle): ManagedArticle {
   d.legacy = { original: a, blocks: structuredClone(d.blocks), imageIds: d.images.map(i => i.id) };
   // Compare every field, including raw Markdown, alt text, crops, sources and slugs.
   if (canonicalJson(toPublicArticle(d)) !== canonicalJson(a)) throw new Error(`Import nije identičan: ${a.id}`);
-  return { draft: d, archivedAt: null, deletedAt: null, createdAt: null, updatedAt: null, publishedAt: null, publishedRevision: null, source: "static" };
+  return { draft: d, archivedAt: null, deletedAt: null, createdAt: null, updatedAt: null, publishedAt: null, publishedRevision: null, source: "static",
+    publications: Object.fromEntries(locales.map(l => [l, { revision: 0, publishedAt: null, snapshot: a }])) };
 }

@@ -295,7 +295,7 @@ test("rejected news GET diagnostics are server-only, Preview-branch-only, value-
     process.env.MEDRESA_ADMIN_SESSION_SECRET = randomBytes(48).toString("base64url");
     process.env.MEDRESA_ADMIN_ORIGIN = "https://admin.example.test";
     globalThis.fetch = async (url, init = {}) => {
-      requests++; assert.equal(init.method ?? "GET", "GET"); assert.match(url, /\/rest\/v1\/medresa_admin_articles\?/);
+      requests++; assert.equal(init.method ?? "GET", "GET"); assert.match(url, /\/rest\/v1\/medresa_admin_(articles|locale_publication_state)\?/);
       return new Response("[]", { headers: { "Content-Type": "application/json" } });
     };
     const token = auth.createSession(); const name = auth.cookieName();
@@ -313,11 +313,11 @@ test("rejected news GET diagnostics are server-only, Preview-branch-only, value-
     const before = logs.length;
     const valid = response(); await handler({ ...req, cookies: { [name]: token } }, valid);
     assert.equal(valid.statusCode, 200); assert.equal(valid.body.backend.state, "connected"); assert.equal(valid.body.backend.writable, true);
-    assert.equal(requests, 1); assert.equal(logs.length, before);
+    assert.equal(requests, 2); assert.equal(logs.length, before);
     for (const change of [() => { process.env.VERCEL_ENV = "production"; }, () => { process.env.VERCEL_ENV = "development"; }, () => { delete process.env.VERCEL_ENV; }, () => { process.env.VERCEL_GIT_COMMIT_REF = "main"; }, r => { r.url = "/api/admin/diagnostics"; }, r => { r.method = "POST"; }]) {
       configure(); const candidate = { ...req }; change(candidate);
       const result = response(); await handler(candidate, result);
-      assert.equal(result.statusCode, 401); assert.equal(logs.length, before); assert.equal(requests, 1);
+      assert.equal(result.statusCode, 401); assert.equal(logs.length, before); assert.equal(requests, 2);
     }
   } finally { console.info = info; }
 }));

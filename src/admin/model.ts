@@ -35,12 +35,16 @@ export type ManagedArticle = {
   draft: NewsDraft; archivedAt: string | null; deletedAt: string | null;
   createdAt: string | null; updatedAt: string | null; publishedAt: string | null;
   publishedRevision: number | null; source: "database" | "static";
+  publications?: Partial<Record<Locale, LocalePublication>>;
+  localePublishingReady?: boolean;
 };
-export type BackendState = { state: "connected" | "not-connected" | "error"; message: string; writable: boolean };
+export type LocalePublication = { revision: number; publishedAt: string | null; snapshot: import("@/content/vijesti/types").NewsArticle };
+export type BackendState = { state: "connected" | "not-connected" | "error"; message: string; writable: boolean; localePublishingReady?: boolean };
 export type NewsListRow = {
   id: string; revision: number; title: LocalizedText; date: string; status: EditorialStatus;
   cover: SharedImage | null; complete: Record<Locale, boolean>;
   archivedAt: string | null; deletedAt: string | null; source: "database" | "static";
+  localeStatus: Record<Locale, EditorialStatus>;
 };
 
 export function emptyText(): LocalizedText { return { bs: "", sq: "", en: "" }; }
@@ -53,9 +57,20 @@ export function newDraft(id: string): NewsDraft {
   };
 }
 
-/** Any content/ordering change invalidates review. A backend must enforce this too. */
+/** Content used by one locale; unrelated translation edits cannot invalidate its review. */
+export function localeContent(draft: NewsDraft, locale: Locale): string {
+  return JSON.stringify({ title: draft.title[locale], slug: draft.slug[locale], lead: draft.lead[locale], date: draft.date, topic: draft.topic,
+    cover: draft.coverImageId, blocks: draft.blocks.map(b => b.type === "image" ? b : { id: b.id, type: b.type, text: b.text[locale] }),
+    images: draft.images.map(({ alt, ...image }) => ({ ...image, alt: alt[locale] })) });
+}
+
+/** Shared changes invalidate every affected locale; unchanged locales carry review forward. */
 export function revise(draft: NewsDraft, patch: Partial<NewsDraft>): NewsDraft {
-  return { ...draft, ...patch, revision: draft.revision + 1, status: "draft", review: newDraft(draft.id).review };
+  const next = { ...draft, ...patch, revision: draft.revision + 1, status: "draft" as const, review: newDraft(draft.id).review };
+  for (const l of ["bs", "sq", "en"] as const) if (draft.review[l].approved && draft.review[l].reviewedRevision === draft.revision && localeContent(draft, l) === localeContent(next, l)) {
+    next.review[l] = { approved: true, reviewedRevision: next.revision };
+  }
+  return next;
 }
 
 export function moveBlock(blocks: ContentBlock[], from: number, to: number): ContentBlock[] {

@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 import type { Locale } from "@/i18n/config";
 import type { BackendState, ContentBlock, ManagedArticle, NewsDraft, SharedImage } from "./model";
 import { emptyText, moveBlock, newDraft, revise, statusLabels } from "./model";
-import { publicationChecklist } from "./publication";
+import { localeStatus, publicationChecklist, readyLocales } from "./publication";
 import { Shell } from "./Shell";
 import { ImagePicker } from "./ImagePicker";
 import { LivePreview } from "./LivePreview";
@@ -21,9 +21,11 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
   const [locale, setLocale] = useState<Locale>("bs");
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<Locale[] | null>(null);
   const [message, setMessage] = useState(saved ? "Nacrt je spremljen u bazu." : "");
-  const checks = publicationChecklist(draft);
+  const checks = publicationChecklist(draft, locale);
+  const ready = readyLocales(draft).filter(l => localeStatus(draft, record?.publications, l) !== "published");
+  const publishingReady = record?.localePublishingReady ?? backend.localePublishingReady ?? false;
   const writable = backend.writable && record?.source !== "static" && !record?.archivedAt && !record?.deletedAt;
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
@@ -53,9 +55,9 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
   function approve() {
     setDraft(d => {
       const revision = d.revision + 1;
-      const review = Object.fromEntries((["bs", "sq", "en"] as const).map(l => [l, { approved: l === locale ? !d.review[l].approved : d.review[l].approved, reviewedRevision: revision }])) as NewsDraft["review"];
+      const review = Object.fromEntries((["bs", "sq", "en"] as const).map(l => [l, { approved: l === locale ? !d.review[l].approved : d.review[l].approved && d.review[l].reviewedRevision === d.revision, reviewedRevision: revision }])) as NewsDraft["review"];
       const next = { ...d, revision, review, status: "draft" as const };
-      return { ...next, status: publicationChecklist(next).every(c => c.complete) ? "ready" : "draft" };
+      return { ...next, status: readyLocales(next).length > 0 ? "ready" : "draft" };
     }); setDirty(true);
   }
   async function save() {
@@ -71,12 +73,12 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
     finally { setBusy(false); }
   }
   async function publish() {
-    if (!record || dirty) return;
+    if (!record || dirty || !confirm) return;
     setBusy(true);
     try {
-      const result = await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${draft.id}`, { action: "publish", expectedRevision: record.draft.revision });
-      setRecord(result.article); setDraft(result.article.draft); setMessage("Sva tri jezika objavljena su u bazi. Javni website još koristi postojeći izvor."); setConfirm(false);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Objava nije završena."); setConfirm(false); }
+      const result = await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${draft.id}`, { action: "publish", expectedRevision: record.draft.revision, locales: confirm });
+      setRecord(result.article); setDraft(result.article.draft); setMessage(`Objavljeno: ${confirm.map(l => l.toUpperCase()).join(", ")}. Javni website još koristi postojeći izvor.`); setConfirm(null);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Objava nije završena."); setConfirm(null); }
     finally { setBusy(false); }
   }
   function download() {
@@ -103,9 +105,13 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
       <button className={styles.secondary} onClick={approve} disabled={!checks.find(c => c.key === locale)?.complete}>{draft.review[locale].approved ? "✓ Pregledano · povuci odobrenje" : `Potvrdi ljudski pregled · ${locale.toUpperCase()}`}</button>
       </fieldset>
       <section className={styles.editorReview}><h3>Prijevod uz ljudski pregled.</h3><p className={styles.muted}>OpenAI nije povezan. BS je master; SQ i EN uredite ručno. AI će kasnije kreirati samo nacrte.</p><button className={styles.secondary} disabled>Prevedi na SQ i EN</button></section>
-    </section><LivePreview draft={draft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><button className={styles.primary} disabled={!writable || busy || dirty || !record || !checks.every(c => c.complete)} onClick={() => setConfirm(true)}>OBJAVI NA SVA 3 JEZIKA</button><p className={styles.muted}>Prvo sačuvajte nacrt i potvrdite pregled. Objava u bazi ne mijenja javni website u ovoj fazi.</p></section>
+    </section><LivePreview draft={draft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><ul className={styles.checklist} aria-label="Status jezika">{(["bs", "sq", "en"] as const).map(l => <li key={l}><b>{l.toUpperCase()}</b><span>{statusLabels[localeStatus(draft, record?.publications, l)]}{record?.publications?.[l] && localeStatus(draft, record.publications, l) !== "published" ? " · prethodna objava sačuvana" : ""}</span></li>)}</ul>
+    {(["bs", "sq", "en"] as const).map(l => <button key={l} className={styles.primary} disabled={!writable || !publishingReady || busy || dirty || !record || !ready.includes(l)} onClick={() => setConfirm([l])}>OBJAVI {l.toUpperCase()}</button>)}
+    {ready.length > 1 && <button className={styles.primary} disabled={!writable || !publishingReady || busy || dirty || !record} onClick={() => setConfirm(ready)}>OBJAVI SVE SPREMNE JEZIKE</button>}
+    <p className={styles.muted}>Prvo sačuvajte nacrt i potvrdite pregled odabranog jezika. SQ i EN mogu ostati nacrti; ne blokiraju BS. Naslovna slika je opcionalna. Objava u bazi ne mijenja javni website u ovoj fazi.</p>
+    {!publishingReady && <p className={styles.muted}>Objava po jeziku čeka provjerenu Preview migraciju 202610080003_locale_publication.sql. Spremanje nacrta i postojeće objave ostaju sačuvani.</p>}</section>
     <section><h3>Sačuvajte rad.</h3><button className={styles.primary} disabled={!writable || busy || (!!record && !dirty)} onClick={save}>{busy ? "Čuvanje…" : record ? "Sačuvaj nacrt" : "Kreiraj i sačuvaj nacrt"}</button><p>{writable ? "Nacrti se spremaju u bazu i ostaju dostupni u sljedećoj sesiji." : "Spremanje nije dostupno. Promjene u ovom prozoru su privremene."}</p><button className={styles.secondary} onClick={download}>Preuzmi nacrt · JSON</button><p role="status">{message}</p></section>
     <section><h3>Zajedničke fotografije.</h3><p>Fotografije se prenose jednom. Opisi se uređuju za svaki jezik; redoslijed je zajednički.</p></section></aside></div>
-    {confirm && <ConfirmDialog title="Objavi sva tri jezika?" description="Objava će sačuvati provjerenu verziju BS, SQ i EN u bazi. Javni website još nije povezan s bazom." confirm="Objavi u bazi" busy={busy} onCancel={() => setConfirm(false)} onConfirm={publish} />}
+    {confirm && <ConfirmDialog title={`Objavi ${confirm.map(l => l.toUpperCase()).join(", ")}?`} description="Objavljuju se samo odabrani jezici. Ostale objave ostaju sačuvane; javni website još koristi postojeći izvor." confirm="Objavi u bazi" busy={busy} onCancel={() => setConfirm(null)} onConfirm={publish} />}
   </Shell>;
 }

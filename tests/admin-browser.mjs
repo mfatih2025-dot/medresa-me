@@ -23,6 +23,7 @@ let providerRequests = 0;
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
   await db.exec(readFileSync('supabase/migrations/202610070001_admin_news.sql','utf8'));
   await db.exec(readFileSync('supabase/migrations/202610080002_publication_integrity.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/202610080003_locale_publication.sql','utf8'));
   const { articles } = load('src/content/vijesti');
   const { importArticle } = load('src/admin/import.ts');
   const plan = articles.map((a,i) => ({document:importArticle(a).draft,snapshot:a,fingerprint:'explicit-in-memory-browser-fixture-'+i,source_order:i}));
@@ -37,14 +38,14 @@ let providerRequests = 0;
     try {
       if (url.pathname.startsWith('/rest/v1/rpc/')) {
         const name = url.pathname.split('/').pop(); const body = JSON.parse(init.body);
-        const fields = {medresa_admin_save:['p_document','p_expected','p_actor'],medresa_admin_publish:['p_id','p_expected','p_snapshot','p_actor'],medresa_admin_transition:['p_id','p_expected','p_action','p_actor']}[name];
+        const fields = {medresa_admin_save:['p_document','p_expected','p_actor'],medresa_admin_publish_locales:['p_id','p_expected','p_locales','p_snapshots','p_actor'],medresa_admin_transition:['p_id','p_expected','p_action','p_actor']}[name];
         assert.ok(fields,'Only reviewed RPCs allowed in fixture');
-        const values=fields.map(k=>typeof body[k]==='object'?JSON.stringify(body[k]):body[k]);
+        const values=fields.map(k=>k==='p_locales'?body[k]:typeof body[k]==='object'?JSON.stringify(body[k]):body[k]);
         const result = await db.query(`select to_jsonb(${name}(${fields.map((_,i)=>'$'+(i+1)).join(',')})) as result`,values);
         return json(result.rows[0].result);
       }
       if (url.pathname.startsWith('/rest/v1/')) {
-        const table=url.pathname.split('/').pop(); assert.ok(['medresa_admin_articles','medresa_admin_assets','medresa_admin_public_feed'].includes(table));
+        const table=url.pathname.split('/').pop(); assert.ok(['medresa_admin_articles','medresa_admin_assets','medresa_admin_public_feed','medresa_admin_locale_publication_state'].includes(table));
         if(init.method==='POST') {
           assert.equal(table,'medresa_admin_assets'); const value=JSON.parse(init.body);
           const fields=['id','origin','bucket','object_path','original_path','mime','bytes','metadata','created_by'];
@@ -52,7 +53,7 @@ let providerRequests = 0;
           return json({},201);
         }
         const clauses=[]; const args=[];
-        for(const [key,value] of url.searchParams) if(['id','origin'].includes(key)) {
+        for(const [key,value] of url.searchParams) if(['id','origin','article_id'].includes(key)) {
           if(value.startsWith('eq.')) {args.push(value.slice(3)); clauses.push(`${key}=$${args.length}`);}
           if(value.startsWith('in.(')) {args.push(value.slice(4,-1).split(',')); clauses.push(`${key}=any($${args.length}::text[])`);}
         }
@@ -112,6 +113,51 @@ let providerRequests = 0;
   const newId=page.url().split('/').pop();
   assert.equal((await db.query('select status from medresa_admin_articles where id=$1',[newId])).rows[0].status,'draft');
   await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'');
+  // Publish a photo-free BS article, then SQ and EN independently through the real API.
+  await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
+  await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
+  const localeRows = async () => (await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[newId])).rows;
+  let preservedBs, preservedEn;
+  for(const l of ['bs','sq','en','sq']) {
+    await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
+    const update = l==='sq' && preservedEn;
+    await page.getByLabel('Naslov · '+l.toUpperCase(),{exact:true}).fill('Independent '+l.toUpperCase()+(update?' updated':''));
+    await page.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('independent-'+l);
+    await page.getByLabel('Tekst 1 · '+l.toUpperCase(),{exact:true}).fill('Independent body '+l.toUpperCase()+(update?' updated':''));
+    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
+    await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click();
+    await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+    if(l==='bs') {
+      await page.getByRole('button',{name:'Osvježi pregled',exact:true}).click();
+      await page.frameLocator('iframe').getByRole('heading',{name:'Independent BS',exact:true}).waitFor();
+      assert.equal(await page.frameLocator('iframe').locator('article img').count(),0);
+    }
+    assert.equal(await page.getByRole('button',{name:'OBJAVI '+l.toUpperCase(),exact:true}).isEnabled(),true);
+    for(const other of ['bs','sq','en'].filter(x=>x!==l)) assert.equal(await page.getByRole('button',{name:'OBJAVI '+other.toUpperCase(),exact:true}).isEnabled(),false);
+    assert.equal(await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).count(),0);
+    for(const width of [360,390,412,430]) {
+      await page.setViewportSize({width,height:900});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'locale publication overflow '+width);
+      await page.getByRole('button',{name:'OBJAVI '+l.toUpperCase(),exact:true}).click();
+      const box=await page.getByRole('dialog').boundingBox(); assert.ok(box.x>=0&&box.x+box.width<=width+1);
+      await page.getByRole('button',{name:'Odustani',exact:true}).click();
+    }
+    await page.getByRole('button',{name:'OBJAVI '+l.toUpperCase(),exact:true}).click();
+    await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+    await page.getByText('Objavljeno: '+l.toUpperCase()+'. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+    const rows=await localeRows();
+    if(preservedBs) assert.deepEqual(rows.find(r=>r.locale==='bs'),preservedBs,'later translation must preserve BS');
+    if(preservedEn) assert.deepEqual(rows.find(r=>r.locale==='en'),preservedEn,'SQ update must preserve EN');
+    if(l==='bs') {
+      preservedBs=rows[0]; assert.equal(rows.length,1); assert.equal(rows[0].snapshot.photos.length,0);
+      assert.deepEqual(rows[0].snapshot.sq,{title:'',slug:'',body:''}); assert.deepEqual(rows[0].snapshot.en,{title:'',slug:'',body:''});
+    }
+    if(l==='en') preservedEn=rows.find(r=>r.locale==='en');
+    await page.reload();
+    const states=page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem');
+    for(const item of rows) assert.match(await states.filter({has:page.locator('b',{hasText:new RegExp('^'+item.locale.toUpperCase()+'$')})}).textContent(),/Objavljeno/);
+    if(l==='bs') for(const other of ['SQ','EN']) assert.match(await states.filter({has:page.locator('b',{hasText:new RegExp('^'+other+'$')})}).textContent(),/Nacrt/);
+  }
   // Existing editor and actual renderer: unsaved content, languages, reorder and gallery.
   await page.goto(origin+'/admin/vijesti/2026-05-03-kurban');
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Nespremljeni naslov');
@@ -166,10 +212,10 @@ let providerRequests = 0;
     await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
   }
   await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click(); await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).isEnabled(),true);
-  await page.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).isEnabled(),true);
+  await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).click();
   assert.equal(await page.getByRole('dialog').count(),1); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
-  await page.getByText('Sva tri jezika objavljena su u bazi. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+  await page.getByText('Objavljeno: BS, SQ, EN. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
   const id=savedUrl.split('/').pop(); const published=(await db.query('select * from medresa_admin_articles where id=$1',[id])).rows[0]; assert.equal(published.status,'published');
   // All requested mobile widths including native input attributes, thumbnails and preview controls.
   for(const width of [360,390,412,430]) {
@@ -262,7 +308,7 @@ let providerRequests = 0;
     assert.equal(await phone.locator('iframe').evaluate(e=>Math.round(e.getBoundingClientRect().width)),1200); await assertFits();
     await phone.getByLabel('Veličina pregleda',{exact:true}).getByRole('button',{name:'Mobile',exact:true}).tap();
     const previewTop=await phone.getByRole('region',{name:'Pregled nacrta',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
-    const publishTop=await phone.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
+    const publishTop=await phone.getByRole('button',{name:'OBJAVI BS',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
     assert.ok(publishTop>previewTop,'preview before publication');
     await phone.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).tap(); await phone.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
     const phoneId=phone.url().split('?')[0].split('/').pop(); const saved=(await db.query('select document from medresa_admin_articles where id=$1',[phoneId])).rows[0].document;
@@ -284,6 +330,6 @@ let providerRequests = 0;
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; three-language review/publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; per-language photo-free BS publication, later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
 })().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);process.exit(1);});

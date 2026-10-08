@@ -36,7 +36,7 @@ async function until(statement) {
 }
 const load = moduleLoader();
 const { newDraft, revise } = load("src/admin/model.ts");
-const { toPublicArticle } = load("src/admin/publication.ts");
+const { toPublicArticle, toLocalePublicArticle } = load("src/admin/publication.ts");
 const localized = value => ({ bs: `${value}-bs`, sq: `${value}-sq`, en: `${value}-en` });
 const saveSql = (d, expected) => `select to_jsonb(medresa_admin_save(${json(d)},${expected},'local-concurrency-test'));`;
 async function initial(id) {
@@ -44,7 +44,7 @@ async function initial(id) {
   await checked(saveSql(d, -1));
   return d;
 }
-async function competingTransactions(label, ownerStatements, contenderStatements, ownerEnd = "commit", contenderSucceeds = false) {
+async function competingTransactions(label, ownerStatements, contenderStatements, ownerEnd = "commit", contenderSucceeds = false, failureCode = "23505") {
   const ownerName = `${label}-owner`;
   const contenderName = `${label}-contender`;
   const owner = sql(`set application_name=${literal(ownerName)}; begin; set local role service_role; ${ownerStatements} select pg_sleep(2); ${ownerEnd};`);
@@ -56,7 +56,7 @@ async function competingTransactions(label, ownerStatements, contenderStatements
   const [first, second] = await Promise.all([owner, contender]);
   assert.ok(first.success, first.stderr);
   assert.equal(second.success, contenderSucceeds, second.stderr);
-  if (!contenderSucceeds) assert.match(second.stderr, /23505/);
+  if (!contenderSucceeds) assert.ok(second.stderr.includes(failureCode), second.stderr);
 }
 
 sync(["image", "inspect", "postgres:17-bookworm", "--format", "{{.Id}}"]);
@@ -68,6 +68,8 @@ try {
   await checked("create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);");
   await checked(readFileSync("supabase/migrations/202610070001_admin_news.sql", "utf8"));
   await checked(readFileSync("supabase/migrations/202610080002_publication_integrity.sql", "utf8"));
+
+  await checked(readFileSync("supabase/migrations/202610080003_locale_publication.sql", "utf8"));
 
   const a = await initial("race-draft-a");
   const b = await initial("race-draft-b");
@@ -96,6 +98,18 @@ try {
   assert.equal(await checked("select count(*) from medresa_admin_slug_reservations where article_id='rollback-owner';"), "0");
   assert.equal(await checked("select count(*) from medresa_admin_slug_reservations where article_id='rollback-contender';"), "3");
   console.log("PASS: rolling back a concurrent claim leaves no reservations or partial save.");
+  const localeDraft = await initial("locale-concurrency");
+  const localeReady = revise(localeDraft, { title: localized("Locale title"), slug: localized("locale-concurrency"), date: "2026-10-08", blocks: [{ id: "text", type: "text", text: localized("Locale body") }] });
+  localeReady.review = Object.fromEntries(["bs", "sq", "en"].map(l => [l, { approved: true, reviewedRevision: localeReady.revision }]));
+  await checked(saveSql(localeReady, 0));
+  const localeSql = (l, expected) => `select to_jsonb(medresa_admin_publish_locales(${literal(localeDraft.id)},${expected},array[${literal(l)}],${json({[l]:toLocalePublicArticle(localeReady,l)})},'local-concurrency-test'));`;
+  await competingTransactions("locale-cas", localeSql("bs",1), localeSql("sq",1), "commit", false, "40001");
+  const frozenBs = await checked("select row_to_json(p) from medresa_admin_locale_publication_state p where article_id='locale-concurrency' and locale='bs';");
+  assert.equal(await checked("select count(*) from medresa_admin_locale_heads where article_id='locale-concurrency';"), "1");
+  await checked(localeSql("sq",2));
+  assert.equal(await checked("select row_to_json(p) from medresa_admin_locale_publication_state p where article_id='locale-concurrency' and locale='bs';"), frozenBs);
+  assert.equal(await checked("select count(*) from medresa_admin_locale_heads where article_id='locale-concurrency';"), "2");
+  console.log("PASS: competing locale publications enforce optimistic concurrency; a fresh SQ retry preserves the entire published BS row.");
 } finally {
   if (running) sync(["stop", "--time", "1", name]);
 }

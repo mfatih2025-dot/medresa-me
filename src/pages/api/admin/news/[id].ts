@@ -9,10 +9,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const id = req.query.id;
     if (!safeId(id)) throw new AdminError(422, "Neispravan identitet vijesti.");
     if (req.method === "GET") { const article = await getNews(id); if (!article) throw new AdminError(404, "Vijest nije pronađena."); return res.json({ article }); }
-    const { action, expectedRevision, draft, confirmedId } = req.body ?? {};
+    const { action, expectedRevision, draft, confirmedId, locales } = req.body ?? {};
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new AdminError(422, "Neispravna revizija.");
     if (action === "save") { if (draft?.id !== id) throw new AdminError(422, "Identitet nacrta nije isti."); return res.json({ article: await saveDraft(draft, expectedRevision, session.user) }); }
-    if (action === "publish") return res.json({ article: await publishNews(id, expectedRevision, session.user) });
+    if (action === "publish") return res.json({ article: await publishNews(id, expectedRevision, session.user, locales) });
     if (["archive", "trash", "restore"].includes(action)) {
       if (["archive", "trash"].includes(action) && confirmedId !== id) throw new AdminError(422, "Potrebna je potvrda odabrane vijesti.");
       return res.json({ article: await transitionNews(id, expectedRevision, action, session.user) });

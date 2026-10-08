@@ -1,29 +1,51 @@
 import type { Locale } from "@/i18n/config";
 import type { NewsArticle, NewsVersion } from "@/content/vijesti/types";
-import type { NewsDraft } from "./model";
+import type { EditorialStatus, ManagedArticle, NewsDraft } from "./model";
 
 const languages: Locale[] = ["bs", "sq", "en"];
 export type Check = { key: string; label: string; complete: boolean };
 const hasText = (s: string) => s.trim().length > 0;
 const validUrl = (s: string) => /^\/(?!\/)/.test(s) || /^https:\/\//.test(s);
 
-/** Server publication must rerun these checks against a fresh saved revision. */
-export function publicationChecklist(d: NewsDraft): Check[] {
-  const content = (locale: Locale) => hasText(d.title[locale]) && d.blocks.length > 0 &&
-    d.blocks.some(b => b.type !== "image") && d.blocks.every(b => b.type === "image"
-      ? d.images.some(i => i.id === b.assetId && hasText(i.alt[locale]))
-      : hasText(b.text[locale]));
+/** Checks only the selected locale. Missing translations never block it. */
+export function publicationChecklist(d: NewsDraft, locale: Locale = "bs"): Check[] {
+  const content = hasText(d.title[locale]) && d.blocks.length > 0 && d.blocks.some(b => b.type !== "image") &&
+    d.blocks.every(b => b.type === "image" ? d.images.some(i => i.id === b.assetId && hasText(i.alt[locale])) : hasText(b.text[locale]));
   const unique = new Set(d.blocks.map(b => b.id)).size === d.blocks.length && new Set(d.images.map(i => i.id)).size === d.images.length;
+  const used = new Set([...(d.coverImageId ? [d.coverImageId] : []), ...(d.legacy?.imageIds ?? []), ...d.blocks.flatMap(b => b.type === "image" ? [b.assetId] : [])]);
   const cover = d.images.find(i => i.id === d.coverImageId);
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(d.date) && !Number.isNaN(Date.parse(d.date)) && new Date(d.date).toISOString().slice(0, 10) === d.date;
   return [
-    ...languages.map(l => ({ key: l, label: `${l.toUpperCase()} kompletan`, complete: content(l) })),
-    { key: "cover", label: "Naslovna slika", complete: !!cover && languages.every(l => hasText(cover.alt[l])) },
+    { key: locale, label: `${locale.toUpperCase()} sadržaj kompletan`, complete: content },
+    { key: "cover", label: "Naslovna slika · opcionalno", complete: !d.coverImageId || (!!cover && hasText(cover.alt[locale])) },
     { key: "date", label: "Datum", complete: validDate },
-    { key: "slugs", label: "URL slugovi", complete: languages.every(l => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(d.slug[l]) && !/^\d+$/.test(d.slug[l])) },
-    { key: "fields", label: "Nema praznih polja", complete: unique && languages.every(content) && d.images.every(i => validUrl(i.src) && i.width > 0 && i.height > 0 && languages.every(l => hasText(i.alt[l]))) },
-    { key: "review", label: "Ljudski pregled sva 3 jezika", complete: languages.every(l => d.review[l].approved && d.review[l].reviewedRevision === d.revision) },
+    { key: "slugs", label: `URL slug · ${locale.toUpperCase()}`, complete: /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(d.slug[locale]) && !/^\d+$/.test(d.slug[locale]) },
+    { key: "fields", label: `Nema praznih polja · ${locale.toUpperCase()}`, complete: unique && content && [...used].every(id => {
+      const i = d.images.find(image => image.id === id); return !!i && validUrl(i.src) && i.width > 0 && i.height > 0 && hasText(i.alt[locale]);
+    }) },
+    { key: "review", label: `Ljudski pregled · ${locale.toUpperCase()}`, complete: d.review[locale].approved && d.review[locale].reviewedRevision === d.revision },
   ];
+}
+export function readyLocales(d: NewsDraft): Locale[] {
+  return languages.filter(l => publicationChecklist(d, l).every(c => c.complete));
+}
+/** Compare the visible locale only, including its frozen photos/date/crops. */
+function visibleVersion(a: NewsArticle, locale: Locale): string {
+  return JSON.stringify({ id: a.id, date: a.date, topic: a.topic, source: a.source, version: a[locale],
+    photos: a.photos.map(({ alt, ...photo }) => ({ ...photo, alt: alt[locale] })) }, (_key, value) => value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value);
+}
+export function localeStatus(d: NewsDraft, publications: ManagedArticle["publications"], locale: Locale): EditorialStatus {
+  const published = publications?.[locale];
+  if (published) {
+    try { if (visibleVersion(toPublicArticle(d), locale) === visibleVersion(published.snapshot, locale)) return "published"; } catch { /* Incomplete image placeholders are drafts. */ }
+  }
+  return publicationChecklist(d, locale).every(c => c.complete) ? "ready" : "draft";
+}
+/** A per-locale snapshot uses the real renderer contract; other drafts are not exposed. */
+export function toLocalePublicArticle(d: NewsDraft, locale: Locale): NewsArticle {
+  const article = toPublicArticle(d);
+  for (const other of languages) if (other !== locale) article[other] = { title: "", slug: "", body: "" };
+  return article;
 }
 
 /** Compatibility adapter only. It never writes to the existing public news store. */
