@@ -7,10 +7,10 @@ import type { Locale } from "@/i18n/config";
 
 /*
  * Every public page in its three languages, each entry listing the others as
- * alternates (hreflang). Pages still waiting for their content (Kućni red) are
- * left out until they are written. Groundwork for the final SEO pass.
+ * alternates (hreflang). Pages still waiting for their content are left out
+ * until they are written. Groundwork for the final SEO pass.
  */
-const pending: PageId[] = ["kucni-red"];
+const pending: PageId[] = [];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const abs = (path: string) => new URL(path, site.url).toString();

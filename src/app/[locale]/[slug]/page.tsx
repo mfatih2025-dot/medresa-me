@@ -9,8 +9,8 @@ import { isPageId, pathFor, type PageId } from "@/i18n/routes";
 
 type Params = { locale: string; slug: string };
 
-/** Pages not built yet; every other page has its own route (app/[locale]/<page>/page.tsx). */
-const placeholders: PageId[] = ["kucni-red"];
+/** Pages not built yet (none at present); every other page has its own route (app/[locale]/<page>/page.tsx). */
+const placeholders: PageId[] = [];
 
 export function generateStaticParams(): Pick<Params, "slug">[] {
   return placeholders.map((slug) => ({ slug }));
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return pageMetadata(slug, locale, { title: pageTitles[locale][slug] });
 }
 
-/** Placeholder for the pages still to be built (Kućni red). */
+/** Placeholder for pages still to be built. */
 export default async function PlaceholderPage({ params }: { params: Promise<Params> }) {
   const { locale: l, slug } = await params;
   const locale = asLocale(l);

@@ -1167,3 +1167,80 @@ html[data-gateway] .gw {
     translate: 0 108%;
   }
 }
+
+/* ---------- Kućni red ----------
+   One document on a gold guide: number column · guide · text. Numbers are
+   quiet markers set on the text's first line; the measure stays a reading
+   measure at every width (the frame is offset, never stretched). */
+.kr-frame {
+  --kr-num: 2rem;
+  --kr-gap: 1rem;
+  max-width: 54rem;
+}
+.kr-guide {
+  left: calc(var(--kr-num) + var(--kr-gap));
+}
+.kr-rule {
+  grid-template-columns: var(--kr-num) minmax(0, 1fr);
+  column-gap: calc(var(--kr-gap) * 2 + 1px);
+  padding-bottom: 1.375rem;
+}
+.kr-rule:last-child {
+  padding-bottom: 0;
+}
+.kr-num {
+  font-size: 1rem;
+  line-height: 1.7rem;
+  letter-spacing: 0.02em;
+}
+.kr-tick {
+  top: 0.85rem;
+  left: calc(var(--kr-num) + var(--kr-gap) * 0.35);
+  width: calc(var(--kr-gap) * 0.65);
+}
+.kr-text {
+  font-size: 1.0625rem;
+  line-height: 1.7rem;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+@media (min-width: 768px) {
+  .kr-frame {
+    --kr-num: 3.25rem;
+    --kr-gap: 1.5rem;
+  }
+  .kr-rule {
+    padding-bottom: 1.75rem;
+  }
+  .kr-num {
+    font-size: 1.375rem;
+    line-height: 2rem;
+    text-align: right;
+  }
+  .kr-tick {
+    top: 1rem;
+  }
+  .kr-text {
+    font-size: 1.1875rem;
+    line-height: 2rem;
+  }
+}
+@media (min-width: 1024px) {
+  .kr-frame {
+    --kr-num: 4.5rem;
+    --kr-gap: 2rem;
+    margin-left: calc(100% / 12);
+  }
+  .kr-num {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+  }
+  .kr-tick {
+    top: 1.0625rem;
+  }
+  .kr-text {
+    font-size: 1.25rem;
+    line-height: 2.125rem;
+  }
+}
