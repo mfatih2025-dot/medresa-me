@@ -10,6 +10,7 @@ const publication = load("src/admin/publication.ts");
 const importer = load("src/admin/import.ts");
 const { articles } = load("src/content/vijesti");
 const backend = load("src/server/admin/supabase.ts");
+const diagnostic = load("src/server/admin/diagnostics.ts");
 const news = load("src/server/admin/news.ts");
 const media = load("src/server/admin/media.ts");
 const auth = load("src/server/admin/auth.ts");
@@ -104,6 +105,72 @@ test("opaque Supabase secret keys use apikey; legacy JWT keys use the authorizat
   process.env.SUPABASE_SERVICE_ROLE_KEY="sb_secret_explicit-test-fixture-no-real-key";
   await backend.supabaseRequest("/rest/v1/test");
   assert.equal(headers[1].get("Authorization"),null); assert.equal(headers[1].get("apikey"),process.env.SUPABASE_SERVICE_ROLE_KEY);
+}));
+test("configuration diagnostic identifies failed guards without returning values or making provider requests", async () => environment(async () => {
+  let requests=0; globalThis.fetch=async () => { requests++; throw new Error("Diagnostics must not contact a provider"); };
+  configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED="false";
+  const healthy=diagnostic.adminConfigurationDiagnostic();
+  assert.equal(healthy.configurationAccepted,true); assert.deepEqual(healthy.failedChecks,[]);
+  assert.ok(Object.values(healthy.checks).every(v => v === true));
+  const cases=[
+    ["VERCEL_GIT_COMMIT_REF",undefined,"adminBranch",false],
+    ["VERCEL_GIT_COMMIT_REF","main","adminBranch",false],
+    ["VERCEL_ENV","production","previewEnvironment",false],
+    ["SUPABASE_URL",undefined,"supabaseUrlPresent",false],
+    ["SUPABASE_SERVICE_ROLE_KEY",undefined,"serviceRoleKeyPresent",false],
+    ["MEDRESA_SUPABASE_PROJECT_REF",undefined,"projectRefPresent",false],
+    ["SUPABASE_URL","invalid-private-input","supabaseUrlParseable",false],
+    ["SUPABASE_URL","https://abcdefghijklmnopqrst.supabase.co/","supabaseUrlExactOrigin",false],
+    ["SUPABASE_URL","https://abcdefghijklmnopqrst.supabase.co\n","supabaseUrlExactOrigin",false],
+    ["SUPABASE_URL","http://abcdefghijklmnopqrst.supabase.co","supabaseUrlHttps",false],
+    ["MEDRESA_SUPABASE_PROJECT_REF","differentprojectref","supabaseHostnameMatchesProjectRef",false],
+    ["MEDRESA_SUPABASE_PROJECT_REF","INVALID REF","projectRefFormatValid",false],
+    ["MEDRESA_SUPABASE_WRITE_ENABLED","true","writeFlagIsFalse",true],
+    ["MEDRESA_SUPABASE_WRITE_ENABLED",undefined,"writeFlagIsFalse",true],
+  ];
+  for (const [variable,value,failed,accepted] of cases) {
+    configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED="false";
+    if (value === undefined) delete process.env[variable]; else process.env[variable]=value;
+    const report=diagnostic.adminConfigurationDiagnostic();
+    assert.equal(report.checks[failed],false); assert.ok(report.failedChecks.includes(failed));
+    assert.equal(report.configurationAccepted,accepted);
+    assert.deepEqual(Object.keys(report),["configurationAccepted","checks","failedChecks"]);
+    assert.ok(Object.values(report.checks).every(v => typeof v === "boolean"));
+    const serialized=JSON.stringify(report);
+    for (const name of ["SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","MEDRESA_SUPABASE_PROJECT_REF"]) if (process.env[name]) assert.ok(!serialized.includes(process.env[name]));
+  }
+  assert.equal(requests,0);
+}));
+test("diagnostic API is authenticated, GET-only, Preview-only and never exposes secrets or contacts Supabase", async () => environment(async () => {
+  const handler=load("src/pages/api/admin/diagnostics.ts").default;
+  let requests=0; globalThis.fetch=async () => { requests++; throw new Error("Diagnostics must not contact a provider"); };
+  configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED="false";
+  process.env.MEDRESA_ADMIN_USER="diagnostic-auth-fixture"; process.env.MEDRESA_ADMIN_PASSWORD_HASH=`scrypt$${"a".repeat(32)}$${"b".repeat(128)}`; process.env.MEDRESA_ADMIN_SESSION_SECRET=randomBytes(48).toString("base64url"); process.env.MEDRESA_ADMIN_ORIGIN="https://admin.example.test";
+  const cookies={ [auth.cookieName()]:auth.createSession() };
+  for (const candidate of [{},{[auth.cookieName()]:"tampered-session"}]) {
+    const res=response(); await handler({method:"GET",headers:{},cookies:candidate},res);
+    assert.equal(res.statusCode,401); assert.equal(res.body.checks,undefined);
+    assert.match(res.headers["Cache-Control"],/private.*no-store/); assert.match(res.headers["X-Robots-Tag"],/noindex/);
+  }
+  for (const method of ["POST","PUT","PATCH","DELETE","HEAD","OPTIONS"]) {
+    const res=response(); await handler({method,headers:{},cookies},res);
+    assert.equal(res.statusCode,405); assert.equal(res.headers.Allow,"GET"); assert.equal(res.body.checks,undefined);
+  }
+  const valid=response(); await handler({method:"GET",headers:{},cookies},valid);
+  assert.equal(valid.statusCode,200); assert.equal(valid.body.configurationAccepted,true); assert.deepEqual(valid.body.failedChecks,[]);
+  assert.equal(valid.body.checks.writeFlagIsFalse,true); assert.equal(valid.headers["X-Content-Type-Options"],"nosniff");
+  for (const name of envNames) if (process.env[name] && process.env[name].length > 10) assert.ok(!JSON.stringify(valid.body).includes(process.env[name]));
+  delete process.env.VERCEL_GIT_COMMIT_REF;
+  const missingBranch=response(); await handler({method:"GET",headers:{},cookies},missingBranch);
+  assert.equal(missingBranch.statusCode,200); assert.equal(missingBranch.body.configurationAccepted,false); assert.deepEqual(missingBranch.body.failedChecks,["adminBranch"]);
+  for (const value of ["production","development",undefined]) {
+    if (value === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV=value;
+    for (const candidate of [cookies,{}]) {
+      const res=response(); await handler({method:"GET",headers:{},cookies:candidate},res);
+      assert.equal(res.statusCode,404); assert.equal(res.body.checks,undefined); assert.match(res.headers["Cache-Control"],/no-store/);
+    }
+  }
+  assert.equal(requests,0);
 }));
 test("all private APIs reject unauthenticated requests; mutations reject foreign origins and deletion needs explicit confirmation", async () => environment(async () => {
   const handlers=["news/index","news/[id]","media/index","media/[id]","preview","translation"].map(p => load(`src/pages/api/admin/${p}.ts`).default);

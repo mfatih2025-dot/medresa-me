@@ -15,6 +15,7 @@ const next = requireProject('next');
 const origin = 'http://127.0.0.1:3212';
 const provider = 'https://abcdefghijklmnopqrst.supabase.co';
 const objects = new Map();
+let providerRequests = 0;
 (async () => {
   const { moduleLoader } = await import('../scripts/lib/load-typescript.mjs');
   const load = moduleLoader();
@@ -29,6 +30,7 @@ const objects = new Map();
   globalThis.fetch = async (input, init = {}) => {
     const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     if (!address.startsWith(provider + '/')) return realFetch(input, init);
+    providerRequests++;
     const url = new URL(address); const headers = new Headers(init.headers);
     const json = (value,status=200) => new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
     try {
@@ -74,7 +76,22 @@ const objects = new Map();
     const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/admin/login');
   }
   assert.equal((await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{}})).status(),401);
+  const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); assert.equal((await lockedDiagnostic.json()).checks,undefined);
   const login=await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:'browser-test-fixture',password}}); assert.equal(login.status(),200);
+  const beforeDiagnostic=providerRequests;
+  try {
+    process.env.MEDRESA_SUPABASE_WRITE_ENABLED='false';
+    const result=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(result.status(),200);
+    const report=await result.json(); assert.equal(report.configurationAccepted,true); assert.deepEqual(report.failedChecks,[]); assert.ok(Object.values(report.checks).every(v=>v===true));
+    assert.match(result.headers()['cache-control'],/private.*no-store/); assert.match(result.headers()['x-robots-tag'],/noindex/);
+    for(const name of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MEDRESA_SUPABASE_PROJECT_REF','MEDRESA_ADMIN_USER','MEDRESA_ADMIN_PASSWORD_HASH','MEDRESA_ADMIN_SESSION_SECRET','MEDRESA_ADMIN_ORIGIN']) assert.ok(!JSON.stringify(report).includes(process.env[name]));
+    delete process.env.VERCEL_GIT_COMMIT_REF;
+    const failed=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(failed.status(),200); assert.deepEqual((await failed.json()).failedChecks,['adminBranch']);
+    assert.equal((await context.request.post(origin+'/api/admin/diagnostics',{headers:{Origin:origin},data:{}})).status(),405);
+    process.env.VERCEL_ENV='production';
+    const production=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(production.status(),404); assert.equal((await production.json()).checks,undefined);
+    assert.equal(providerRequests,beforeDiagnostic);
+  } finally { process.env.VERCEL_ENV='preview'; process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel'; process.env.MEDRESA_SUPABASE_WRITE_ENABLED='true'; }
   await page.goto(origin+'/admin/vijesti'); assert.equal(await page.getByRole('article').count(),17);
   await page.getByRole('searchbox').fill('TIKA'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('searchbox').fill('');
   await page.getByRole('button',{name:'＋ Nova vijest',exact:true}).click();
