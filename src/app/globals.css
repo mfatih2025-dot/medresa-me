@@ -1273,3 +1273,25 @@ html[data-gateway] .gw {
   -webkit-box-decoration-break: slice;
   box-decoration-break: slice;
 }
+
+/* Kućni red — fail-safe visibility.
+   The text arrives through motion that starts from a hidden state written into
+   the server's HTML. If the page never becomes live (JavaScript blocked, failed
+   or very slow), these rules show it after 2.5s anyway: a CSS animation outranks
+   the inline hidden style. Header pieces (title, subtitle, rule) have entered
+   well before then, so theirs simply stays on. The rules' scroll entrances keep
+   their motion: the list gets [data-live] as soon as the page is live, which
+   turns this off for them (see RulesList). */
+@keyframes kr-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kr-head .line-mask > *,
+.kr-head .kr-sub,
+.kr-head .kr-headrule,
+.kr-list:not([data-live]) .kr-num,
+.kr-list:not([data-live]) .kr-text {
+  animation: kr-failsafe 0.01s 2.5s forwards;
+}

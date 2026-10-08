@@ -39,7 +39,7 @@ export function KucniRed({ locale }: { locale: Locale }) {
   const c = kucniRedContent[locale];
   return (
     <article className="overflow-x-clip bg-paper pb-20 text-ink md:pb-28">
-      <header className="wrap pt-32 md:pt-40 lg:pt-44">
+      <header className="kr-head wrap pt-32 md:pt-40 lg:pt-44">
         <div className="kr-frame">
           <LineReveal
             as="h1"
@@ -47,12 +47,12 @@ export function KucniRed({ locale }: { locale: Locale }) {
             lines={[c.title]}
             className="display text-[clamp(2.75rem,1.6rem+5vw,6.5rem)] leading-[0.95] tracking-[-0.03em] text-green"
           />
-          <Reveal y={10} delay={0.25}>
+          <Reveal y={10} delay={0.25} className="kr-sub">
             <p className="mt-5 text-[1.0625rem] font-light leading-[1.5] text-ink-soft md:mt-7 md:text-[1.25rem]">
               {c.subtitle}
             </p>
           </Reveal>
-          <GoldRule className="mt-7 w-20 md:mt-9 md:w-28" />
+          <GoldRule className="kr-headrule mt-7 w-20 md:mt-9 md:w-28" />
         </div>
       </header>
 

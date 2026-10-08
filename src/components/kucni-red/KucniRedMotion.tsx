@@ -6,7 +6,6 @@ import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { ShareIcon } from "@/components/ui/icons";
 
 const ease = [0.16, 1, 0.3, 1] as const;
-const once = { once: true, margin: "0px 0px -12% 0px" } as const;
 
 /**
  * The rules as one document. A single gold guide runs beside the text and is
@@ -19,8 +18,14 @@ export function RulesList({ children, label }: { children: ReactNode; label: str
   const { reduced } = useMotionProfile();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 80%", "end 70%"] });
   const scaleY = useSpring(scrollYProgress, { stiffness: 140, damping: 30, restDelta: 0.001 });
+  // The page is live: hand the rules from the CSS fail-safe (.kr-list) to the motion below.
+  // If the fail-safe has already shown them (JavaScript arrived late), it stays in place.
+  useEffect(() => {
+    const el = ref.current;
+    if (el && !failsafeFired(el)) el.dataset.live = "";
+  }, []);
   return (
-    <ol ref={ref} aria-label={label} className="relative list-none">
+    <ol ref={ref} aria-label={label} className="kr-list relative list-none">
       {/* The guide: faint along its whole length, gold where the reader has been. */}
       <span aria-hidden className="kr-guide absolute bottom-3 top-3 w-px bg-gold/20" />
       <motion.span
@@ -91,20 +96,83 @@ function Marker({ children }: { children: ReactNode }) {
   );
 }
 
-export function Rule({ n, children, mark = false }: { n: number; children: ReactNode; mark?: boolean }) {
+/** True when the CSS fail-safe has already made the rules visible (see .kr-list in globals.css). */
+function failsafeFired(scope: Element) {
+  const text = scope.querySelector<HTMLElement>(".kr-text");
+  return !!text && text.style.opacity === "0" && getComputedStyle(text).opacity === "1";
+}
+
+type Phase = "hide" | "show" | "instant";
+
+/**
+ * When a rule should enter. It never depends on one mechanism alone: the
+ * IntersectionObserver reports it, a plain scroll/resize check backs it up
+ * (some Android browsers deliver no observer entries), and a rule that the
+ * CSS fail-safe has already revealed — or any rule under reduced motion —
+ * settles at once, with no entrance.
+ */
+function useEntrance() {
+  const ref = useRef<HTMLLIElement>(null);
   const { reduced } = useMotionProfile();
+  const [phase, setPhase] = useState<Phase>("hide");
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let done = false;
+    let io: IntersectionObserver | undefined;
+    const visible = () => {
+      const r = el.getBoundingClientRect();
+      return r.top < window.innerHeight * 0.88 && r.bottom > 0;
+    };
+    const finish = (next: Phase) => {
+      if (done) return;
+      done = true;
+      stop();
+      setPhase(next);
+    };
+    const check = () => {
+      if (visible()) finish("show");
+    };
+    const onScroll = () => requestAnimationFrame(check);
+    function stop() {
+      io?.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      window.clearTimeout(timer);
+    }
+    const frame = requestAnimationFrame(() => {
+      if (failsafeFired(el)) finish("instant");
+      else check();
+    });
+    if ("IntersectionObserver" in window) {
+      io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && finish("show"), {
+        rootMargin: "0px 0px -12% 0px",
+      });
+      io.observe(el);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    const timer = window.setTimeout(check, 1200);
+    return () => {
+      cancelAnimationFrame(frame);
+      stop();
+    };
+  }, []);
+  // Reduced motion is known only after hydration, when the rule may still hold the
+  // server's hidden style: settle it to visible explicitly (never leave it as it was).
+  return { ref, phase: reduced ? ("instant" as const) : phase };
+}
+
+export function Rule({ n, children, mark = false }: { n: number; children: ReactNode; mark?: boolean }) {
+  const { ref, phase } = useEntrance();
   const marker = String(n).padStart(2, "0");
-  const enter = (y: number, delay: number, duration: number) =>
-    reduced
-      ? {}
-      : {
-          initial: { opacity: 0, y },
-          whileInView: { opacity: 1, y: 0 },
-          viewport: once,
-          transition: { duration, delay, ease },
-        };
+  const enter = (y: number, delay: number, duration: number) => ({
+    initial: { opacity: 0, y },
+    animate: phase === "hide" ? { opacity: 0, y } : { opacity: 1, y: 0 },
+    transition: phase === "instant" ? { duration: 0 } : { duration, delay, ease },
+  });
   return (
-    <li className="kr-rule relative grid">
+    <li ref={ref} className="kr-rule relative grid">
       <motion.span
         aria-hidden
         className="kr-num display tabular-nums text-gold-deep"
