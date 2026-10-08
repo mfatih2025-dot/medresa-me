@@ -31,8 +31,11 @@ Network access to `<preview-project-ref>.supabase.co` is also needed in any envi
 used for the import/verification commands. Supply credentials through secure runtime
 bindings or a local secret manager, never source files, command-line arguments or Git.
 
-Review and manually apply `supabase/migrations/202610070001_admin_news.sql` to the
-confirmed Preview project only. This is an additive, transactional migration, not an
+On a fresh, uninstalled project only, review and manually apply
+`supabase/migrations/202610070001_admin_news.sql` to the confirmed Preview project.
+For the already installed `medresa-me-preview` schema, do not rerun that migration;
+follow the separate review/approval boundary in [publication integrity](admin-publication-integrity.md).
+The initial migration is additive and transactional, not an
 automatic deployment hook. It creates new prefixed tables, RPCs and a private bucket.
 It deliberately fails on an existing/conflicting schema/bucket instead of replacing it.
 No remote schema reset, destructive migration or permanent deletion is implemented.

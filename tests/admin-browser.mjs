@@ -22,6 +22,7 @@ let providerRequests = 0;
   const db = new PGlite();
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
   await db.exec(readFileSync('supabase/migrations/202610070001_admin_news.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/202610080002_publication_integrity.sql','utf8'));
   const { articles } = load('src/content/vijesti');
   const { importArticle } = load('src/admin/import.ts');
   const plan = articles.map((a,i) => ({document:importArticle(a).draft,snapshot:a,fingerprint:'explicit-in-memory-browser-fixture-'+i,source_order:i}));

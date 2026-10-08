@@ -15,6 +15,7 @@ async function database() {
   const db = new PGlite();
   await db.exec("create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);");
   await db.exec(readFileSync("supabase/migrations/202610070001_admin_news.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/202610080002_publication_integrity.sql", "utf8"));
   return db;
 }
 async function call(db, name, args) {
@@ -84,6 +85,6 @@ test("anonymous and authenticated browser roles cannot read tables or execute ed
       } finally { await db.exec("reset role"); }
     }
     const rls = (await db.query("select relrowsecurity from pg_class where relname like 'medresa_admin_%' and relkind='r'")).rows;
-    assert.equal(rls.length, 8); assert.ok(rls.every(r => r.relrowsecurity));
+    assert.equal(rls.length, 10); assert.ok(rls.every(r => r.relrowsecurity));
   } finally { await db.close(); }
 });
