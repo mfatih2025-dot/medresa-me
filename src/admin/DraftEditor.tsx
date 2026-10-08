@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { Locale } from "@/i18n/config";
@@ -11,10 +11,11 @@ import { ImagePicker } from "./ImagePicker";
 import { LivePreview } from "./LivePreview";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { adminRequest } from "./client";
+import { bosnianTranslationReady, existingTranslationLocales } from "./translation";
 import styles from "./admin.module.css";
 const labels = { text: "Tekst", subheading: "Podnaslov", image: "Slika", quote: "Citat" };
-export type EditorProps = { initial: ManagedArticle | null; assets: SharedImage[]; backend: BackendState; saved?: boolean };
-export function DraftEditor({ initial, assets: initialAssets, backend, saved }: EditorProps) {
+export type EditorProps = { initial: ManagedArticle | null; assets: SharedImage[]; backend: BackendState; saved?: boolean; translationAvailable?: boolean };
+export function DraftEditor({ initial, assets: initialAssets, backend, saved, translationAvailable = false }: EditorProps) {
   const router = useRouter();
   const [record, setRecord] = useState(initial);
   const [draft, setDraft] = useState(() => initial?.draft ?? newDraft("scratch-new"));
@@ -22,6 +23,10 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
   const [locale, setLocale] = useState<Locale>("bs");
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const translationRunning = useRef(false);
+  const [translationConfirm, setTranslationConfirm] = useState<("sq" | "en")[] | null>(null);
+  const [translatedDraft, setTranslatedDraft] = useState<NewsDraft | null>(null);
   const [confirm, setConfirm] = useState<Locale[] | null>(null);
   const [message, setMessage] = useState(saved ? "Nacrt je spremljen u bazu." : "");
   const checks = publicationChecklist(draft, locale);
@@ -72,6 +77,22 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
       if (!record) await router.replace(`/admin/vijesti/${result.article.draft.id}?saved=1`, undefined, { scroll: false });
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nacrt nije spremljen."); }
     finally { setBusy(false); }
+  }
+  function requestTranslation() {
+    if (busy || translationRunning.current || !writable || !record || !translationAvailable || !bosnianTranslationReady(draft)) return;
+    const existing = [...new Set([...existingTranslationLocales(draft), ...existingTranslationLocales(record.draft)])];
+    if (existing.length) setTranslationConfirm(existing);
+    else void translate([]);
+  }
+  async function translate(confirmedLocales: ("sq" | "en")[]) {
+    if (busy || translationRunning.current || !writable || !record || !translationAvailable) return;
+    translationRunning.current = true; setBusy(true); setTranslating(true); setMessage("");
+    try {
+      const { article } = await adminRequest<{ article: ManagedArticle }>("/api/admin/translation", { draft, expectedRevision: record.draft.revision, confirmedLocales });
+      setRecord(article); setDraft(article.draft); setDirty(false); setTranslatedDraft(article.draft);
+      setMessage("SQ i EN nacrti su pripremljeni.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Prijevod nije završen. Postojeći sadržaj je sačuvan."); }
+    finally { translationRunning.current = false; setBusy(false); setTranslating(false); setTranslationConfirm(null); }
   }
   async function publish() {
     if (!confirm || busy || !writable || !publishingReady || confirm.some(l => !ready.includes(l))) return;
@@ -128,8 +149,8 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
       <div className={styles.addBlocks} aria-label="Dodaj blok">{(["text", "subheading", "image", "quote"] as const).map(t => <button key={t} onClick={() => add(t)}>＋ {labels[t]}</button>)}</div>
       <button className={styles.secondary} onClick={approve} disabled={!checks.find(c => c.key === locale)?.complete}>{draft.review[locale].approved ? "✓ Pregledano · povuci odobrenje" : `Potvrdi ljudski pregled · ${locale.toUpperCase()}`}</button>
       </fieldset>
-      <section className={styles.editorReview}><h3>Prijevod uz ljudski pregled.</h3><p className={styles.muted}>OpenAI nije povezan. BS je master; SQ i EN uredite ručno. AI će kasnije kreirati samo nacrte.</p><button className={styles.secondary} disabled>Prevedi na SQ i EN</button></section>
-    </section><LivePreview draft={draft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><ul className={styles.checklist} aria-label="Status jezika">{(["bs", "sq", "en"] as const).map(l => <li key={l}><b>{l.toUpperCase()}</b><span>{statusLabels[localeStatus(draft, record?.publications, l)]}{record?.publications?.[l] && localeStatus(draft, record.publications, l) !== "published" ? " · prethodna objava sačuvana" : ""}</span></li>)}</ul>
+      <section className={styles.editorReview}><h3>Prijevod uz ljudski pregled.</h3><p className={styles.muted}>{translationAvailable ? "BS je master. OpenAI priprema samo SQ i EN nacrte; prije objave potvrdite ljudski pregled svakog jezika." : "OpenAI prijevod nije dostupan za ovaj Preview. SQ i EN možete urediti ručno."}{!record && " Prvo sačuvajte novi nacrt u bazu."}</p><button className={styles.secondary} disabled={busy || !writable || !record || !translationAvailable || !bosnianTranslationReady(draft)} onClick={requestTranslation}>{translating ? "Prevodim SQ i EN…" : "Prevedi na SQ i EN"}</button></section>
+    </section><LivePreview draft={draft} translatedDraft={translatedDraft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><ul className={styles.checklist} aria-label="Status jezika">{(["bs", "sq", "en"] as const).map(l => <li key={l}><b>{l.toUpperCase()}</b><span>{statusLabels[localeStatus(draft, record?.publications, l)]}{record?.publications?.[l] && localeStatus(draft, record.publications, l) !== "published" ? " · prethodna objava sačuvana" : ""}</span></li>)}</ul>
     {(["bs", "sq", "en"] as const).map(l => <button key={l} className={styles.primary} disabled={!writable || !publishingReady || busy || !ready.includes(l)} onClick={() => setConfirm([l])}>OBJAVI {l.toUpperCase()}</button>)}
     {ready.length > 1 && <button className={styles.primary} disabled={!writable || !publishingReady || busy} onClick={() => setConfirm(ready)}>OBJAVI SVE SPREMNE JEZIKE</button>}
     <p className={styles.muted}>Potvrdite pregled odabranog jezika. Objava prvo sprema nacrt, zatim objavljuje samo odabrane jezike. SQ i EN mogu ostati nacrti; ne blokiraju BS. Naslovna slika je opcionalna. Objava u bazi ne mijenja javni website u ovoj fazi.</p>
@@ -137,5 +158,6 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
     <section><h3>Sačuvajte rad.</h3><button className={styles.primary} disabled={!writable || busy || (!!record && !dirty)} onClick={save}>{busy ? "Čuvanje…" : record ? "Sačuvaj nacrt" : "Kreiraj i sačuvaj nacrt"}</button><p>{writable ? "Nacrti se spremaju u bazu i ostaju dostupni u sljedećoj sesiji." : "Spremanje nije dostupno. Promjene u ovom prozoru su privremene."}</p><button className={styles.secondary} onClick={download}>Preuzmi nacrt · JSON</button><p role="status">{message}</p></section>
     <section><h3>Zajedničke fotografije.</h3><p>Fotografije se prenose jednom. Opisi se uređuju za svaki jezik; redoslijed je zajednički.</p></section></aside></div>
     {confirm && <ConfirmDialog title={`Objavi ${confirm.map(l => l.toUpperCase()).join(", ")}?`} description="Objavljuju se samo odabrani jezici. Ostale objave ostaju sačuvane; javni website još koristi postojeći izvor." confirm="Objavi u bazi" busy={busy} onCancel={() => setConfirm(null)} onConfirm={publish} />}
+    {translationConfirm && <ConfirmDialog title={`Zamijeniti ${translationConfirm.map(l => l.toUpperCase()).join(" i ")} nacrte?`} description="Postojeći tekst i opisi slika bit će zamijenjeni AI prijevodom. BS i ranije objave ostaju sačuvani. Novi SQ i EN nacrti traže ljudski pregled." confirm="Potvrdi zamjenu i prevedi" busy={busy} onCancel={() => setTranslationConfirm(null)} onConfirm={() => void translate(translationConfirm)} />}
   </Shell>;
 }

@@ -5,12 +5,13 @@ import type { EditorProps } from "@/admin/DraftEditor";
 import { archiveAssets, getNews, readLocalePublications } from "./news";
 import { listImages } from "./media";
 import { backendState } from "./supabase";
+import { translationAvailable } from "./translation";
 export async function editorProps(id?: string): Promise<EditorProps | null> {
   const state = backendState();
   try {
     const initial = id ? await getNews(id) : null;
     if (id && !initial) return null;
-    return { initial, assets: await listImages(), backend: { ...state, localePublishingReady: initial?.localePublishingReady ?? (state.state === "connected" && (await readLocalePublications()).available) } };
+    return { initial, assets: await listImages(), translationAvailable: translationAvailable(), backend: { ...state, localePublishingReady: initial?.localePublishingReady ?? (state.state === "connected" && (await readLocalePublications()).available) } };
   } catch (error) {
     const legacy = articles.find(a => a.id === id);
     if (id && !legacy) return null;

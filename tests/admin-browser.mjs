@@ -16,6 +16,8 @@ const origin = 'http://localhost:3212';
 const provider = 'https://abcdefghijklmnopqrst.supabase.co';
 const objects = new Map();
 let providerRequests = 0;
+let translationRequests = 0;
+let translationMode = 'success';
 (async () => {
   const { moduleLoader } = await import('../scripts/lib/load-typescript.mjs');
   const load = moduleLoader();
@@ -31,6 +33,17 @@ let providerRequests = 0;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
     const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    // Explicit local OpenAI fixture only; the deployed handler has no mock path.
+    if (address === 'https://api.openai.com/v1/responses') {
+      translationRequests++;
+      await new Promise(resolve => setTimeout(resolve, 150));
+      if (translationMode === 'failure') return new Response(JSON.stringify({error:'explicit-private-provider-fixture'}),{status:500});
+      const source = JSON.parse(JSON.parse(init.body).input[0].content);
+      const pair = value => ({sq:value ? 'Përkthim: '+value : '',en:value ? 'Translation: '+value : ''});
+      const output = {title:pair(source.title),lead:pair(source.lead),blocks:source.blocks.map(b=>({id:b.id,type:b.type,text:pair(b.text)})),images:source.images.map(i=>({id:i.id,alt:pair(i.alt)}))};
+      if (translationMode === 'invalid') output.blocks.reverse();
+      return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(output)}]}]}),{headers:{'Content-Type':'application/json'}});
+    }
     if (!address.startsWith(provider + '/')) return realFetch(input, init);
     providerRequests++;
     const url = new URL(address); const headers = new Headers(init.headers);
@@ -69,7 +82,7 @@ let providerRequests = 0;
   };
   // Test fixtures only, never provider credentials and never written to a file.
   const password=randomBytes(24).toString('base64url'); const salt=randomBytes(16).toString('hex');
-  Object.assign(process.env,{NEXT_TELEMETRY_DISABLED:'1',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'codex/admin-panel',SUPABASE_URL:provider,SUPABASE_SERVICE_ROLE_KEY:'explicit-browser-fixture-no-real-key',MEDRESA_SUPABASE_PROJECT_REF:'abcdefghijklmnopqrst',MEDRESA_SUPABASE_WRITE_ENABLED:'true',MEDRESA_ADMIN_USER:'browser-test-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
+  Object.assign(process.env,{OPENAI_API_KEY:'explicit-openai-browser-fixture-no-real-key',NEXT_TELEMETRY_DISABLED:'1',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'codex/admin-panel',SUPABASE_URL:provider,SUPABASE_SERVICE_ROLE_KEY:'explicit-browser-fixture-no-real-key',MEDRESA_SUPABASE_PROJECT_REF:'abcdefghijklmnopqrst',MEDRESA_SUPABASE_WRITE_ENABLED:'true',MEDRESA_ADMIN_USER:'browser-test-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
   const app=next({dev:false,dir:process.cwd(),hostname:'localhost',port:3212}); await app.prepare();
   const server=http.createServer(app.getRequestHandler()); await new Promise(resolve=>server.listen(3212,'localhost',resolve));
   const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),headless:true,args:['--no-sandbox']});
@@ -335,6 +348,55 @@ let providerRequests = 0;
   await page.getByText('Vijest je premještena u smeće. Možete je vratiti; slike su sačuvane.',{exact:true}).waitFor();
   await page.getByLabel('Status',{exact:true}).selectOption('trash'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('button',{name:'Vrati',exact:true}).click();
   await page.getByText('Vijest je vraćena.',{exact:true}).waitFor(); assert.equal(objects.size,2);
+  // Translation through the real authenticated endpoint, atomic save RPC and locked
+  // Article iframe. OpenAI itself is an explicit isolated provider fixture above.
+  const { newDraft, localeContent } = load('src/admin/model.ts');
+  const { archiveAssets } = load('src/server/admin/news.ts');
+  const source = newDraft('translation-browser-source');
+  source.title.bs='Posjeta Medresi Mehmed Fatih'; source.slug.bs='translation-browser-bs'; source.date='2026-10-08';
+  source.images=[{...archiveAssets()[0],alt:{bs:'Učenici ispred Medrese',sq:'',en:''}}]; source.coverImageId=source.images[0].id;
+  const bsText=value=>({bs:value,sq:'',en:''});
+  source.blocks=[{id:'first',type:'text',text:bsText('Učenici su posjetili Medresu.')},{id:'photo-one',type:'image',assetId:source.images[0].id},{id:'second',type:'text',text:bsText('Nastavak naše vijesti.')},{id:'photo-two',type:'image',assetId:source.images[0].id},{id:'quote',type:'quote',text:bsText('Znanje nas povezuje.')},{id:'heading',type:'subheading',text:bsText('Naša škola')},{id:'last',type:'text',text:bsText('Zajedništvo učenika i nastavnika.')}];
+  const createdTranslation=await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{draft:source}}); assert.equal(createdTranslation.status(),201);
+  const translationId=(await createdTranslation.json()).article.draft.id;
+  await page.goto(origin+'/admin/vijesti/'+translationId);
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Objavljeno: BS. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+  const beforeTranslation=(await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document;
+  const beforePublications=(await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[translationId])).rows;
+  await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click();
+  await page.getByRole('button',{name:'Prevodim SQ i EN…',exact:true}).waitFor(); assert.equal(await page.getByRole('button',{name:'Prevodim SQ i EN…',exact:true}).isEnabled(),false);
+  await page.getByText('SQ i EN nacrti su pripremljeni.',{exact:true}).waitFor(); assert.equal(translationRequests,1);
+  const afterTranslation=(await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document;
+  assert.equal(localeContent(afterTranslation,'bs'),localeContent(beforeTranslation,'bs'));
+  assert.deepEqual(afterTranslation.blocks.map(b=>[b.id,b.type,b.assetId]),source.blocks.map(b=>[b.id,b.type,b.assetId]));
+  assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[translationId])).rows,beforePublications);
+  for(const l of ['bs','sq','en']) {
+    await page.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
+    await page.frameLocator('iframe').getByRole('heading',{name:afterTranslation.title[l],exact:true}).waitFor();
+    assert.deepEqual(await page.frameLocator('iframe').locator('.news-body').evaluate(e=>Array.from(e.children).map(c=>c.tagName)),['P','FIGURE','P','FIGURE','BLOCKQUOTE','H2','P']);
+  }
+  for(const l of ['SQ','EN']) { const status=page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem').filter({has:page.locator('b',{hasText:new RegExp('^'+l+'$')})}); assert.match(await status.textContent(),/Nacrt/); assert.equal(await page.getByRole('button',{name:'OBJAVI '+l,exact:true}).isEnabled(),false); }
+  await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:'SQ',exact:true}).click(); await page.getByLabel('Naslov · SQ',{exact:true}).fill('Titull i redaktuar');
+  await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click(); await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+  const preservedTranslation=JSON.stringify((await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document);
+  await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click(); await page.getByRole('dialog').waitFor(); assert.equal(translationRequests,1);
+  await page.getByRole('button',{name:'Odustani',exact:true}).click(); assert.equal(await page.getByLabel('Naslov · SQ',{exact:true}).inputValue(),'Titull i redaktuar');
+  for(const mode of ['failure','invalid']) {
+    translationMode=mode; await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click(); await page.getByRole('button',{name:'Potvrdi zamjenu i prevedi',exact:true}).click();
+    await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).waitFor(); await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.equal(JSON.stringify((await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document),preservedTranslation); assert.equal(await page.getByLabel('Naslov · SQ',{exact:true}).inputValue(),'Titull i redaktuar');
+  }
+  translationMode='success';
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · SQ',exact:true}).click(); await page.getByRole('button',{name:'OBJAVI SQ',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Objavljeno: SQ. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+  await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),source.title.bs);
+  const translationPublications=(await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows;
+  assert.deepEqual(translationPublications.map(r=>r.locale),['bs','sq']); assert.deepEqual(translationPublications[0],beforePublications[0]);
+  assert.equal((await publicContext.request.get(origin+'/en/news/'+afterTranslation.slug.en)).status(),404);
+  const restoreKey=process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY;
+  await page.reload(); assert.equal(await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).isEnabled(),false); process.env.OPENAI_API_KEY=restoreKey;
   // Real touch events, every mobile width: reachable menu and a complete multi-image draft without dragging.
   const touchContext=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:360,height:900},storageState:await context.storageState()});
   const phone=await touchContext.newPage(); phone.on('pageerror',error=>errors.push(error.message)); phone.on('dialog',dialog=>dialog.accept());
@@ -358,6 +420,14 @@ let providerRequests = 0;
       await nav.getByRole('link',{name:label,exact:true}).tap(); await phone.waitForURL(origin+path);
       assert.equal(await phone.getByRole('button',{name:'Administracijski meni',exact:true}).getAttribute('aria-expanded'),'false'); await assertFits();
     }
+    await phone.goto(origin+'/admin/vijesti/'+translationId);
+    await phone.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).tap();
+    const translationDialog=await phone.getByRole('dialog').boundingBox(); assert.ok(translationDialog.x>=0&&translationDialog.x+translationDialog.width<=width+1); await assertFits();
+    if(width===360) {
+      await phone.getByRole('button',{name:'Potvrdi zamjenu i prevedi',exact:true}).tap(); await phone.getByText('SQ i EN nacrti su pripremljeni.',{exact:true}).waitFor();
+      assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows,translationPublications);
+      await phone.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:'EN',exact:true}).tap(); await phone.frameLocator('iframe').getByRole('heading',{name:afterTranslation.title.en,exact:true}).waitFor();
+    } else await phone.getByRole('button',{name:'Odustani',exact:true}).tap();
     await phone.goto(origin+'/admin/vijesti/nova');
     await phone.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
     const choose=phone.waitForEvent('filechooser'); await phone.getByRole('button',{name:'Odaberi sliku',exact:true}).tap();
@@ -419,7 +489,7 @@ let providerRequests = 0;
   }
   // Safe cleanup of disposable published fixtures: trash hides them from the
   // public locale feed while retaining immutable publication history and slugs.
-  for(const disposableId of [newId,directId]) {
+  for(const disposableId of [newId,directId,translationId]) {
     const row=(await db.query('select revision from medresa_admin_articles where id=$1',[disposableId])).rows[0];
     const cleanup=await context.request.post(origin+'/api/admin/news/'+disposableId,{headers:{Origin:origin},data:{action:'trash',expectedRevision:row.revision,confirmedId:disposableId}});
     assert.equal(cleanup.status(),200);
@@ -432,6 +502,6 @@ let providerRequests = 0;
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: OpenAI translation API fixtures; BS/master and ordered images unchanged; atomic draft persistence; human review/independent SQ publication; manual overwrite confirmation/cancel; provider/invalid-output failure recovery; automatic locked Article preview; missing-key disabled action; translation dialogs at 360/390/412/430; public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
 })().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);process.exit(1);});

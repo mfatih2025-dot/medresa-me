@@ -36,7 +36,7 @@ function visibleVersion(a: NewsArticle, locale: Locale): string {
 }
 export function localeStatus(d: NewsDraft, publications: ManagedArticle["publications"], locale: Locale): EditorialStatus {
   const published = publications?.[locale];
-  if (published) {
+  if (published && d.review[locale].approved && d.review[locale].reviewedRevision === d.revision) {
     try { if (visibleVersion(toPublicArticle(d), locale) === visibleVersion(published.snapshot, locale)) return "published"; } catch { /* Incomplete image placeholders are drafts. */ }
   }
   return publicationChecklist(d, locale).every(c => c.complete) ? "ready" : "draft";

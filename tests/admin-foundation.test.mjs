@@ -65,12 +65,13 @@ test("adapter preserves typed block order for every locale, shares images and om
   assert.deepEqual(publication.toPublicArticle(moved).photos.map(p => p.src), ["/images/cover.jpg", "/images/second.jpg", "/images/third.jpg"]);
 });
 test("translation drafts cannot overwrite BS, reorder blocks, change assets or retain approval", () => {
-  const d = completeDraft(); const draft = { title: { ...localized("Translated"), bs: "malicious overwrite" }, slug: localized("translated"), lead: localized("Lead"), blocks: d.blocks.filter(b => b.type !== "image").map(b => ({ id: b.id, text: localized("Translation") })) };
+  const d = completeDraft(); const translated = text => ({ sq: text, en: text }); const draft = { title: translated("Translated"), slug: translated("translated"), lead: translated(""), blocks: d.blocks.map(b => ({ id: b.id, type: b.type, text: translated(b.type === "image" ? "" : "Translation") })), images: d.images.map(i => ({ id: i.id, alt: translated(i.alt.bs) })) };
   const result = translation.applyTranslationDraft(d, draft);
   assert.equal(result.title.bs, d.title.bs); assert.equal(result.blocks[0].text.bs, d.blocks[0].text.bs);
   assert.deepEqual(result.blocks.map(b => b.id), d.blocks.map(b => b.id)); assert.deepEqual(result.images, d.images);
   assert.ok(result.review.bs.approved); assert.ok(!result.review.sq.approved && !result.review.en.approved); assert.equal(result.status, "draft");
   assert.throws(() => translation.applyTranslationDraft(d, { ...draft, blocks: [...draft.blocks].reverse() }));
+  assert.throws(() => translation.applyTranslationDraft(d, { ...draft, title: { ...draft.title, bs: "malicious overwrite" } }));
 });
 test("authentication fails closed, checks credentials, expires sessions, rejects tampering and foreign origins", async () => {
   const names = ["MEDRESA_ADMIN_USER", "MEDRESA_ADMIN_PASSWORD_HASH", "MEDRESA_ADMIN_SESSION_SECRET", "MEDRESA_ADMIN_ORIGIN"];
