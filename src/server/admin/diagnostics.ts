@@ -4,7 +4,7 @@ import { supabaseConfiguration } from "./supabase";
 function nonSecretRuntimeValue(value: string | null): string | null {
   if (value === null) return null;
   // Protect against credentials accidentally placed in either non-secret setting.
-  const credentials = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.MEDRESA_ADMIN_PASSWORD_HASH, process.env.MEDRESA_ADMIN_SESSION_SECRET];
+  const credentials = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.MEDRESA_ADMIN_PASSWORD_HASH, process.env.MEDRESA_ADMIN_SESSION_SECRET, process.env.OPENAI_API_KEY];
   return credentials.some(secret => secret && value.toLowerCase().includes(secret.toLowerCase())) ? null : value;
 }
 

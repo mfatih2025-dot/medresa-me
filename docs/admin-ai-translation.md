@@ -17,6 +17,16 @@ Preview. Enter the key only in Vercel's secret environment-variable field, never
 in chat. No other variable, Supabase credential or migration is required. The key
 must have access/billing for the Responses API and `gpt-4.1`.
 
+To verify the deployed runtime without exposing a key, use Admin → Pregled →
+“Provjeri Preview vezu”. Its authenticated, read-only `translation` report contains
+only guard booleans, failed-check names and the validated deployed commit SHA.
+`checks.openAiKeyPresent: true` confirms that the running server sees a non-empty
+key; `available: true` confirms all translation configuration guards pass. It does
+not contact OpenAI, validate API billing or perform a translation/save. A new
+Preview deployment is necessary after changing Vercel environment variables;
+existing deployments retain their original environment snapshot. Do not change
+other variables based on the editor's generic unavailable message.
+
 A stored article identity is required (the normal “Nova vijest” action already
 creates it). Direct unsaved `/admin/vijesti/nova` drafts must first be saved. The
 translation request can include unsaved edits; both generated locales and those

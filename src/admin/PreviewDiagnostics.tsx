@@ -22,6 +22,8 @@ export function PreviewDiagnostics() {
       // Whitelist only required connection checks. Write opt-in does not gate reads.
       const names = ["previewEnvironment", "adminBranch", "supabaseUrlPresent", "serviceRoleKeyPresent", "projectRefPresent", "supabaseUrlParseable", "supabaseUrlExactOrigin", "supabaseUrlHttps", "supabaseHostnameMatchesProjectRef", "projectRefFormatValid"];
       const checks = Object.fromEntries(names.map(name => [name, report.checks?.[name] === true]));
+      const translationNames = ["previewEnvironment", "adminBranch", "openAiKeyPresent", "supabaseConfigurationAvailable", "supabaseWritesEnabled"];
+      const translationChecks = Object.fromEntries(translationNames.map(name => [name, report.translation?.checks?.[name] === true]));
       setResult(JSON.stringify({
         configuration: {
           accepted: report.configurationAccepted === true,
@@ -30,6 +32,12 @@ export function PreviewDiagnostics() {
         },
         runtime: report.runtime,
         connectivity: report.connectivity,
+        translation: {
+          available: report.translation?.available === true,
+          failedChecks: translationNames.filter(name => !translationChecks[name]),
+          checks: translationChecks,
+          commitSha: typeof report.translation?.commitSha === "string" && /^[a-f0-9]{40}$/.test(report.translation.commitSha) ? report.translation.commitSha : null,
+        },
       }, null, 2));
     } catch { setError("Provjera nije završena. Pokušajte ponovo."); }
     finally { setBusy(false); }

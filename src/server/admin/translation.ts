@@ -7,9 +7,21 @@ import { canonicalDraft, getNews, saveDraft } from "./news";
 import { supabaseConfiguration } from "./supabase";
 import { medresaGlossary } from "./translationGlossary";
 
-export function translationAvailable() {
-  return process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel" && !!process.env.OPENAI_API_KEY?.trim() && !!supabaseConfiguration()?.writable;
+/** Authenticated diagnostics: presence/guard booleans only, never secret values. */
+export function translationConfigurationDiagnostic() {
+  const config = supabaseConfiguration();
+  const checks = {
+    previewEnvironment: process.env.VERCEL_ENV === "preview",
+    adminBranch: process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel",
+    openAiKeyPresent: !!process.env.OPENAI_API_KEY?.trim(),
+    supabaseConfigurationAvailable: config !== null,
+    supabaseWritesEnabled: config?.writable === true,
+  };
+  const failedChecks = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  return { available: failedChecks.length === 0, checks, failedChecks, commitSha: sha && /^[a-f0-9]{40}$/.test(sha) ? sha : null };
 }
+export function translationAvailable() { return translationConfigurationDiagnostic().available; }
 const unavailable = () => new AdminError(503, "OpenAI prijevod nije dostupan. Provjerite OPENAI_API_KEY za ovaj Preview; ručno uređivanje ostaje dostupno.");
 const invalid = () => new AdminError(502, "OpenAI nije vratio potpun i ispravan prijevod. Postojeći sadržaj je sačuvan.");
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);

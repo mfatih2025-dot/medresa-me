@@ -7,10 +7,10 @@ const load = moduleLoader({ 'server-only': {} });
 const { newDraft, revise, localeContent } = load('src/admin/model.ts');
 const { canonicalJson } = load('src/admin/contracts.ts');
 const { archiveAssets, createDraft, saveDraft, publishNews, getNews } = load('src/server/admin/news.ts');
-const { translateNews, translateBosnianMaster, translationAvailable } = load('src/server/admin/translation.ts');
+const { translateNews, translateBosnianMaster, translationAvailable, translationConfigurationDiagnostic } = load('src/server/admin/translation.ts');
 const { existingTranslationLocales, applyTranslationDraft } = load('src/admin/translation.ts');
 const { publicationChecklist, localeStatus } = load('src/admin/publication.ts');
-const names = ['OPENAI_API_KEY','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MEDRESA_SUPABASE_PROJECT_REF','MEDRESA_SUPABASE_WRITE_ENABLED','VERCEL_ENV','VERCEL_GIT_COMMIT_REF','MEDRESA_ADMIN_USER','MEDRESA_ADMIN_PASSWORD_HASH','MEDRESA_ADMIN_SESSION_SECRET','MEDRESA_ADMIN_ORIGIN'];
+const names = ['VERCEL_GIT_COMMIT_SHA','OPENAI_API_KEY','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MEDRESA_SUPABASE_PROJECT_REF','MEDRESA_SUPABASE_WRITE_ENABLED','VERCEL_ENV','VERCEL_GIT_COMMIT_REF','MEDRESA_ADMIN_USER','MEDRESA_ADMIN_PASSWORD_HASH','MEDRESA_ADMIN_SESSION_SECRET','MEDRESA_ADMIN_ORIGIN'];
 async function environment(fn) {
   const old = names.map(n => process.env[n]); const fetch = globalThis.fetch;
   try {
@@ -146,4 +146,25 @@ test('translation API requires Admin session, same origin, POST and explicit rev
     const response=res(); await handler({headers:{},...request},response); assert.equal(response.statusCode,status); assert.match(response.headers['Cache-Control'],/no-store/); assert.ok(!JSON.stringify(response.body).includes(process.env.OPENAI_API_KEY));
   }
   assert.equal(calls,0);
+}));
+
+test('authenticated runtime diagnostic distinguishes missing key from Supabase/branch guards and exposes booleans only',()=>environment(async()=>{
+  let calls=0; globalThis.fetch=async()=>{calls++;throw new Error('No provider calls allowed');};
+  process.env.VERCEL_GIT_COMMIT_SHA='a'.repeat(40);
+  let report=translationConfigurationDiagnostic(); assert.equal(report.available,true); assert.deepEqual(report.failedChecks,[]); assert.equal(report.checks.openAiKeyPresent,true); assert.equal(report.commitSha,'a'.repeat(40));
+  for(const [name,value,expected] of [['OPENAI_API_KEY','   ','openAiKeyPresent'],['MEDRESA_SUPABASE_WRITE_ENABLED','false','supabaseWritesEnabled'],['MEDRESA_SUPABASE_PROJECT_REF','wrongprojectref','supabaseConfigurationAvailable'],['VERCEL_GIT_COMMIT_REF','main','adminBranch'],['VERCEL_ENV','production','previewEnvironment']]) {
+    const old=process.env[name];process.env[name]=value;report=translationConfigurationDiagnostic();assert.equal(report.available,false);assert.equal(report.checks[expected],false);assert.ok(report.failedChecks.includes(expected));assert.ok(Object.values(report.checks).every(v=>typeof v==='boolean'));process.env[name]=old;
+  }
+  process.env.VERCEL_GIT_COMMIT_SHA=process.env.OPENAI_API_KEY;assert.equal(translationConfigurationDiagnostic().commitSha,null);assert.equal(calls,0);
+  const auth=load('src/server/admin/auth.ts');const handler=load('src/pages/api/admin/diagnostics.ts').default;
+  Object.assign(process.env,{MEDRESA_ADMIN_USER:'diagnostic-test-admin',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128),MEDRESA_ADMIN_SESSION_SECRET:'explicit-diagnostic-test-session-secret-32-characters',MEDRESA_ADMIN_ORIGIN:'https://admin.example.test'});
+  const res=()=>({statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(body){this.body=body;return this;}});
+  const cookies={[auth.cookieName()]:auth.createSession()};
+  for(const [request,status] of [[{method:'GET',cookies:{}},401],[{method:'POST',cookies},405]]) {const response=res();await handler({query:{connectivity:'1'},headers:{},...request},response);assert.equal(response.statusCode,status);assert.equal(response.body.translation,undefined);}
+  globalThis.fetch=async()=>{calls++;return json([]);};
+  const check=async()=>{const response=res();await handler({method:'GET',query:{connectivity:'1'},headers:{},cookies},response);assert.equal(response.statusCode,200);assert.match(response.headers['Cache-Control'],/private.*no-store/);return response.body;};
+  delete process.env.OPENAI_API_KEY;let body=await check();assert.equal(body.translation.checks.openAiKeyPresent,false);assert.equal(body.translation.available,false);assert.deepEqual(body.translation.failedChecks,['openAiKeyPresent']);
+  process.env.OPENAI_API_KEY='explicit-live-presence-test-fixture-key';body=await check();assert.equal(body.translation.checks.openAiKeyPresent,true);assert.equal(body.translation.available,true);assert.deepEqual(body.translation.failedChecks,[]);assert.ok(!JSON.stringify(body).includes(process.env.OPENAI_API_KEY));
+  // Protect against accidental secrets entered in a non-secret runtime field too.
+  process.env.MEDRESA_SUPABASE_PROJECT_REF=process.env.OPENAI_API_KEY;body=await check();assert.equal(body.runtime.projectRef,null);assert.ok(!JSON.stringify(body).includes(process.env.OPENAI_API_KEY));
 }));

@@ -96,7 +96,7 @@ let translationMode = 'success';
   const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); const lockedReport=await lockedDiagnostic.json(); assert.equal(lockedReport.checks,undefined); assert.equal(lockedReport.runtime,undefined);
   const login=await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:'browser-test-fixture',password}}); assert.equal(login.status(),200);
   const connection=await context.request.get(origin+'/api/admin/diagnostics?connectivity=1'); assert.equal(connection.status(),200);
-  assert.deepEqual((await connection.json()).connectivity,{state:'connected',httpStatus:200});
+  const connectionReport=await connection.json(); assert.deepEqual(connectionReport.connectivity,{state:'connected',httpStatus:200}); assert.equal(connectionReport.translation.checks.openAiKeyPresent,true); assert.equal(connectionReport.translation.available,true);
   const beforeDiagnostic=providerRequests;
   try {
     process.env.MEDRESA_SUPABASE_WRITE_ENABLED='false';
@@ -396,7 +396,7 @@ let translationMode = 'success';
   assert.deepEqual(translationPublications.map(r=>r.locale),['bs','sq']); assert.deepEqual(translationPublications[0],beforePublications[0]);
   assert.equal((await publicContext.request.get(origin+'/en/news/'+afterTranslation.slug.en)).status(),404);
   const restoreKey=process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY;
-  await page.reload(); assert.equal(await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).isEnabled(),false); process.env.OPENAI_API_KEY=restoreKey;
+  await page.reload(); assert.equal(await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).isEnabled(),false); const absent=await context.request.get(origin+'/api/admin/diagnostics?connectivity=1'); assert.equal((await absent.json()).translation.checks.openAiKeyPresent,false); process.env.OPENAI_API_KEY=restoreKey; const present=await context.request.get(origin+'/api/admin/diagnostics?connectivity=1'); assert.equal((await present.json()).translation.available,true); await page.reload(); assert.equal(await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).isEnabled(),true);
   // Real touch events, every mobile width: reachable menu and a complete multi-image draft without dragging.
   const touchContext=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:360,height:900},storageState:await context.storageState()});
   const phone=await touchContext.newPage(); phone.on('pageerror',error=>errors.push(error.message)); phone.on('dialog',dialog=>dialog.accept());
