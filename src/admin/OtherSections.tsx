@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { Shell, Unconnected, Mark } from "./Shell";
-import type { AnalyticsPeriod } from "./model";
 import styles from "./admin.module.css";
 
 export function Campaigns() {
@@ -8,8 +6,4 @@ export function Campaigns() {
 }
 export function ExamResults({ documentTitle, hasPdf }: { documentTitle: string; hasPdf: boolean }) {
   return <Shell active="/admin/rezultati" title="Rezultati ispita" intro="Jedan službeni dokument. Dostupan na sva tri jezika."><section className={styles.documentSection}><div><p className={styles.eyebrow}>Postojeća javna stranica</p><h2>{documentTitle}</h2><span className={styles.status}>{hasPdf ? "PDF je povezan" : "PDF još nije povezan"}</span><p>Objavljeni dokument kasnije će hraniti postojeći modul rezultata i stranicu upisa. Njihov izgled ostaje zaštićen.</p></div><div className={styles.uploadPlaceholder}><Mark kind="document" /><h3>Službeni PDF</h3><p>Prijenos datoteka čeka povezivanje sigurnog spremišta.</p><button className={styles.secondary} disabled>Odaberi PDF</button></div></section><Unconnected title="Objavljivanje dokumenata nije povezano">Buduća objava uključuje provjeru PDF-a, školske godine, BS/SQ/EN naslova i potvrdu administratora.</Unconnected></Shell>;
-}
-export function Analytics() {
-  const [period, setPeriod] = useState<AnalyticsPeriod>(30);
-  return <Shell active="/admin/analitika" title="Analitika" intro="Jasna slika posjeta i dosega. Isključivo stvarni podaci."><div className={styles.analyticsToolbar}><h2>Pregled izvora</h2><div className={styles.segment} aria-label="Period analitike">{([7, 30, 60, 90] as const).map(p => <button key={p} aria-pressed={period === p} onClick={() => setPeriod(p)}>{p} dana</button>)}</div></div><section className={styles.analyticsSources}>{[{ name: "Website", note: "Posjete u odabranom periodu i ukupne posjete", kind: "analytics" }, { name: "Instagram", note: "Doseg, pregledi i interakcije", kind: "campaign" }, { name: "Facebook", note: "Doseg, pregledi i interakcije", kind: "campaign" }, { name: "YouTube", note: "Pregledi i aktivnost kanala", kind: "campaign" }].map(s => <div key={s.name}><Mark kind={s.kind} /><div><h3>{s.name}</h3><p>{s.note} · {period} dana</p></div><span className={styles.status}>Nije povezano</span></div>)}</section><section className={styles.dailyPreview}><p className={styles.eyebrow}>Daily Preview</p><h2>Danas, u odnosu na jučer.</h2><p>Dnevno poređenje pojavit će se kada izvor vrati potpune podatke za oba dana.</p><div><span>Danas<strong>Podaci nisu dostupni</strong></span><span>Prethodni dan<strong>Podaci nisu dostupni</strong></span></div></section><p className={styles.muted}>Javni Instagram/Facebook feed nije izvor analitike. Analitika zahtijeva zaseban pristup i odobrene dozvole.</p></Shell>;
 }

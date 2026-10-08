@@ -1,0 +1,58 @@
+# Admin Analytics · Preview only
+
+Route: `/admin/analitika`. Reads and refreshes require the existing Admin session; refresh additionally requires the configured Admin Origin. Public components, public CSS, News/translation/auth implementations and existing social-feed providers are unchanged.
+
+Analytics is additionally restricted to `VERCEL_ENV=preview`, branch `codex/admin-panel`, and Supabase project reference `safsijrhxbefgcahvsvm`. Refresh requires the existing `MEDRESA_SUPABASE_WRITE_ENABLED=true`. Every database call repeats these checks. No Production source is queried or scheduled.
+
+## One new Preview migration
+
+Apply **only** `supabase/migrations/202610080004_analytics_history.sql`, once, in the SQL Editor of **medresa-me-preview (`safsijrhxbefgcahvsvm`)**. Do not rerun the three News migrations. The migration refuses existing Analytics objects and requires the installed per-locale News schema and private Preview bucket. PostgreSQL cannot identify a Supabase project by dashboard name, so select and verify that project in the dashboard before pasting the complete migration.
+
+The migration creates five aggregate-only tables: `medresa_analytics_daily`, `medresa_analytics_reports`, `medresa_analytics_provider_state`, `medresa_analytics_sync_runs`, and `medresa_analytics_sync_lock`; one history index; a metric validator and two invoker RPCs. It makes no changes to existing News tables/functions/grants, article rows, publication history, Storage objects or bucket configuration.
+
+All new tables have RLS, no browser policies or privileges, and only service-role SELECT/INSERT/UPDATE. All three functions use a controlled search path and have service-role-only execution. No visitor IDs, IP addresses, fingerprints, individual activity streams or provider credential values are persisted. Reports are explicitly projected to an aggregate schema before storage or delivery.
+
+Refresh claims a global database lease before calling providers. Repeated request UUIDs and simultaneous requests cannot duplicate a run. A two-minute cooldown limits provider traffic; an expired eight-minute lease can be replaced safely. All four provider results commit atomically. Failed providers retain earlier reports/snapshots and update only their sanitized status. Daily primary keys prevent duplicate aggregates. Missing values cannot erase previously confirmed complete metrics. Partial values are not promoted to completed-day observations when a different metric becomes available.
+
+Without this migration, Analytics shows its configuration/state UI and disables refresh. Existing News and translation remain independent.
+
+## Providers and data definitions
+
+**Website:** official [Vercel Web Analytics aggregate API](https://vercel.com/docs/analytics/web-analytics-api), project `medresa-me`, team `mmf16`. Every query explicitly filters `environment eq 'preview'` and excludes `/admin` paths. Vercel defaults to Production when this filter is absent, so the code never relies on that default and never uses the Production-only `visits/count` endpoint. This source covers all Preview traffic for the project; it does not claim to isolate one deployment hostname or branch. API-supported metrics are pageviews and unique visitors. Sessions/visits are unavailable. Unique visitor period totals are queried directly, never summed from days. Top pages, referrer hosts, device types and countries are aggregate dimensions. Query strings/fragments are discarded from page labels; obvious account/email-like paths are omitted.
+
+Repository inspection found no Vercel Web Analytics SDK/tracker installed in the public frontend. No tracker was added because the public frontend is locked. Consequently existing traffic/history and tracking start cannot be assumed. API success with no rows means no available data, not zero traffic. A missing token, disabled analytics, plan/retention restrictions or no Preview instrumentation may prevent useful Website data. Website visits/total visits stay `—` because this API does not provide sessions. A separately approved nonvisual Preview tracking integration would be needed if Vercel has no existing observations.
+
+**Instagram:** reuses the existing `INSTAGRAM_ACCESS_TOKEN`, official Instagram Login API at `graph.instagram.com/v26.0`. The account ID is discovered from the token; no account ID is guessed or duplicated. Optional capabilities: followers, views, reach, interactions, profile-link taps, follow/unfollow change, recent media Insights. Reach is unique within the requested interval and is never summed across 30-day slices; unsupported long-range reach remains unavailable. The existing `instagram_business_basic` scope retrieves the feed; Insights may additionally require **`instagram_business_manage_insights`**. Feed access alone does not establish Insights access.
+
+**Facebook:** reuses `FACEBOOK_PAGE_ACCESS_TOKEN` and the existing Page ID `578640758657974`, official `graph.facebook.com/v26.0`. As in the existing feed, a Page token can be obtained from the existing token; it is kept only in server memory. Optional capabilities include followers, daily views, interactions, daily reach, follows/unfollows and recent post views. Insights may require **`read_insights`** together with **`pages_read_engagement`** and access to the Page's **ANALYZE** task. Existing token access is tried first. Deprecated/denied metrics fail individually. Daily unique reach is never added together into a fake unique period total.
+
+Meta top content is explicitly limited to up to five checked items among the latest twenty posts in the period. These media counters are lifetime views, clearly labelled, not a claim of an exhaustive ranking or period views. Provider/account-size/API-version restrictions may make metrics unavailable; no unsupported metric is synthesized from another one.
+
+**YouTube:** official YouTube Data API v3 and YouTube Analytics API v2. Owner OAuth refresh obtains a short-lived access token server-side, with channel discovery via `channels?mine=true` or an explicitly configured channel ID. No channel ID is inferred from branding. Supports views, estimated minutes watched, subscribers gained/lost, visible current subscribers and top videos. Missing delayed daily rows remain unavailable, not zero; a truncated report is not treated as a full period. Required scopes: `https://www.googleapis.com/auth/youtube.readonly` and `https://www.googleapis.com/auth/yt-analytics.readonly`.
+
+Daily boundaries follow provider calendar time: Website/Instagram query windows UTC; Facebook/YouTube America/Los_Angeles. All four sections display this boundary. Dates and timestamps in Admin are rendered in Europe/Podgorica. The six selectors default to 30 days. Multi-day ranges include completed calendar days through yesterday; previous comparisons use the immediately preceding equal-length period. Today is partial and missing/unconfirmed data has no fabricated percentage. Division by zero never produces Infinity/NaN; a valid absolute delta can still be shown against zero.
+
+## Configuration · exact names, no secrets
+
+Any **new** variable belongs only to **Vercel project medresa-me → Preview → custom branch codex/admin-panel**. Save before allowing a new Preview deployment. No application credentials should be pasted into chat or client code. No variable was created, changed or rotated by this implementation. `OPENAI_API_KEY` and the working translation configuration are untouched.
+
+| Provider | Variable | Purpose / source / permissions |
+| --- | --- | --- |
+| Website | `VERCEL_ANALYTICS_TOKEN` | Vercel Account Settings → Tokens. Token with read access to the `mmf16` team's `medresa-me` project and its Web Analytics aggregate API. No deployment-write access is used by this provider. |
+| Website, optional | `MEDRESA_ANALYTICS_WEB_TRACKING_START` | `YYYY-MM-DD` of a genuinely verified Preview tracking start, obtained from existing analytics records/setup. Leave absent until confirmed; this is not a fabricated baseline. |
+| Instagram, existing | `INSTAGRAM_ACCESS_TOKEN` | Existing Meta Instagram Login token. Reuse first; only if denied, authorize `instagram_business_manage_insights` for the same professional account/app. Do not replace the working feed token blindly. |
+| Facebook, existing | `FACEBOOK_PAGE_ACCESS_TOKEN` | Existing Page/user token. Reuse first; if denied, Page ANALYZE access plus `read_insights` and `pages_read_engagement` in the existing Meta app/login. |
+| YouTube | `YOUTUBE_OAUTH_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth client. Enable YouTube Data API v3 and YouTube Analytics API. |
+| YouTube | `YOUTUBE_OAUTH_CLIENT_SECRET` | Secret for that same OAuth client, server-side only. |
+| YouTube | `YOUTUBE_REFRESH_TOKEN` | Owner consent for that OAuth client/channel with offline access and both readonly scopes above. Obtain via the normal OAuth authorization-code flow, not a public API key. |
+| YouTube, optional | `YOUTUBE_CHANNEL_ID` | Exact intended channel ID from YouTube Studio/official API. Omit to discover the consenting owner's channel; the provider verifies a configured ID. |
+
+No new Meta variable names, Vercel deploy credentials, YouTube API key or channel guess are required. Missing permissions are capabilities detected during refresh, not presumed from a successful feed login. No Insights source is marked live verified solely from a fixture test.
+
+## Operations and verification
+
+After the new migration is installed, open Preview `/admin/analitika` and press **Osvježi podatke**. Providers run independently; missing Website/YouTube configuration does not prevent Meta from syncing. Status, last attempt, last successful sync and run history show sanitized outcomes. Saved data remains available during provider outages. Page load/period change reads saved aggregates; refresh performs the provider reads and writes. Calls use fixed official hosts, no redirects, bounded response size, timeout and at most one retry for transient failures. No raw API body, token, account credentials or arbitrary provider exception is exposed in Admin.
+
+The server `synchronize` function is reusable by a future properly authenticated Preview worker. No cron, schedule, public sync endpoint or Production automatic job is enabled. Historical baseline is always null; historical daily metrics exist only after genuine provider fetches. Provider retention and capabilities determine what can be backfilled.
+
+Local checks: `npm run typecheck`, `npm run lint`, `npm run test:admin`, `npm run build -- --webpack`, `npm run test:analytics:browser`, and `npm run test:admin:browser`. Unit/API/provider tests use explicit fixtures; database tests execute all migrations in disposable local PostgreSQL (PGlite); browser tests use the actual production Next handlers, local DB fixtures and real DOM at 360/390/412/430px. They do not verify a live provider, perform remote writes, import real Preview articles or change environment variables. Public regression tests cover the existing 17 articles/51 locale URLs, homepage latest three, independent BS/SQ/EN publication, authentication and translation.
