@@ -29,6 +29,13 @@ the browser can omit a Strict cookie on that initial navigation even while the
 administrator remains signed in on the destination site. No cookie policy,
 session verification or API guard is relaxed to accommodate external links.
 
-For this investigation, share only the displayed `runtime` and `connectivity` objects.
+The in-Admin result also displays `configuration.accepted`, required connection
+check booleans and `configuration.failedChecks`. A whitelist prevents reflecting
+additional fields or values. Write opt-in is excluded from connection failures
+because it does not block reads. A parsed matching hostname alone cannot reveal
+raw-URL whitespace, paths, credentials, normalization, HTTPS or key availability.
+
+For a `configuration-unavailable` result, share `configuration.failedChecks` and
+`configuration.checks`; never share the server key or raw credential values.
 The existing `writeFlagIsFalse:false` check is expected when Preview writes have
 been explicitly enabled; it is not a connection error.

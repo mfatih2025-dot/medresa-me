@@ -85,6 +85,10 @@ try {
   const request = await probeRequest; assert.equal(request.method(), 'GET'); assert.ok((await request.allHeaders()).cookie);
   const result = page.getByLabel('Rezultat Preview dijagnostike', { exact: true }); await result.waitFor();
   assert.deepEqual(JSON.parse(await result.textContent()), {
+    configuration: { accepted: true, failedChecks: [], checks: {
+      previewEnvironment: true, adminBranch: true, supabaseUrlPresent: true, serviceRoleKeyPresent: true, projectRefPresent: true,
+      supabaseUrlParseable: true, supabaseUrlExactOrigin: true, supabaseUrlHttps: true, supabaseHostnameMatchesProjectRef: true, projectRefFormatValid: true,
+    } },
     runtime: { supabaseHostname: 'abcdefghijklmnopqrst.supabase.co', projectRef: 'abcdefghijklmnopqrst' },
     connectivity: { state: 'connected', httpStatus: 200 },
   });
@@ -95,6 +99,33 @@ try {
     const box = await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).boundingBox();
     assert.ok(box.height >= 44 && box.x >= 0 && box.x + box.width <= width);
   }
+  // Same hostname/ref can hide an invalid raw URL or an unavailable server key.
+  // These are process-local fixtures; no Vercel configuration is changed.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  for (const [rawUrl, keyAvailable, failedCheck] of [
+    [provider + '/', true, 'supabaseUrlExactOrigin'],
+    [provider.replace('https:', 'http:'), true, 'supabaseUrlHttps'],
+    [provider, false, 'serviceRoleKeyPresent'],
+  ]) {
+    process.env.SUPABASE_URL = rawUrl;
+    if (keyAvailable) process.env.SUPABASE_SERVICE_ROLE_KEY = key; else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const beforeBlocked = reads;
+    const probe = page.waitForResponse(r => r.url() === origin + '/api/admin/diagnostics?connectivity=1');
+    await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).click();
+    await probe;
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('[aria-label="Rezultat Preview dijagnostike"]')?.textContent;
+      return text && JSON.parse(text).configuration.failedChecks.includes(expected);
+    }, failedCheck);
+    const blocked = JSON.parse(await result.textContent());
+    assert.equal(blocked.configuration.accepted, false); assert.deepEqual(blocked.configuration.failedChecks, [failedCheck]);
+    assert.deepEqual(blocked.connectivity, { state: 'blocked', reason: 'configuration-unavailable' });
+    assert.equal(reads, beforeBlocked); assert.equal(blocked.configuration.checks.supabaseHostnameMatchesProjectRef, true);
+    assert.equal(blocked.configuration.checks.writeFlagIsFalse, undefined);
+    for (const secret of [key, password, process.env.MEDRESA_ADMIN_PASSWORD_HASH, process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!(await result.textContent()).includes(secret));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  }
+  process.env.SUPABASE_URL = provider; process.env.SUPABASE_SERVICE_ROLE_KEY = key;
   await page.evaluate(() => fetch('/api/admin/logout', { method: 'POST', redirect: 'manual' }));
   const beforeLogoutCheck = reads;
   const loggedOut = await page.goto(origin + '/api/admin/diagnostics?connectivity=1');
@@ -103,7 +134,7 @@ try {
   // Verify the real protected-page response through the localhost bridge instead.
   const loggedOutPage = await realFetch(local + '/admin', { redirect: 'manual', headers: { Host: 'preview.example.test' } });
   assert.ok([302, 307].includes(loggedOutPage.status)); assert.equal(loggedOutPage.headers.get('location'), '/admin/login');
-  console.log('PASS: cross-site Strict cookie omission reproduced; same-origin in-Admin diagnostic accepts the existing Secure/HttpOnly session; read-only probe; 360/390/412/430 px; unauthenticated and logged-out requests remain blocked. Local fixtures only.');
+  console.log('PASS: Strict cookie/same-origin diagnostic; missing key, URL normalization and HTTPS failures identified without secret values or provider requests; read-only probe; 360/390/412/430 px; unauthenticated and logged-out requests remain blocked. Local fixtures only.');
 } finally {
   await browser.close(); await new Promise(done => server.close(done)); await app.close(); globalThis.fetch = realFetch;
 }

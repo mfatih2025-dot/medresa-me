@@ -19,7 +19,18 @@ export function PreviewDiagnostics() {
       }
       const report = await response.json();
       if (!report.runtime || !report.connectivity) { setError("Dijagnostički odgovor nije potpun."); return; }
-      setResult(JSON.stringify({ runtime: report.runtime, connectivity: report.connectivity }, null, 2));
+      // Whitelist only required connection checks. Write opt-in does not gate reads.
+      const names = ["previewEnvironment", "adminBranch", "supabaseUrlPresent", "serviceRoleKeyPresent", "projectRefPresent", "supabaseUrlParseable", "supabaseUrlExactOrigin", "supabaseUrlHttps", "supabaseHostnameMatchesProjectRef", "projectRefFormatValid"];
+      const checks = Object.fromEntries(names.map(name => [name, report.checks?.[name] === true]));
+      setResult(JSON.stringify({
+        configuration: {
+          accepted: report.configurationAccepted === true,
+          failedChecks: names.filter(name => !checks[name]),
+          checks,
+        },
+        runtime: report.runtime,
+        connectivity: report.connectivity,
+      }, null, 2));
     } catch { setError("Provjera nije završena. Pokušajte ponovo."); }
     finally { setBusy(false); }
   }
