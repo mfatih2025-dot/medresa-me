@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import type { Locale } from "@/i18n/config";
 import type { BackendState, ContentBlock, ManagedArticle, NewsDraft, SharedImage } from "./model";
-import { emptyText, moveBlock, newDraft, revise, statusLabels } from "./model";
+import { emptyText, localeContent, moveBlock, newDraft, revise, statusLabels } from "./model";
+import { canonicalJson } from "./contracts";
 import { localeStatus, publicationChecklist, readyLocales } from "./publication";
 import { Shell } from "./Shell";
 import { ImagePicker } from "./ImagePicker";
@@ -73,13 +74,36 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
     finally { setBusy(false); }
   }
   async function publish() {
-    if (!record || dirty || !confirm) return;
-    setBusy(true);
+    if (!confirm || busy || !writable || !publishingReady || confirm.some(l => !ready.includes(l))) return;
+    const selected = [...confirm];
+    let persisted = record;
+    setBusy(true); setMessage("");
     try {
-      const result = await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${draft.id}`, { action: "publish", expectedRevision: record.draft.revision, locales: confirm });
-      setRecord(result.article); setDraft(result.article.draft); setMessage(`Objavljeno: ${confirm.map(l => l.toUpperCase()).join(", ")}. Javni website još koristi postojeći izvor.`); setConfirm(null);
+      let reviewedDraft = draft;
+      if (!persisted) {
+        persisted = (await adminRequest<{ article: ManagedArticle }>("/api/admin/news", { draft })).article;
+        setRecord(persisted); setDraft(persisted.draft); setDirty(false);
+        // Creation assigns a server ID/revision and clears review. Carry the user's
+        // review only when that locale's canonical saved content is unchanged.
+        const revision = persisted.draft.revision + 1;
+        const review = Object.fromEntries((["bs", "sq", "en"] as const).map(l => {
+          const approved = draft.review[l].approved && draft.review[l].reviewedRevision === draft.revision &&
+            canonicalJson(JSON.parse(localeContent(draft, l))) === canonicalJson(JSON.parse(localeContent(persisted!.draft, l)));
+          return [l, { approved, reviewedRevision: approved ? revision : null }];
+        })) as NewsDraft["review"];
+        reviewedDraft = { ...persisted.draft, revision, review };
+      }
+      if (dirty || !record) {
+        persisted = (await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${persisted.draft.id}`, { action: "save", draft: reviewedDraft, expectedRevision: persisted.draft.revision })).article;
+        setRecord(persisted); setDraft(persisted.draft); setDirty(false);
+      }
+      const result = await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${persisted.draft.id}`, { action: "publish", expectedRevision: persisted.draft.revision, locales: selected });
+      setRecord(result.article); setDraft(result.article.draft); setMessage(`Objavljeno: ${selected.map(l => l.toUpperCase()).join(", ")}. Javni website još koristi postojeći izvor.`); setConfirm(null);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Objava nije završena."); setConfirm(null); }
-    finally { setBusy(false); }
+    finally {
+      setBusy(false);
+      if (!record && persisted) await router.replace(`/admin/vijesti/${persisted.draft.id}`, undefined, { scroll: false });
+    }
   }
   function download() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)], { type: "application/json" }));
@@ -106,9 +130,9 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved }: 
       </fieldset>
       <section className={styles.editorReview}><h3>Prijevod uz ljudski pregled.</h3><p className={styles.muted}>OpenAI nije povezan. BS je master; SQ i EN uredite ručno. AI će kasnije kreirati samo nacrte.</p><button className={styles.secondary} disabled>Prevedi na SQ i EN</button></section>
     </section><LivePreview draft={draft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><ul className={styles.checklist} aria-label="Status jezika">{(["bs", "sq", "en"] as const).map(l => <li key={l}><b>{l.toUpperCase()}</b><span>{statusLabels[localeStatus(draft, record?.publications, l)]}{record?.publications?.[l] && localeStatus(draft, record.publications, l) !== "published" ? " · prethodna objava sačuvana" : ""}</span></li>)}</ul>
-    {(["bs", "sq", "en"] as const).map(l => <button key={l} className={styles.primary} disabled={!writable || !publishingReady || busy || dirty || !record || !ready.includes(l)} onClick={() => setConfirm([l])}>OBJAVI {l.toUpperCase()}</button>)}
-    {ready.length > 1 && <button className={styles.primary} disabled={!writable || !publishingReady || busy || dirty || !record} onClick={() => setConfirm(ready)}>OBJAVI SVE SPREMNE JEZIKE</button>}
-    <p className={styles.muted}>Prvo sačuvajte nacrt i potvrdite pregled odabranog jezika. SQ i EN mogu ostati nacrti; ne blokiraju BS. Naslovna slika je opcionalna. Objava u bazi ne mijenja javni website u ovoj fazi.</p>
+    {(["bs", "sq", "en"] as const).map(l => <button key={l} className={styles.primary} disabled={!writable || !publishingReady || busy || !ready.includes(l)} onClick={() => setConfirm([l])}>OBJAVI {l.toUpperCase()}</button>)}
+    {ready.length > 1 && <button className={styles.primary} disabled={!writable || !publishingReady || busy} onClick={() => setConfirm(ready)}>OBJAVI SVE SPREMNE JEZIKE</button>}
+    <p className={styles.muted}>Potvrdite pregled odabranog jezika. Objava prvo sprema nacrt, zatim objavljuje samo odabrane jezike. SQ i EN mogu ostati nacrti; ne blokiraju BS. Naslovna slika je opcionalna. Objava u bazi ne mijenja javni website u ovoj fazi.</p>
     {!publishingReady && <p className={styles.muted}>Objava po jeziku čeka provjerenu Preview migraciju 202610080003_locale_publication.sql. Spremanje nacrta i postojeće objave ostaju sačuvani.</p>}</section>
     <section><h3>Sačuvajte rad.</h3><button className={styles.primary} disabled={!writable || busy || (!!record && !dirty)} onClick={save}>{busy ? "Čuvanje…" : record ? "Sačuvaj nacrt" : "Kreiraj i sačuvaj nacrt"}</button><p>{writable ? "Nacrti se spremaju u bazu i ostaju dostupni u sljedećoj sesiji." : "Spremanje nije dostupno. Promjene u ovom prozoru su privremene."}</p><button className={styles.secondary} onClick={download}>Preuzmi nacrt · JSON</button><p role="status">{message}</p></section>
     <section><h3>Zajedničke fotografije.</h3><p>Fotografije se prenose jednom. Opisi se uređuju za svaki jezik; redoslijed je zajednički.</p></section></aside></div>

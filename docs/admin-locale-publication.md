@@ -16,6 +16,30 @@ includes only ready languages with unpublished changes. Each locale shows Nacrt,
 Spremno or Objavljeno; a changed draft also indicates that its previous published
 version is retained. Draft saves, archive/trash and restore keep working.
 
+## Ready-language publish button fix
+
+Human review makes an editorial change and sets the editor's `dirty` flag. The
+previous button disabled itself for any dirty draft, while the checklist correctly
+displayed Spremno. Its handler also returned without publishing dirty drafts.
+
+A ready language can now open confirmation immediately. Confirmation first saves
+the reviewed draft through the authenticated Admin API with its expected stored
+revision, then publishes only the chosen locales using the revision returned by
+that save. A failed save stops publication; a failed publication preserves the
+saved draft and every prior immutable publication. Retry uses the saved revision.
+
+Direct new-article publication creates the canonical server record first and
+carries review only for languages whose canonical saved content is unchanged.
+The write-enabled, schema, authentication, origin and concurrency gates remain in
+place. This fix does not change migrations, RPCs, public renderers or environment
+variables. It cannot make missing remote locale tables/RPCs available.
+
+The browser regression reproduces the former disabled button without a separate
+Save click, then verifies BS-only persistence after reload, independent later
+translations, direct new-article publication, save/publication failure recovery,
+batch publication and safe trash cleanup that retains immutable history. All of
+these writes use a disposable local fixture, not remote Supabase.
+
 ## Required Preview database change
 
 Apply **only** `supabase/migrations/202610080003_locale_publication.sql` to the

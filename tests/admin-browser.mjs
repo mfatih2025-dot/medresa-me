@@ -125,8 +125,9 @@ let providerRequests = 0;
     await page.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('independent-'+l);
     await page.getByLabel('Tekst 1 · '+l.toUpperCase(),{exact:true}).fill('Independent body '+l.toUpperCase()+(update?' updated':''));
     await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
-    await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click();
-    await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+    // Ready review is still unsaved: publish must persist it automatically.
+    const pendingStatus=page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem').filter({has:page.locator('b',{hasText:new RegExp('^'+l.toUpperCase()+'$')})});
+    assert.match(await pendingStatus.textContent(),/Spremno/);
     if(l==='bs') {
       await page.getByRole('button',{name:'Osvježi pregled',exact:true}).click();
       await page.frameLocator('iframe').getByRole('heading',{name:'Independent BS',exact:true}).waitFor();
@@ -158,6 +159,59 @@ let providerRequests = 0;
     for(const item of rows) assert.match(await states.filter({has:page.locator('b',{hasText:new RegExp('^'+item.locale.toUpperCase()+'$')})}).textContent(),/Objavljeno/);
     if(l==='bs') for(const other of ['SQ','EN']) assert.match(await states.filter({has:page.locator('b',{hasText:new RegExp('^'+other+'$')})}).textContent(),/Nacrt/);
   }
+  // Direct /nova has no stored record: create, save review against its canonical
+  // server ID/revision, then publish BS without a separate Save click.
+  await page.goto(origin+'/admin/vijesti/nova');
+  await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
+  await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
+  await page.getByLabel('Naslov · BS',{exact:true}).fill('Direct BS-only publication');
+  await page.getByLabel('URL slug · BS',{exact:true}).fill('direct-bs-only-publication');
+  await page.getByLabel('Tekst 1 · BS',{exact:true}).fill('BS-only direct creation body');
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'OBJAVI BS',exact:true}).isEnabled(),true);
+  await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click();
+  await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+$/);
+  const directId=page.url().split('/').pop();
+  const directRows=(await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[directId])).rows;
+  assert.equal(directRows.length,1); assert.equal(directRows[0].locale,'bs'); assert.equal(directRows[0].snapshot.photos.length,0);
+  await page.reload();
+  const directStates=page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem');
+  assert.match(await directStates.nth(0).textContent(),/BSObjavljeno/);
+  assert.match(await directStates.nth(1).textContent(),/SQNacrt/); assert.match(await directStates.nth(2).textContent(),/ENNacrt/);
+  const frozenDirect=directRows[0];
+  await page.getByLabel('Naslov · BS',{exact:true}).fill('Direct BS changed');
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  // A failed automatic save must not invoke the publication action or overwrite history.
+  let blockedPublish=0;
+  await page.route('**/api/admin/news/'+directId, async route=>{
+    const body=route.request().postDataJSON();
+    if(body?.action==='save') return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'Explicit local save conflict fixture'})});
+    if(body?.action==='publish') blockedPublish++;
+    return route.continue();
+  });
+  await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Explicit local save conflict fixture',{exact:true}).waitFor();
+  assert.equal(blockedPublish,0);
+  assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[directId])).rows,[frozenDirect]);
+  assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Direct BS changed');
+  await page.unroute('**/api/admin/news/'+directId);
+  // Saving can succeed while publishing fails. Preserve the saved draft and show
+  // no publication success; retry uses that saved revision, not the old one.
+  await page.route('**/api/admin/news/'+directId, async route=>{
+    const body=route.request().postDataJSON();
+    if(body?.action==='publish') return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'Explicit local publication conflict fixture'})});
+    return route.continue();
+  });
+  await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Explicit local publication conflict fixture',{exact:true}).waitFor();
+  assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[directId])).rows,[frozenDirect]);
+  assert.equal((await db.query('select document from medresa_admin_articles where id=$1',[directId])).rows[0].document.title.bs,'Direct BS changed');
+  assert.equal(await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).isEnabled(),false);
+  await page.unroute('**/api/admin/news/'+directId);
+  await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByText('Objavljeno: BS. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
+  await page.reload(); assert.match(await page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem').nth(0).textContent(),/BSObjavljeno/);
   // Existing editor and actual renderer: unsaved content, languages, reorder and gallery.
   await page.goto(origin+'/admin/vijesti/2026-05-03-kurban');
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Nespremljeni naslov');
@@ -211,7 +265,7 @@ let providerRequests = 0;
     await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
     await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
   }
-  await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click(); await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
+  // The ready-language batch also auto-saves reviews before publishing.
   assert.equal(await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).isEnabled(),true);
   await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).click();
   assert.equal(await page.getByRole('dialog').count(),1); await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
@@ -326,10 +380,19 @@ let providerRequests = 0;
     assert.equal(await page.getByRole('navigation',{name:'Administracija',exact:true}).getByRole('link').count(),5);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);
   }
+  // Safe cleanup of disposable published fixtures: trash hides them from the
+  // public locale feed while retaining immutable publication history and slugs.
+  for(const disposableId of [newId,directId]) {
+    const row=(await db.query('select revision from medresa_admin_articles where id=$1',[disposableId])).rows[0];
+    const cleanup=await context.request.post(origin+'/api/admin/news/'+disposableId,{headers:{Origin:origin},data:{action:'trash',expectedRevision:row.revision,confirmedId:disposableId}});
+    assert.equal(cleanup.status(),200);
+    assert.equal((await db.query('select * from medresa_admin_public_locale_feed where article_id=$1',[disposableId])).rows.length,0);
+    assert.ok((await db.query('select * from medresa_admin_locale_publications where article_id=$1',[disposableId])).rows.length>0);
+  }
   await touchContext.close();
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; per-language photo-free BS publication, later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
 })().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);process.exit(1);});
