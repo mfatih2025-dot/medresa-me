@@ -168,3 +168,22 @@ test('authenticated runtime diagnostic distinguishes missing key from Supabase/b
   // Protect against accidental secrets entered in a non-secret runtime field too.
   process.env.MEDRESA_SUPABASE_PROJECT_REF=process.env.OPENAI_API_KEY;body=await check();assert.equal(body.runtime.projectRef,null);assert.ok(!JSON.stringify(body).includes(process.env.OPENAI_API_KEY));
 }));
+
+test('build/runtime evidence distinguishes absent, empty and whitespace keys without values, lengths, fingerprints or environment dumps',()=>environment(async()=>{
+  const { buildTranslationPresence }=await import('../scripts/preview-translation-env.mjs');
+  for(const value of [undefined,'','  ','explicit-safe-presence-fixture-key']) {
+    if(value===undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY=value;
+    const runtime=translationConfigurationDiagnostic().keyDelivery.runtime;
+    const build=buildTranslationPresence(process.env);
+    for(const field of ['keyDefined','keyNonEmpty','keyHasNonWhitespace']) assert.equal(build[field],runtime[field]);
+    assert.equal(runtime.staticLookupMatchesNodeRuntime,true);
+    assert.equal(runtime.keyDefined,value!==undefined); assert.equal(runtime.keyNonEmpty,!!value); assert.equal(runtime.keyHasNonWhitespace,!!value?.trim());
+    assert.deepEqual(Object.keys(build),['captured','keyDefined','keyNonEmpty','keyHasNonWhitespace','previewEnvironment','adminBranch','commitSha']);
+    assert.ok(Object.values(runtime).every(v=>typeof v==='boolean'));
+    if(value?.trim()) assert.ok(!JSON.stringify({build,runtime}).includes(value));
+  }
+  delete process.env.OPENAI_API_KEY;process.env.openai_api_key='explicit-alternate-fixture-value';
+  try { const runtime=translationConfigurationDiagnostic().keyDelivery.runtime;assert.equal(runtime.alternateKeyNamePresent,true);assert.equal(runtime.keyDefined,false);assert.ok(!JSON.stringify(runtime).includes(process.env.openai_api_key)); }
+  finally {delete process.env.openai_api_key;}
+  const secret='b'.repeat(40);const build=buildTranslationPresence({OPENAI_API_KEY:secret,VERCEL_GIT_COMMIT_SHA:secret});assert.equal(build.commitSha,null);assert.ok(!JSON.stringify(build).includes(secret));
+}));

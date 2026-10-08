@@ -27,6 +27,16 @@ Preview deployment is necessary after changing Vercel environment variables;
 existing deployments retain their original environment snapshot. Do not change
 other variables based on the editor's generic unavailable message.
 
+For unresolved delivery failures, the same authenticated report includes
+`translation.keyDelivery`. The npm `prebuild` hook captures only key-defined,
+non-empty and non-whitespace booleans plus approved branch/commit metadata into
+the server bundle. The runtime compares its ordinary lookup with Node's actual
+environment via `node:process`. This separates absent/blank values, build-only
+delivery and a compiled-lookup discrepancy without returning values, lengths or
+fingerprints. The hook never logs credentials or calls a provider. The checked-in
+`translationBuildPresence.ts` is an uncaptured seed; build replaces it locally.
+Do not commit generated presence evidence from a local build.
+
 A stored article identity is required (the normal “Nova vijest” action already
 creates it). Direct unsaved `/admin/vijesti/nova` drafts must first be saved. The
 translation request can include unsaved edits; both generated locales and those

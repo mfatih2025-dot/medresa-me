@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/preview-translation-env.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
