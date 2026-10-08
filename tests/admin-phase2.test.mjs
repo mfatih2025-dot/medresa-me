@@ -106,12 +106,13 @@ test("opaque Supabase secret keys use apikey; legacy JWT keys use the authorizat
   await backend.supabaseRequest("/rest/v1/test");
   assert.equal(headers[1].get("Authorization"),null); assert.equal(headers[1].get("apikey"),process.env.SUPABASE_SERVICE_ROLE_KEY);
 }));
-test("configuration diagnostic identifies failed guards without returning values or making provider requests", async () => environment(async () => {
+test("configuration diagnostic identifies failed guards and whitelists hostname/ref without making provider requests", async () => environment(async () => {
   let requests=0; globalThis.fetch=async () => { requests++; throw new Error("Diagnostics must not contact a provider"); };
   configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED="false";
   const healthy=diagnostic.adminConfigurationDiagnostic();
   assert.equal(healthy.configurationAccepted,true); assert.deepEqual(healthy.failedChecks,[]);
   assert.ok(Object.values(healthy.checks).every(v => v === true));
+  assert.deepEqual(healthy.runtime,{supabaseHostname:"abcdefghijklmnopqrst.supabase.co",projectRef:"abcdefghijklmnopqrst"});
   const cases=[
     ["VERCEL_GIT_COMMIT_REF",undefined,"adminBranch",false],
     ["VERCEL_GIT_COMMIT_REF","main","adminBranch",false],
@@ -134,12 +135,35 @@ test("configuration diagnostic identifies failed guards without returning values
     const report=diagnostic.adminConfigurationDiagnostic();
     assert.equal(report.checks[failed],false); assert.ok(report.failedChecks.includes(failed));
     assert.equal(report.configurationAccepted,accepted);
-    assert.deepEqual(Object.keys(report),["configurationAccepted","checks","failedChecks"]);
+    assert.deepEqual(Object.keys(report),["configurationAccepted","checks","failedChecks","runtime"]);
+    assert.deepEqual(Object.keys(report.runtime),["supabaseHostname","projectRef"]);
+    assert.equal(report.runtime.projectRef,process.env.MEDRESA_SUPABASE_PROJECT_REF ?? null);
     assert.ok(Object.values(report.checks).every(v => typeof v === "boolean"));
     const serialized=JSON.stringify(report);
-    for (const name of ["SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","MEDRESA_SUPABASE_PROJECT_REF"]) if (process.env[name]) assert.ok(!serialized.includes(process.env[name]));
+    for (const name of ["SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY"]) if (process.env[name]) assert.ok(!serialized.includes(process.env[name]));
   }
   assert.equal(requests,0);
+}));
+test("diagnostic never reflects URL credentials or known secrets accidentally placed in runtime fields", async () => environment(async () => {
+  configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED="false";
+  process.env.SUPABASE_SERVICE_ROLE_KEY="sb_secret_explicit_runtime_redaction_fixture";
+  process.env.MEDRESA_ADMIN_PASSWORD_HASH=`scrypt$${"a".repeat(32)}$${"b".repeat(128)}`;
+  process.env.MEDRESA_ADMIN_SESSION_SECRET="explicit-local-session-fixture-32-characters";
+  globalThis.fetch=async () => { throw new Error("Diagnostics must not contact a provider"); };
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL=`https://${key}:private-url-fixture@abcdefghijklmnopqrst.supabase.co/private?token=${key}`;
+  process.env.MEDRESA_SUPABASE_PROJECT_REF="differentprojectref";
+  const mismatch=diagnostic.adminConfigurationDiagnostic();
+  assert.deepEqual(mismatch.runtime,{supabaseHostname:"abcdefghijklmnopqrst.supabase.co",projectRef:"differentprojectref"});
+  assert.ok(!JSON.stringify(mismatch).includes(key)); assert.ok(!JSON.stringify(mismatch).includes("private-url-fixture"));
+  for (const name of ["SUPABASE_SERVICE_ROLE_KEY","MEDRESA_ADMIN_PASSWORD_HASH","MEDRESA_ADMIN_SESSION_SECRET"]) {
+    process.env.MEDRESA_SUPABASE_PROJECT_REF=process.env[name];
+    const redacted=diagnostic.adminConfigurationDiagnostic();
+    assert.equal(redacted.runtime.projectRef,null); assert.ok(!JSON.stringify(redacted).includes(process.env[name]));
+  }
+  process.env.SUPABASE_URL=`https://${key.toUpperCase()}.supabase.co`;
+  const hostname=diagnostic.adminConfigurationDiagnostic(); assert.equal(hostname.runtime.supabaseHostname,null);
+  assert.ok(!JSON.stringify(hostname).toLowerCase().includes(key.toLowerCase()));
 }));
 test("diagnostic API is authenticated, GET-only, Preview-only and never exposes secrets or contacts Supabase", async () => environment(async () => {
   const handler=load("src/pages/api/admin/diagnostics.ts").default;
@@ -149,17 +173,18 @@ test("diagnostic API is authenticated, GET-only, Preview-only and never exposes 
   const cookies={ [auth.cookieName()]:auth.createSession() };
   for (const candidate of [{},{[auth.cookieName()]:"tampered-session"}]) {
     const res=response(); await handler({method:"GET",headers:{},cookies:candidate},res);
-    assert.equal(res.statusCode,401); assert.equal(res.body.checks,undefined);
+    assert.equal(res.statusCode,401); assert.equal(res.body.checks,undefined); assert.equal(res.body.runtime,undefined);
     assert.match(res.headers["Cache-Control"],/private.*no-store/); assert.match(res.headers["X-Robots-Tag"],/noindex/);
   }
   for (const method of ["POST","PUT","PATCH","DELETE","HEAD","OPTIONS"]) {
     const res=response(); await handler({method,headers:{},cookies},res);
-    assert.equal(res.statusCode,405); assert.equal(res.headers.Allow,"GET"); assert.equal(res.body.checks,undefined);
+    assert.equal(res.statusCode,405); assert.equal(res.headers.Allow,"GET"); assert.equal(res.body.checks,undefined); assert.equal(res.body.runtime,undefined);
   }
   const valid=response(); await handler({method:"GET",headers:{},cookies},valid);
   assert.equal(valid.statusCode,200); assert.equal(valid.body.configurationAccepted,true); assert.deepEqual(valid.body.failedChecks,[]);
   assert.equal(valid.body.checks.writeFlagIsFalse,true); assert.equal(valid.headers["X-Content-Type-Options"],"nosniff");
-  for (const name of envNames) if (process.env[name] && process.env[name].length > 10) assert.ok(!JSON.stringify(valid.body).includes(process.env[name]));
+  assert.deepEqual(valid.body.runtime,{supabaseHostname:"abcdefghijklmnopqrst.supabase.co",projectRef:"abcdefghijklmnopqrst"});
+  for (const name of envNames.filter(n => n !== "MEDRESA_SUPABASE_PROJECT_REF")) if (process.env[name] && process.env[name].length > 10) assert.ok(!JSON.stringify(valid.body).includes(process.env[name]));
   delete process.env.VERCEL_GIT_COMMIT_REF;
   const missingBranch=response(); await handler({method:"GET",headers:{},cookies},missingBranch);
   assert.equal(missingBranch.statusCode,200); assert.equal(missingBranch.body.configurationAccepted,false); assert.deepEqual(missingBranch.body.failedChecks,["adminBranch"]);
@@ -167,7 +192,7 @@ test("diagnostic API is authenticated, GET-only, Preview-only and never exposes 
     if (value === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV=value;
     for (const candidate of [cookies,{}]) {
       const res=response(); await handler({method:"GET",headers:{},cookies:candidate},res);
-      assert.equal(res.statusCode,404); assert.equal(res.body.checks,undefined); assert.match(res.headers["Cache-Control"],/no-store/);
+      assert.equal(res.statusCode,404); assert.equal(res.body.checks,undefined); assert.equal(res.body.runtime,undefined); assert.match(res.headers["Cache-Control"],/no-store/);
     }
   }
   assert.equal(requests,0);

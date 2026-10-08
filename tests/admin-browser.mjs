@@ -76,22 +76,28 @@ let providerRequests = 0;
     const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/admin/login');
   }
   assert.equal((await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{}})).status(),401);
-  const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); assert.equal((await lockedDiagnostic.json()).checks,undefined);
+  const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); const lockedReport=await lockedDiagnostic.json(); assert.equal(lockedReport.checks,undefined); assert.equal(lockedReport.runtime,undefined);
   const login=await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:'browser-test-fixture',password}}); assert.equal(login.status(),200);
   const beforeDiagnostic=providerRequests;
   try {
     process.env.MEDRESA_SUPABASE_WRITE_ENABLED='false';
     const result=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(result.status(),200);
     const report=await result.json(); assert.equal(report.configurationAccepted,true); assert.deepEqual(report.failedChecks,[]); assert.ok(Object.values(report.checks).every(v=>v===true));
+    assert.deepEqual(report.runtime,{supabaseHostname:'abcdefghijklmnopqrst.supabase.co',projectRef:'abcdefghijklmnopqrst'});
     assert.match(result.headers()['cache-control'],/private.*no-store/); assert.match(result.headers()['x-robots-tag'],/noindex/);
-    for(const name of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MEDRESA_SUPABASE_PROJECT_REF','MEDRESA_ADMIN_USER','MEDRESA_ADMIN_PASSWORD_HASH','MEDRESA_ADMIN_SESSION_SECRET','MEDRESA_ADMIN_ORIGIN']) assert.ok(!JSON.stringify(report).includes(process.env[name]));
+    for(const name of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MEDRESA_ADMIN_USER','MEDRESA_ADMIN_PASSWORD_HASH','MEDRESA_ADMIN_SESSION_SECRET','MEDRESA_ADMIN_ORIGIN']) assert.ok(!JSON.stringify(report).includes(process.env[name]));
+    process.env.MEDRESA_SUPABASE_PROJECT_REF='differentprojectref';
+    const mismatch=await (await context.request.get(origin+'/api/admin/diagnostics')).json();
+    assert.equal(mismatch.configurationAccepted,false); assert.deepEqual(mismatch.failedChecks,['supabaseHostnameMatchesProjectRef']);
+    assert.deepEqual(mismatch.runtime,{supabaseHostname:'abcdefghijklmnopqrst.supabase.co',projectRef:'differentprojectref'});
+    process.env.MEDRESA_SUPABASE_PROJECT_REF='abcdefghijklmnopqrst';
     delete process.env.VERCEL_GIT_COMMIT_REF;
     const failed=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(failed.status(),200); assert.deepEqual((await failed.json()).failedChecks,['adminBranch']);
     assert.equal((await context.request.post(origin+'/api/admin/diagnostics',{headers:{Origin:origin},data:{}})).status(),405);
     process.env.VERCEL_ENV='production';
-    const production=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(production.status(),404); assert.equal((await production.json()).checks,undefined);
+    const production=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(production.status(),404); const productionReport=await production.json(); assert.equal(productionReport.checks,undefined); assert.equal(productionReport.runtime,undefined);
     assert.equal(providerRequests,beforeDiagnostic);
-  } finally { process.env.VERCEL_ENV='preview'; process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel'; process.env.MEDRESA_SUPABASE_WRITE_ENABLED='true'; }
+  } finally { process.env.VERCEL_ENV='preview'; process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel'; process.env.MEDRESA_SUPABASE_PROJECT_REF='abcdefghijklmnopqrst'; process.env.MEDRESA_SUPABASE_WRITE_ENABLED='true'; }
   await page.goto(origin+'/admin/vijesti'); assert.equal(await page.getByRole('article').count(),17);
   await page.getByRole('searchbox').fill('TIKA'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('searchbox').fill('');
   await page.getByRole('button',{name:'＋ Nova vijest',exact:true}).click();
