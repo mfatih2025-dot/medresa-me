@@ -17,6 +17,9 @@ import { RulesList, Rule, ShareButton } from "./KucniRedMotion";
  *                         Podijeli ↗ at the foot, to the right
  */
 
+/** Rules carried by a highlighter pass as the reader reaches them. */
+const MARKED = [4, 14];
+
 /** Times as written in the document: 06:30h, 07:00h … 23h, 20h, (12h). */
 const TIME = /(\d{1,2}(?::\d{2})?h)\b/g;
 
@@ -57,7 +60,7 @@ export function KucniRed({ locale }: { locale: Locale }) {
         <div className="kr-frame">
           <RulesList label={c.title}>
             {c.rules.map((rule, i) => (
-              <Rule key={i} n={i + 1}>
+              <Rule key={i} n={i + 1} mark={MARKED.includes(i + 1)}>
                 {withTimes(rule)}
               </Rule>
             ))}
