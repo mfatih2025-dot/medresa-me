@@ -57,7 +57,7 @@ let providerRequests = 0;
           if(value.startsWith('in.(')) {args.push(value.slice(4,-1).split(',')); clauses.push(`${key}=any($${args.length}::text[])`);}
         }
         const result=await db.query(`select * from ${table}${clauses.length?' where '+clauses.join(' and '):''}` ,args);
-        return json(result.rows);
+        return json(url.searchParams.get('limit')==='1' ? result.rows.slice(0,1) : result.rows);
       }
       const prefix='/storage/v1/object/'; assert.ok(url.pathname.startsWith(prefix));
       const path=url.pathname.slice(prefix.length).replace(/^authenticated\//,'');
@@ -79,6 +79,8 @@ let providerRequests = 0;
   assert.equal((await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{}})).status(),401);
   const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); const lockedReport=await lockedDiagnostic.json(); assert.equal(lockedReport.checks,undefined); assert.equal(lockedReport.runtime,undefined);
   const login=await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:'browser-test-fixture',password}}); assert.equal(login.status(),200);
+  const connection=await context.request.get(origin+'/api/admin/diagnostics?connectivity=1'); assert.equal(connection.status(),200);
+  assert.deepEqual((await connection.json()).connectivity,{state:'connected',httpStatus:200});
   const beforeDiagnostic=providerRequests;
   try {
     process.env.MEDRESA_SUPABASE_WRITE_ENABLED='false';

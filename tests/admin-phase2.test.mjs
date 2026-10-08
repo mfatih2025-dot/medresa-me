@@ -11,6 +11,7 @@ const importer = load("src/admin/import.ts");
 const { articles } = load("src/content/vijesti");
 const backend = load("src/server/admin/supabase.ts");
 const diagnostic = load("src/server/admin/diagnostics.ts");
+const connectionDiagnostic = load("src/server/admin/supabaseDiagnostic.ts");
 const news = load("src/server/admin/news.ts");
 const media = load("src/server/admin/media.ts");
 const auth = load("src/server/admin/auth.ts");
@@ -29,6 +30,76 @@ function configure() {
   process.env.VERCEL_GIT_COMMIT_REF = "codex/admin-panel";
 }
 function response() { return { statusCode: 200, headers: {}, setHeader(k,v) { this.headers[k]=v; }, status(n) { this.statusCode=n; return this; }, json(v) { this.body=v; return this; }, end() { return this; }, send(v) { this.body=v; return this; } }; }
+test("connection diagnostic performs one minimal GET with writes disabled and never returns database content or provider bodies", async () => environment(async () => {
+  configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED = "false";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_explicit_diagnostic_fixture";
+  let requests = 0;
+  globalThis.fetch = async (url, init) => {
+    requests++; assert.equal(url, "https://abcdefghijklmnopqrst.supabase.co/rest/v1/medresa_admin_articles?select=id&limit=1");
+    assert.equal(init.method, "GET"); assert.equal(init.cache, "no-store"); assert.equal(init.redirect, "error"); assert.ok(init.signal instanceof AbortSignal);
+    const headers = new Headers(init.headers); assert.equal(headers.get("apikey"), process.env.SUPABASE_SERVICE_ROLE_KEY); assert.equal(headers.has("Authorization"), false);
+    return new Response(JSON.stringify([{ id: "private-database-id-fixture" }]), { headers: { "Content-Type": "application/json" } });
+  };
+  assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "connected", httpStatus: 200 });
+  assert.equal(requests, 1);
+  for (const status of [401, 403, 404, 500, 503]) {
+    globalThis.fetch = async () => new Response(process.env.SUPABASE_SERVICE_ROLE_KEY, { status });
+    assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "http-error", httpStatus: status });
+  }
+  for (const body of ["invalid-json", '{"id":"private-id"}', '[{"id":1}]', '[{"id":"first"},{"id":"second"}]']) {
+    globalThis.fetch = async () => new Response(body);
+    assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "invalid-response", httpStatus: 200 });
+  }
+}));
+test("connection diagnostic identifies transport codes without reflecting messages, stacks, headers or secrets", async () => environment(async () => {
+  configure(); process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_transport_fixture_do_not_reflect";
+  const privateMessage = process.env.SUPABASE_SERVICE_ROLE_KEY + " private-url-and-provider-details";
+  const cases = [
+    [new TypeError(privateMessage, { cause: Object.assign(new Error(privateMessage), { code: "ENOTFOUND" }) }), "dns-not-found", "ENOTFOUND"],
+    [new TypeError(privateMessage, { cause: Object.assign(new Error(privateMessage), { code: "EAI_AGAIN" }) }), "dns-temporary-failure", "EAI_AGAIN"],
+    [new TypeError(privateMessage, { cause: Object.assign(new Error(privateMessage), { code: "UND_ERR_CONNECT_TIMEOUT" }) }), "connection-timeout", "UND_ERR_CONNECT_TIMEOUT"],
+    [new DOMException(privateMessage, "TimeoutError"), "request-timeout", undefined],
+    [new TypeError(privateMessage, { cause: Object.assign(new Error(privateMessage), { code: "CERT_HAS_EXPIRED" }) }), "tls-certificate-expired", "CERT_HAS_EXPIRED"],
+    [new TypeError(privateMessage, { cause: new AggregateError([Object.assign(new Error(privateMessage), { code: "ENETUNREACH" })], privateMessage) }), "network-unreachable", "ENETUNREACH"],
+    [Object.assign(new Error(privateMessage), { code: privateMessage }), "unclassified-transport-failure", undefined],
+    [null, "unclassified-transport-failure", undefined],
+  ];
+  for (const [error, reason, code] of cases) {
+    globalThis.fetch = async () => { throw error; };
+    const report = await connectionDiagnostic.supabaseConnectionDiagnostic();
+    assert.equal(report.state, "transport-error"); assert.equal(report.reason, reason); assert.equal(report.code, code); assert.ok(report.elapsedMilliseconds >= 0);
+    assert.ok(!JSON.stringify(report).includes(privateMessage)); assert.ok(!JSON.stringify(report).includes(process.env.SUPABASE_SERVICE_ROLE_KEY));
+    assert.ok(!("message" in report)); assert.ok(!("stack" in report));
+  }
+}));
+test("connection diagnostic blocks Production, other branches and invalid configuration before any provider request", async () => environment(async () => {
+  let requests = 0; globalThis.fetch = async () => { requests++; throw new Error("Provider must not be contacted"); };
+  configure(); process.env.VERCEL_ENV = "production";
+  assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "blocked", reason: "preview-required" });
+  configure(); process.env.VERCEL_GIT_COMMIT_REF = "main";
+  assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "blocked", reason: "admin-branch-required" });
+  configure(); process.env.SUPABASE_URL = "https://wrongprojectref.supabase.co";
+  assert.deepEqual(await connectionDiagnostic.supabaseConnectionDiagnostic(), { state: "blocked", reason: "configuration-unavailable" });
+  assert.equal(requests, 0);
+}));
+test("live connection check requires authenticated explicit GET opt-in; default diagnostics never contact Supabase", async () => environment(async () => {
+  configure();
+  process.env.MEDRESA_ADMIN_USER = "diagnostic-auth-fixture"; process.env.MEDRESA_ADMIN_PASSWORD_HASH = `scrypt$${"a".repeat(32)}$${"b".repeat(128)}`; process.env.MEDRESA_ADMIN_SESSION_SECRET = randomBytes(48).toString("base64url"); process.env.MEDRESA_ADMIN_ORIGIN = "https://admin.example.test";
+  const handler = load("src/pages/api/admin/diagnostics.ts").default;
+  const cookies = { [auth.cookieName()]: auth.createSession() }; let requests = 0;
+  globalThis.fetch = async (_url, init) => { requests++; assert.equal(init.method, "GET"); return new Response("[]"); };
+  const req = { method: "GET", query: { connectivity: "1" }, cookies, headers: {} };
+  const locked = response(); await handler({ ...req, cookies: {} }, locked); assert.equal(locked.statusCode, 401); assert.equal(locked.body.connectivity, undefined);
+  const ordinary = response(); await handler({ ...req, query: {} }, ordinary); assert.equal(ordinary.statusCode, 200); assert.equal(ordinary.body.connectivity, undefined);
+  const mutation = response(); await handler({ ...req, method: "POST" }, mutation); assert.equal(mutation.statusCode, 405);
+  process.env.VERCEL_ENV = "production"; const production = response(); await handler(req, production); assert.equal(production.statusCode, 404);
+  process.env.VERCEL_ENV = "preview"; process.env.VERCEL_GIT_COMMIT_REF = "other-branch";
+  const branch = response(); await handler(req, branch); assert.equal(branch.body.connectivity.state, "blocked");
+  assert.equal(requests, 0);
+  process.env.VERCEL_GIT_COMMIT_REF = "codex/admin-panel";
+  const valid = response(); await handler(req, valid); assert.equal(valid.statusCode, 200); assert.deepEqual(valid.body.connectivity, { state: "connected", httpStatus: 200 }); assert.equal(requests, 1);
+  assert.match(valid.headers["Cache-Control"], /private.*no-store/);
+}));
 test("all 17 imports preserve full contract, original bodies, shared images, slugs, dates and ordering", () => {
   assert.equal(articles.length,17);
   for (const a of articles) {
