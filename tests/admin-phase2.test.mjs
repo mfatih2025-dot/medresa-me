@@ -197,6 +197,43 @@ test("diagnostic API is authenticated, GET-only, Preview-only and never exposes 
   }
   assert.equal(requests,0);
 }));
+test("rejected news GET diagnostics are server-only, Preview-branch-only, value-free and never bypass authentication", async () => environment(async () => {
+  const handler = load("src/pages/api/admin/news/index.ts").default;
+  const info = console.info; const logs = []; let requests = 0;
+  console.info = value => logs.push(JSON.parse(value));
+  try {
+    configure();
+    process.env.MEDRESA_ADMIN_USER = "private-user-fixture";
+    process.env.MEDRESA_ADMIN_PASSWORD_HASH = `scrypt$${"a".repeat(32)}$${"b".repeat(128)}`;
+    process.env.MEDRESA_ADMIN_SESSION_SECRET = randomBytes(48).toString("base64url");
+    process.env.MEDRESA_ADMIN_ORIGIN = "https://admin.example.test";
+    globalThis.fetch = async (url, init = {}) => {
+      requests++; assert.equal(init.method ?? "GET", "GET"); assert.match(url, /\/rest\/v1\/medresa_admin_articles\?/);
+      return new Response("[]", { headers: { "Content-Type": "application/json" } });
+    };
+    const token = auth.createSession(); const name = auth.cookieName();
+    const req = { method: "GET", url: "/api/admin/news", headers: { host: "admin.example.test", cookie: `${name}=${token}` }, cookies: {} };
+    const missing = response(); await handler(req, missing);
+    assert.equal(missing.statusCode, 401); assert.deepEqual(missing.body, { error: "Prijavite se za nastavak." });
+    assert.deepEqual(logs[0], { event: "medresa.admin.auth_rejected", reason: "cookie-missing", authConfigured: true, expectsSecureCookie: true, parsedCookiePresent: false, headerContainsExpectedCookie: true, originMatchesRequestHost: true });
+    const invalid = response(); await handler({ ...req, cookies: { [name]: token + "x" } }, invalid);
+    assert.equal(invalid.statusCode, 401); assert.equal(logs[1].reason, "signature-mismatch"); assert.equal(logs[1].parsedCookiePresent, true);
+    const mismatch = response(); await handler({ ...req, headers: { host: process.env.MEDRESA_ADMIN_SESSION_SECRET }, cookies: { [name]: token + "x" } }, mismatch);
+    assert.equal(mismatch.statusCode, 401); assert.equal(logs[2].originMatchesRequestHost, false);
+    const serialized = JSON.stringify(logs);
+    for (const secret of [token, ...envNames.map(n => process.env[n]).filter(v => v && v.length > 10)]) assert.ok(!serialized.includes(secret));
+    assert.equal(requests, 0);
+    const before = logs.length;
+    const valid = response(); await handler({ ...req, cookies: { [name]: token } }, valid);
+    assert.equal(valid.statusCode, 200); assert.equal(valid.body.backend.state, "connected"); assert.equal(valid.body.backend.writable, true);
+    assert.equal(requests, 1); assert.equal(logs.length, before);
+    for (const change of [() => { process.env.VERCEL_ENV = "production"; }, () => { process.env.VERCEL_ENV = "development"; }, () => { delete process.env.VERCEL_ENV; }, () => { process.env.VERCEL_GIT_COMMIT_REF = "main"; }, r => { r.url = "/api/admin/diagnostics"; }, r => { r.method = "POST"; }]) {
+      configure(); const candidate = { ...req }; change(candidate);
+      const result = response(); await handler(candidate, result);
+      assert.equal(result.statusCode, 401); assert.equal(logs.length, before); assert.equal(requests, 1);
+    }
+  } finally { console.info = info; }
+}));
 test("all private APIs reject unauthenticated requests; mutations reject foreign origins and deletion needs explicit confirmation", async () => environment(async () => {
   const handlers=["news/index","news/[id]","media/index","media/[id]","preview","translation"].map(p => load(`src/pages/api/admin/${p}.ts`).default);
   for (const handler of handlers) { const res=response(); await handler({method:"POST",headers:{},cookies:{},query:{id:"article"},body:{}},res); assert.equal(res.statusCode,401); assert.match(res.headers["Cache-Control"],/no-store/); }

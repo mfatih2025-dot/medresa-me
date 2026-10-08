@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { Script } from "node:vm";
-import { scryptSync } from "node:crypto";
+import { createHmac, scryptSync } from "node:crypto";
 import ts from "typescript";
 
 // Compile source in memory; no generated fixtures or production writes.
@@ -94,6 +94,47 @@ test("authentication fails closed, checks credentials, expires sessions, rejects
     assert.match(auth.sessionCookie(token), /HttpOnly; SameSite=Strict/); assert.match(auth.sessionCookie(token), /; Secure/);
     for (let i = 0; i < 10; i++) assert.equal(auth.allowLoginAttempt("test-address", 1000), true);
     assert.equal(auth.allowLoginAttempt("test-address", 1000), false);
+  } finally { names.forEach((n, i) => { if (original[i] === undefined) delete process.env[n]; else process.env[n] = original[i]; }); }
+});
+test("session failure reasons preserve signature, identity, timing and expiry checks", () => {
+  const names = ["MEDRESA_ADMIN_USER", "MEDRESA_ADMIN_PASSWORD_HASH", "MEDRESA_ADMIN_SESSION_SECRET", "MEDRESA_ADMIN_ORIGIN"];
+  const original = names.map(n => process.env[n]);
+  try {
+    process.env.MEDRESA_ADMIN_USER = "session-reason-fixture";
+    process.env.MEDRESA_ADMIN_PASSWORD_HASH = `scrypt$${"a".repeat(32)}$${"b".repeat(128)}`;
+    process.env.MEDRESA_ADMIN_SESSION_SECRET = "explicit-session-reason-fixture-at-least-32-characters";
+    process.env.MEDRESA_ADMIN_ORIGIN = "https://admin.example.test";
+    const sign = data => {
+      const body = Buffer.from(typeof data === "string" ? data : JSON.stringify(data)).toString("base64url");
+      return `${body}.${createHmac("sha256", process.env.MEDRESA_ADMIN_SESSION_SECRET).update(body).digest("base64url")}`;
+    };
+    const data = { user: process.env.MEDRESA_ADMIN_USER, issuedAt: 1000, expiresAt: 1000 + 8 * 3600 * 1000 };
+    const cases = [
+      [undefined, 2000, "cookie-missing"],
+      ["x".repeat(2049), 2000, "token-too-long"],
+      ["invalid", 2000, "token-format-invalid"],
+      [sign(data) + ".extra", 2000, "token-format-invalid"],
+      [sign(data) + "x", 2000, "signature-mismatch"],
+      [sign("not-json"), 2000, "payload-invalid"],
+      [sign({ ...data, user: "other" }), 2000, "user-mismatch"],
+      [sign({ ...data, issuedAt: "1000" }), 2000, "payload-invalid"],
+      [sign(data), 999, "issued-in-future"],
+      [sign(data), data.expiresAt, "expired"],
+      [sign({ ...data, expiresAt: data.expiresAt + 1 }), 2000, "duration-invalid"],
+    ];
+    for (const [token, now, expected] of cases) {
+      const failures = [];
+      assert.equal(auth.verifySession(token, now, reason => failures.push(reason)), null);
+      assert.deepEqual(failures, [expected]);
+      assert.equal(auth.verifySession(token, now), null);
+    }
+    const failures = [];
+    assert.equal(auth.verifySession(sign(data), 2000, reason => failures.push(reason)).user, data.user);
+    assert.deepEqual(failures, []);
+    const validToken = sign(data);
+    delete process.env.MEDRESA_ADMIN_SESSION_SECRET;
+    assert.equal(auth.verifySession(validToken, 2000, reason => failures.push(reason)), null);
+    assert.deepEqual(failures, ["configuration-unavailable"]);
   } finally { names.forEach((n, i) => { if (original[i] === undefined) delete process.env[n]; else process.env[n] = original[i]; }); }
 });
 test("every sampled public proxy outcome exactly matches the audited baseline", () => {

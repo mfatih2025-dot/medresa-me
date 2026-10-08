@@ -7,6 +7,7 @@ import type { GetServerSidePropsContext } from "next";
 const derive = promisify(scrypt);
 const SESSION_SECONDS = 60 * 60 * 8;
 export type AdminSession = { user: string; expiresAt: number };
+type SessionFailure = "configuration-unavailable" | "cookie-missing" | "token-too-long" | "token-format-invalid" | "signature-mismatch" | "payload-invalid" | "user-mismatch" | "issued-in-future" | "expired" | "duration-invalid";
 
 function configuration() {
   const user = process.env.MEDRESA_ADMIN_USER;
@@ -43,19 +44,26 @@ export function createSession(now = Date.now()): string {
   return `${body}.${createHmac("sha256", config.secret).update(body).digest("base64url")}`;
 }
 
-export function verifySession(token: string | undefined, now = Date.now()): AdminSession | null {
+export function verifySession(token: string | undefined, now = Date.now(), onFailure?: (reason: SessionFailure) => void): AdminSession | null {
+  const reject = (reason: SessionFailure): null => { onFailure?.(reason); return null; };
   const config = configuration();
-  if (!config || !token || token.length > 2048) return null;
+  if (!config) return reject("configuration-unavailable");
+  if (!token) return reject("cookie-missing");
+  if (token.length > 2048) return reject("token-too-long");
   const [body, signature, extra] = token.split(".");
-  if (!body || !signature || extra !== undefined) return null;
+  if (!body || !signature || extra !== undefined) return reject("token-format-invalid");
   const expected = createHmac("sha256", config.secret).update(body).digest();
   const supplied = Buffer.from(signature, "base64url");
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return reject("signature-mismatch");
   try {
     const data = JSON.parse(Buffer.from(body, "base64url").toString());
-    if (data.user !== config.user || !Number.isFinite(data.issuedAt) || !Number.isFinite(data.expiresAt) || data.issuedAt > now || data.expiresAt <= now || data.expiresAt - data.issuedAt !== SESSION_SECONDS * 1000) return null;
+    if (data.user !== config.user) return reject("user-mismatch");
+    if (!Number.isFinite(data.issuedAt) || !Number.isFinite(data.expiresAt)) return reject("payload-invalid");
+    if (data.issuedAt > now) return reject("issued-in-future");
+    if (data.expiresAt <= now) return reject("expired");
+    if (data.expiresAt - data.issuedAt !== SESSION_SECONDS * 1000) return reject("duration-invalid");
     return { user: data.user, expiresAt: data.expiresAt };
-  } catch { return null; }
+  } catch { return reject("payload-invalid"); }
 }
 
 export function sessionCookie(token: string, clear = false): string {
