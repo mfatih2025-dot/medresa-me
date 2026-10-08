@@ -89,7 +89,7 @@ const objects = new Map();
   await page.frameLocator('iframe').getByRole('heading',{name:'Nespremljeni naslov',exact:true}).waitFor();
   await page.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:'EN',exact:true}).click();
   await page.frameLocator('iframe').getByRole('heading',{name:/Donate a kurban/i}).waitFor();
-  await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).first().click();
+  await page.getByRole('button',{name:'Odaberi iz biblioteke',exact:false}).first().click();
   assert.ok(await page.getByRole('button',{name:/^Odaberi:/}).count()>0);
   // Create a real draft using actual service/RPCs against in-memory PostgreSQL fixture.
   await page.goto(origin+'/admin/vijesti/nova');
@@ -112,13 +112,16 @@ const objects = new Map();
   assert.equal(await page.frameLocator('iframe').locator('article img').first().evaluate(img=>img.naturalWidth),96);
   // Add an image block sharing the existing upload without a second upload.
   await page.getByRole('button',{name:'＋ Slika',exact:true}).click();
-  await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).nth(1).click();
+  await page.getByRole('button',{name:'Odaberi iz biblioteke',exact:false}).nth(1).click();
   await page.getByRole('region',{name:'Biblioteka · Slika bloka 2',exact:true}).getByRole('button',{name:/^Odaberi:/}).first().click();
   assert.equal(objects.size,2);
   await page.getByRole('button',{name:'Pomjeri blok 2 gore',exact:true}).click();
   assert.equal(await page.getByLabel('Tekst 2 · EN',{exact:true}).count(),1);
+  await page.setViewportSize({width:1280,height:1200});
+  await page.getByRole('list',{name:'Blokovi članka',exact:true}).scrollIntoViewIfNeeded();
   await page.getByRole('button',{name:'Povuci blok 2',exact:true}).dragTo(page.getByRole('button',{name:'Povuci blok 1',exact:true}));
-  assert.equal(await page.getByLabel('Tekst 1 · EN',{exact:true}).count(),1);
+  await page.getByLabel('Tekst 1 · EN',{exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).click();
   await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
   await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
@@ -145,7 +148,7 @@ const objects = new Map();
       await page.goto(origin+path); const size=await page.evaluate(()=>({view:document.documentElement.clientWidth,content:document.documentElement.scrollWidth})); if(size.content>size.view+1) { console.log('OVERFLOW',path,width,size,await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).map(e=>({tag:e.tagName,class:e.className,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width,text:e.textContent.slice(0,70)})).filter(e=>e.right>document.documentElement.clientWidth+1).slice(0,15)));  } assert.ok(size.content<=size.view+1,path+' overflow at '+width);
     }
     const input=page.getByLabel('Datoteka · Naslovna slika',{exact:true}); assert.equal(await input.getAttribute('type'),'file'); assert.match(await input.getAttribute('accept'),/image\/jpeg.*image\/png.*image\/webp/);
-    await page.getByRole('button',{name:'Odaberi iz postojeće biblioteke',exact:false}).first().click();
+    await page.getByRole('button',{name:'Odaberi iz biblioteke',exact:false}).first().click();
     const size=await page.evaluate(()=>({view:document.documentElement.clientWidth,content:document.documentElement.scrollWidth})); assert.ok(size.content<=size.view+1,'gallery overflow '+width);
   }
   // Archive, cancel/confirm trash, restore, and dialog geometry at every width.
@@ -165,9 +168,92 @@ const objects = new Map();
   await page.getByText('Vijest je premještena u smeće. Možete je vratiti; slike su sačuvane.',{exact:true}).waitFor();
   await page.getByLabel('Status',{exact:true}).selectOption('trash'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('button',{name:'Vrati',exact:true}).click();
   await page.getByText('Vijest je vraćena.',{exact:true}).waitFor(); assert.equal(objects.size,2);
+  // Real touch events, every mobile width: reachable menu and a complete multi-image draft without dragging.
+  const touchContext=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:360,height:900},storageState:await context.storageState()});
+  const phone=await touchContext.newPage(); phone.on('pageerror',error=>errors.push(error.message)); phone.on('dialog',dialog=>dialog.accept());
+  const sections=[['Pregled','/admin'],['Vijesti','/admin/vijesti'],['Akcije','/admin/akcije'],['Rezultati','/admin/rezultati'],['Analitika','/admin/analitika']];
+  const assertFits=async () => assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'phone page overflow at '+(await phone.viewportSize()).width);
+  for(const width of [360,390,412,430]) {
+    await phone.setViewportSize({width,height:900}); await phone.goto(origin+'/admin');
+    for(const [label,path] of sections) {
+      const menu=phone.getByRole('button',{name:'Administracijski meni',exact:true});
+      assert.equal(await menu.getAttribute('aria-expanded'),'false');
+      await menu.tap();
+      const nav=phone.getByRole('navigation',{name:'Administracija',exact:true});
+      assert.equal(await nav.getByRole('link').count(),5);
+      assert.equal(await nav.evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);
+      for(const [item] of sections) {
+        const link=nav.getByRole('link',{name:item,exact:true}); const box=await link.boundingBox();
+        assert.ok(box && box.x>=0 && box.x+box.width<=width && box.height>=44,item+' menu bounds');
+      }
+      await assertFits();
+      if(process.env.MEDRESA_TEST_SCREENSHOT_DIR && width===390 && label==='Pregled') await phone.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'menu-390.png')});
+      await nav.getByRole('link',{name:label,exact:true}).tap(); await phone.waitForURL(origin+path);
+      assert.equal(await phone.getByRole('button',{name:'Administracijski meni',exact:true}).getAttribute('aria-expanded'),'false'); await assertFits();
+    }
+    await phone.goto(origin+'/admin/vijesti/nova');
+    await phone.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
+    const choose=phone.waitForEvent('filechooser'); await phone.getByRole('button',{name:'Odaberi sliku',exact:true}).tap();
+    await (await choose).setFiles({name:'phone-cover.jpg',mimeType:'image/jpeg',buffer:jpeg});
+    await phone.getByText('Slika je spremljena u zajedničku biblioteku.',{exact:true}).waitFor();
+    assert.equal(await phone.getByRole('button',{name:'Zamijeni',exact:true}).count(),1);
+    const replacement=phone.waitForEvent('filechooser'); await phone.getByRole('button',{name:'Zamijeni',exact:true}).tap(); await (await replacement).setFiles([]);
+    for(const type of ['Tekst','Slika','Tekst','Slika','Slika','Podnaslov','Tekst','Citat','Slika']) await phone.getByRole('button',{name:'＋ '+type,exact:true}).tap();
+    const blocks=phone.getByRole('list',{name:'Blokovi članka',exact:true}).getByRole('listitem');
+    assert.equal(await blocks.count(),9); assert.equal(await phone.getByRole('button',{name:/^Povuci blok/}).count(),0);
+    for(const index of [1,3,4,8]) {
+      const block=blocks.nth(index); const picker=phone.waitForEvent('filechooser'); await block.getByRole('button',{name:'Odaberi sliku',exact:true}).tap();
+      await (await picker).setFiles({name:'phone-block-'+index+'.jpg',mimeType:'image/jpeg',buffer:jpeg});
+      await block.getByText('Slika je spremljena u zajedničku biblioteku.',{exact:true}).waitFor();
+      assert.equal(await block.getByRole('img').count(),1);
+      assert.equal(await block.getByRole('button',{name:'Odaberi iz biblioteke',exact:false}).getAttribute('aria-expanded'),'false');
+    }
+    await blocks.nth(1).getByRole('button',{name:'Postavi kao naslovnu',exact:true}).tap();
+    for(const l of ['bs','sq','en']) {
+      await phone.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).tap();
+      await phone.getByLabel('Naslov · '+l.toUpperCase(),{exact:true}).fill('Phone '+width+' '+l.toUpperCase());
+      await phone.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('phone-'+width+'-'+l);
+      for(const [label,index] of [['Tekst',1],['Tekst',3],['Podnaslov',6],['Tekst',7],['Citat',8]]) await phone.getByLabel(label+' '+index+' · '+l.toUpperCase(),{exact:true}).fill(label+' '+index+' '+l);
+    }
+    for(const name of ['Pomjeri blok 2 dolje','Pomjeri blok 3 gore']) {
+      const button=phone.getByRole('button',{name,exact:true}); const box=await button.boundingBox(); assert.ok(box.width>=44 && box.height>=44);
+      await button.tap();
+    }
+    assert.equal(await phone.getByLabel('Tekst 3 · EN',{exact:true}).inputValue(),'Tekst 3 en');
+    await phone.getByRole('button',{name:'Osvježi pregled',exact:true}).tap();
+    const frame=phone.frameLocator('iframe');
+    for(const l of ['bs','sq','en']) {
+      await phone.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).tap();
+      await frame.getByRole('heading',{name:'Phone '+width+' '+l.toUpperCase(),exact:true}).waitFor();
+      assert.deepEqual(await frame.locator('.news-body').evaluate(e=>Array.from(e.children).map(c=>c.tagName)),['P','FIGURE','P','FIGURE','FIGURE','H2','P','BLOCKQUOTE','FIGURE']);
+    }
+    assert.ok(await phone.locator('iframe').evaluate(e=>e.getBoundingClientRect().width<=e.parentElement.clientWidth));
+    await phone.getByLabel('Veličina pregleda',{exact:true}).getByRole('button',{name:'Desktop',exact:true}).tap();
+    assert.equal(await phone.locator('iframe').evaluate(e=>Math.round(e.getBoundingClientRect().width)),1200); await assertFits();
+    await phone.getByLabel('Veličina pregleda',{exact:true}).getByRole('button',{name:'Mobile',exact:true}).tap();
+    const previewTop=await phone.getByRole('region',{name:'Pregled nacrta',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
+    const publishTop=await phone.getByRole('button',{name:'OBJAVI NA SVA 3 JEZIKA',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
+    assert.ok(publishTop>previewTop,'preview before publication');
+    await phone.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).tap(); await phone.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
+    const phoneId=phone.url().split('?')[0].split('/').pop(); const saved=(await db.query('select document from medresa_admin_articles where id=$1',[phoneId])).rows[0].document;
+    assert.deepEqual(saved.blocks.map(b=>b.type),['text','image','text','image','image','subheading','text','quote','image']); assert.equal(saved.images.length,4);
+    await phone.reload(); assert.equal(await phone.getByRole('list',{name:'Blokovi članka',exact:true}).getByRole('listitem').count(),9); await assertFits();
+    if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) await phone.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'editor-'+width+'.png'),fullPage:true});
+  }
+  // Keyboard closure and the preserved tablet/desktop navigation.
+  await phone.goto(origin+'/admin'); await phone.getByRole('button',{name:'Administracijski meni',exact:true}).tap();
+  await phone.getByRole('navigation',{name:'Administracija',exact:true}).getByRole('link',{name:'Pregled',exact:true}).focus(); await phone.keyboard.press('Escape');
+  assert.equal(await phone.getByRole('button',{name:'Administracijski meni',exact:true}).getAttribute('aria-expanded'),'false');
+  for(const width of [768,1024,1440]) {
+    await page.setViewportSize({width,height:900}); await page.goto(origin+'/admin');
+    if(width<=900) await page.getByRole('button',{name:'Administracijski meni',exact:true}).click();
+    assert.equal(await page.getByRole('navigation',{name:'Administracija',exact:true}).getByRole('link').count(),5);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);
+  }
+  await touchContext.close();
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser; shared upload; persisted drafts/reload; three-language review/publication; DND/mobile reorder; archive/trash/restore; logout; 360/390/412/430 px grids, editor controls and dialogs. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; three-language review/publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
-})().catch(error=>{console.error(error.message.split('Call log:')[0]);process.exit(1);});
+})().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);process.exit(1);});

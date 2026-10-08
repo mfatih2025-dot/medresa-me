@@ -1,15 +1,15 @@
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import styles from "./admin.module.css";
 
 export const navigation = [
-  { href: "/admin", label: "Dashboard", mark: "overview" },
-  { href: "/admin/vijesti", label: "Vijesti", mark: "news" },
-  { href: "/admin/akcije", label: "Popup / Akcije", mark: "campaign" },
-  { href: "/admin/rezultati", label: "Rezultati ispita", mark: "document" },
-  { href: "/admin/analitika", label: "Analitika", mark: "analytics" },
+  { href: "/admin", label: "Dashboard", mobileLabel: "Pregled", mark: "overview" },
+  { href: "/admin/vijesti", label: "Vijesti", mobileLabel: "Vijesti", mark: "news" },
+  { href: "/admin/akcije", label: "Popup / Akcije", mobileLabel: "Akcije", mark: "campaign" },
+  { href: "/admin/rezultati", label: "Rezultati ispita", mobileLabel: "Rezultati", mark: "document" },
+  { href: "/admin/analitika", label: "Analitika", mobileLabel: "Analitika", mark: "analytics" },
 ];
 export function Mark({ kind }: { kind: string }) {
   const paths: Record<string, ReactNode> = {
@@ -22,13 +22,18 @@ export function Mark({ kind }: { kind: string }) {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg>;
 }
 export function Shell({ active, title, intro, children, action }: { active: string; title: string; intro: string; children: ReactNode; action?: ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navId = useId();
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const current = navigation.find(n => n.href === active) ?? navigation[0];
   return <div className={styles.shell}>
     <Head><title>{title} · Medresa administracija</title></Head>
     <a className={styles.skip} href="#admin-main">Preskoči na sadržaj</a>
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href="/admin"><Image src="/brand/medresa-logo.png" alt="" width={44} height={44} /><span>Mehmed Fatih<small>Administracija</small></span></Link>
       <span className={styles.navCaption}>Radni prostor</span>
-      <nav aria-label="Administracija">{navigation.map(n => <Link key={n.href} href={n.href} aria-current={active === n.href ? "page" : undefined} className={active === n.href ? styles.navActive : styles.navItem}><Mark kind={n.mark} /><span>{n.label}</span></Link>)}</nav>
+      <button ref={menuButton} type="button" className={styles.mobileMenu} aria-label="Administracijski meni" aria-expanded={menuOpen} aria-controls={navId} onClick={() => setMenuOpen(v => !v)}><span><Mark kind={current.mark} />{current.mobileLabel}</span><span>Meni <span aria-hidden="true">{menuOpen ? "−" : "+"}</span></span></button>
+      <nav id={navId} aria-label="Administracija" className={menuOpen ? styles.navigationOpen : undefined} onKeyDown={e => { if (e.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); } }}>{navigation.map(n => <Link key={n.href} href={n.href} onClick={() => setMenuOpen(false)} aria-current={active === n.href ? "page" : undefined} className={active === n.href ? styles.navActive : styles.navItem}><Mark kind={n.mark} /><span className={styles.desktopNavLabel}>{n.label}</span><span className={styles.mobileNavLabel}>{n.mobileLabel}</span></Link>)}</nav>
       <div className={styles.sidebarBottom}><a href="/" target="_blank" rel="noopener noreferrer">Otvori javnu stranicu ↗</a><form action="/api/admin/logout" method="post"><button>Odjavi se</button></form><span>Medresa · Tuzi</span></div>
     </aside>
     <div className={styles.workspace}>
