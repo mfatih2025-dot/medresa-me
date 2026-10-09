@@ -71,6 +71,9 @@ test('Vercel uses official Preview aggregates, direct unique totals, no Producti
     const u=new URL(input); requests.push(u); assert.equal(new Headers(init.headers).get('Authorization'),'Bearer fixture-vercel-private');
     if(u.pathname.startsWith('/v9/projects/')) return json({id:'prj_verified_fixture',name:'medresa-me'});
     assert.equal(u.pathname,'/v1/query/web-analytics/visits/aggregate'); assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+    // Reproduce the identified live rejection, never an assumed maximum range.
+    if(u.searchParams.get('limit')==='200') return json({error:{code:'bad_request',message:"Invalid query parameter 'limit'"}},400);
+    assert.equal(u.searchParams.get('limit'),'10','Use the documented Vercel default without changing traffic scope');
     const by=u.searchParams.get('by');
     if(by==='environment') return json({data:[{environment:'preview',pageviews:12,visitors:3}]});
     if(by==='day') return json({data:[{timestamp:'2026-10-07T00:00:00Z',pageviews:12,visitors:3},{timestamp:'2026-10-06T00:00:00Z',pageviews:10,visitors:3}]});
@@ -80,6 +83,8 @@ test('Vercel uses official Preview aggregates, direct unique totals, no Producti
   assert.equal(r.state,'connected'); assert.equal(r.totals.visitors,3); assert.equal(r.totals.visits,undefined);
   assert.equal(r.topContent[0].label,'/bs/vijesti'); assert.equal(r.trackingStart,null); assert.deepEqual(r.cumulative,{});
   assert.ok(requests.length>=10); assert.ok(!JSON.stringify(r).includes(process.env.VERCEL_ANALYTICS_TOKEN));
+  const selected=requests.find(u=>u.searchParams.get('by')==='environment');const selectedRange=ranges('7',now,'UTC').current;
+  assert.equal(selected.searchParams.get('since'),selectedRange.start+'T00:00:00Z');assert.equal(selected.searchParams.get('until'),selectedRange.end+'T23:59:59.999Z');
   globalThis.fetch=async(input)=>new URL(input).pathname.startsWith('/v9/')?json({id:'prj_verified_fixture',name:'medresa-me'}):json({data:[]});
   const empty=await collectProvider('website','7',now,new AbortController().signal); assert.deepEqual(empty.totals,{}); assert.ok(empty.warnings.includes('no_data'));
 });

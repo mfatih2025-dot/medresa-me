@@ -38,7 +38,8 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   // Name and team are the existing verified Vercel project, never supplied by a browser.
   const project = await request("project", "https://api.vercel.com/v9/projects/medresa-me?slug=mmf16");
   if (project.name !== "medresa-me" || typeof project.id !== "string") throw new ProviderFailure("error", "project_mismatch");
-  async function aggregate(name: Exclude<WebsiteRequest, "project">, range: Range, limit = 200) {
+  // Use Vercel's documented default (10); the former 200 was rejected by the live API.
+  async function aggregate(name: Exclude<WebsiteRequest, "project">, range: Range, limit = 10) {
     const by = websiteRequestDimensions[name];
     const u = new URL("https://api.vercel.com/v1/query/web-analytics/visits/aggregate");
     u.search = new URLSearchParams({ projectId: project.id as string, slug: "mmf16", since: range.start + "T00:00:00Z", until: range.end + "T23:59:59.999Z", by, limit: String(limit), filter: "environment eq 'preview' and not startswith(requestPath, '/admin')" }).toString();
@@ -54,7 +55,7 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   // Current-period totals are required. Comparisons/trends are optional: a rejected
   // query (including a plan's reporting-window restriction) cannot discard totals.
   const current = await aggregate("current", report.range);
-  async function optional(name: Exclude<WebsiteRequest, "project" | "current">, range: Range, limit = 200) {
+  async function optional(name: Exclude<WebsiteRequest, "project" | "current">, range: Range, limit = 10) {
     try { return await aggregate(name, range, limit); }
     catch (error) {
       report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response");
