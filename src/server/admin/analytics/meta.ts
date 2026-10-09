@@ -1,6 +1,8 @@
 import { dayAt, days, shiftDay, startInstant } from "@/admin/analytics/period";
 import type { Daily, Metric, Metrics, Period, ProviderReport, Range } from "@/admin/analytics/model";
 import { blank, number, providerJson, ProviderFailure, safeText, safeUrl, success } from "./common";
+import { instagramGraph } from "./instagramDiagnostic";
+import { instagramAccountTypes, type InstagramDiagnostic } from "@/admin/analytics/instagramTest";
 // Existing feed credentials and official account: no second login or token store.
 const FACEBOOK_PAGE_ID = "578640758657974";
 export const instagramConfigured = () => !!process.env.INSTAGRAM_ACCESS_TOKEN?.trim();
@@ -37,20 +39,34 @@ function finish(report: ProviderReport, now: Date) {
   }
   return result;
 }
-export async function instagram(period: Period, now: Date, signal: AbortSignal) {
+export async function instagram(period: Period, now: Date, signal: AbortSignal, diagnostic?: InstagramDiagnostic) {
   const report = blank("instagram", period, now, "UTC", instagramConfigured());
+  if (diagnostic) diagnostic.tokenPresent = instagramConfigured();
   if (!instagramConfigured()) return report;
   const token = process.env.INSTAGRAM_ACCESS_TOKEN!;
-  const account = await graph("instagram", token, "me", { fields: "id,user_id,username" }, signal);
+  const query = (path: string, params: Record<string, string>) => instagramGraph(token, path, params, signal, diagnostic);
+  const account = await query("me", { fields: "id,user_id,username" });
   const id = account.user_id ?? account.id;
   if (typeof id !== "string" || !/^\d+$/.test(id)) throw new ProviderFailure("error", "invalid_response");
-  try { const counts = await graph("instagram", token, id, { fields: "followers_count" }, signal); report.current.followers = number(counts.followers_count); } catch { report.warnings.push("unsupported_metric"); }
+  if (diagnostic) {
+    diagnostic.accountDiscovered = true;
+    diagnostic.accountId = id.length <= 32 && safeText(id, [token]) === id ? id : null;
+    diagnostic.expectedAccountMatches = typeof account.username === "string" ? account.username.toLowerCase() === "medresacg" : null;
+    diagnostic.accountIdSource = account.user_id !== undefined ? "user_id" : "id";
+    diagnostic.accountType = instagramAccountTypes.find(t => t === account.account_type) ?? null;
+    if (!diagnostic.accountType) {
+      try { const profile = await query(id, { fields: "account_type" }); diagnostic.accountType = instagramAccountTypes.find(t => t === profile.account_type) ?? null; }
+      catch { /* Optional diagnostic field; never blocks the existing analytics requests. */ }
+    }
+  }
+  const failedOptional = (error: unknown) => { report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response"); };
+  try { const counts = await query(id, { fields: "followers_count" }); report.current.followers = number(counts.followers_count); } catch (error) { failedOptional(error); }
   async function metricTotal(range: Range, metric: string, additive: boolean) {
     const slices = chunks(range);
     if (!additive && slices.length > 1) { report.warnings.push("unsupported_metric"); return null; }
     const values: (number | null)[] = [];
     for (const slice of slices) {
-      const row = await optional(report, () => graph("instagram", token, `${id}/insights`, { metric, period: "day", metric_type: "total_value", ...rangeParams(slice, "UTC") }, signal));
+      const row = await optional(report, () => query(`${id}/insights`, { metric, period: "day", metric_type: "total_value", ...rangeParams(slice, "UTC") }));
       values.push(number(row?.total_value?.value));
     }
     return values.every(v => v !== null) ? values.reduce<number>((s, v) => s + v!, 0) : null;
@@ -62,7 +78,7 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal) 
   async function growth(range: Range) {
     let total = 0;
     for (const slice of chunks(range)) {
-      const row = await optional(report, () => graph("instagram", token, `${id}/insights`, { metric: "follows_and_unfollows", period: "day", metric_type: "total_value", breakdown: "follow_type", ...rangeParams(slice, "UTC") }, signal));
+      const row = await optional(report, () => query(`${id}/insights`, { metric: "follows_and_unfollows", period: "day", metric_type: "total_value", breakdown: "follow_type", ...rangeParams(slice, "UTC") }));
       const entries = row?.total_value?.breakdowns?.flatMap(b => b.results ?? []) ?? [];
       const follows = number(entries.find(e => e.dimension_values?.length === 1 && e.dimension_values[0] === "FOLLOW")?.value);
       const unfollows = number(entries.find(e => e.dimension_values?.length === 1 && e.dimension_values[0] === "UNFOLLOW")?.value);
@@ -83,7 +99,7 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal) 
   // Reach daily is supported as time_series; daily reach is never summed as unique period reach.
   const daily = new Map<string, Daily>();
   for (const slice of chunks(report.range)) {
-    const row = await optional(report, () => graph("instagram", token, `${id}/insights`, { metric: "reach", period: "day", metric_type: "time_series", ...rangeParams(slice, "UTC") }, signal));
+    const row = await optional(report, () => query(`${id}/insights`, { metric: "reach", period: "day", metric_type: "time_series", ...rangeParams(slice, "UTC") }));
     for (const v of row?.values ?? []) if (v.end_time && Number.isFinite(Date.parse(v.end_time))) {
       const date = dayAt(new Date(Date.parse(v.end_time) - 1), "UTC"), value = number(v.value);
       if (date >= slice.start && date <= slice.end && value !== null) daily.set(date, { date, metrics: { reach: value }, complete: date < report.todayDate });
@@ -91,15 +107,15 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal) 
   }
   report.daily = [...daily.values()].sort((a, b) => a.date.localeCompare(b.date));
   try {
-    const media = await graph("instagram", token, `${id}/media`, { fields: "id,caption,permalink,timestamp,media_type", limit: "20" }, signal);
+    const media = await query(`${id}/media`, { fields: "id,caption,permalink,timestamp,media_type", limit: "20" });
     const rows = Array.isArray(media.data) ? media.data as Record<string, unknown>[] : [];
     for (const item of rows.filter(x => typeof x.timestamp === "string" && x.timestamp.slice(0, 10) >= report.range.start && x.timestamp.slice(0, 10) <= report.range.end).slice(0, 5)) {
       if (typeof item.id !== "string" || !/^\d+$/.test(item.id)) continue;
-      const row = await optional(report, () => graph("instagram", token, `${item.id}/insights`, { metric: "views" }, signal));
+      const row = await optional(report, () => query(`${item.id}/insights`, { metric: "views" }));
       const value = number(row?.values?.[0]?.value) ?? number(row?.total_value?.value);
       if (value !== null) report.topContent.push({ label: safeText(item.caption, [token]) || "Instagram objava", url: safeUrl(item.permalink, "instagram"), value, basis: "lifetime" });
     }
-  } catch { report.warnings.push("unsupported_metric"); }
+  } catch (error) { failedOptional(error); }
   report.topContent.sort((a, b) => b.value - a.value);
   if (report.state === "permission_required") report.requiredPermissions = ["instagram_business_manage_insights"];
   return finish(report, now);

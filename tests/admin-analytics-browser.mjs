@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -36,6 +36,19 @@ const origin='http://localhost:3213';
     }
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
+    if(instagramFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
+      const u=new URL(address);providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.instagram.com','Unselected provider called during Instagram-only sync');
+      const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+      assert.equal(new Headers(init.headers).get('Authorization'),'Bearer local-instagram-browser-fixture');assert.ok(!u.searchParams.has('access_token'));
+      if(u.pathname.endsWith('/me')) return json({id:'1001',user_id:'1001',username:'medresacg'});
+      if(u.searchParams.get('fields')==='account_type') return json({account_type:'BUSINESS'});
+      if(u.searchParams.get('fields')==='followers_count') return json({followers_count:17});
+      if(u.pathname.endsWith('/media')) return json({data:[]});
+      if(instagramDenied) return json({error:{code:100,error_subcode:33,type:'OAuthException',message:'Requires instagram_business_manage_insights permission. local-instagram-browser-fixture raw-private-instagram-response',fbtrace_id:'private-instagram-trace-fixture'}},400);
+      if(u.searchParams.get('metric_type')==='time_series') return json({data:[]});
+      const metric=u.searchParams.get('metric');
+      return json({data:[{name:metric,total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
+    }
     if(websiteFixture) {
       const u=new URL(address);
       if(['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(u.hostname)) {
@@ -116,6 +129,7 @@ const origin='http://localhost:3213';
   const submitted=(await posted).postDataJSON();const scopedId=submitted.requestId;
   assert.deepEqual(Object.keys(submitted).sort(),['period','provider','requestId']);assert.equal(submitted.provider,'website');assert.equal(submitted.period,'30');
   assert.equal(await page.getByRole('button',{name:'Testiram Website…',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);
   const scoped=await answered;
@@ -172,16 +186,34 @@ const origin='http://localhost:3213';
   assert.ok(!(await visibleResult.innerText()).includes('HTTP 400'));assert.match(await visibleResult.innerText(),/Pregledi stranica: — · Posjetioci: —/);
   assert.equal(JSON.stringify((await db.query("select day,metrics,complete from medresa_analytics_daily where provider='website' order by day")).rows),historyBefore);assert.equal(await unrelated(),unchanged);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  // Actual authenticated route + local fixture proves Instagram cannot call or
+  // overwrite the locked Website provider or the other social providers.
+  await releaseCooldown(db);instagramFixture=true;process.env.INSTAGRAM_ACCESS_TOKEN='local-instagram-browser-fixture';providerCalls.length=0;
+  const nonInstagram=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'instagram' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'instagram' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'instagram' order by provider,day")).rows}),locked=await nonInstagram();
+  const instagramPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),instagramResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();
+  assert.equal((await instagramPost).postDataJSON().provider,'instagram');assert.equal(await page.getByRole('button',{name:'Testiram Instagram…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
+  const igBody=await (await instagramResponse).json();assert.equal(igBody.websiteRequests,undefined);assert.equal(igBody.instagramDiagnostic.tokenPresent,true);assert.equal(igBody.instagramDiagnostic.accountId,'1001');assert.equal(igBody.instagramDiagnostic.insightsAccess,'verified');
+  const igResult=page.getByRole('status',{name:'Rezultat Instagram testa',exact:true});await igResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
+  assert.match(await igResult.innerText(),/Token na serveru: da · račun otkriven: da/);assert.match(await igResult.innerText(),/tip: BUSINESS/);assert.match(await igResult.innerText(),/Potvrđen stvarnim Insights odgovorom/);assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.instagram.com'));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  await page.reload();assert.equal((await (await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='instagram').current.followers,17);assert.equal(await nonInstagram(),locked);
+  await releaseCooldown(db);instagramDenied=true;
+  const igDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();const deniedInstagram=await (await igDeniedResponse).json();
+  assert.equal(deniedInstagram.instagramDiagnostic.insightsAccess,'denied');await igResult.getByText('Insights pristup: Odbijen od Meta API-ja.',{exact:true}).waitFor();assert.match(await igResult.innerText(),/Meta kod: 100 · podkod: 33/);assert.equal(await nonInstagram(),locked);
+  for(const marker of ['local-instagram-browser-fixture','raw-private-instagram-response','private-instagram-trace-fixture']) assert.ok(!JSON.stringify(deniedInstagram).includes(marker)&&!(await page.content()).includes(marker));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
   const html=await page.content();
-  for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN]) assert.ok(!html.includes(secret));
+  for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN]) assert.ok(!html.includes(secret));
   const scripts=await page.locator('script[src]').evaluateAll(xs=>xs.map(x=>x.src));
   for(const script of scripts) {
     const code=await (await context.request.get(script)).text();
-    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync',process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
+    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN]) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
   }
   assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; optional Website-only sync invokes only Vercel despite configured other providers; scoped idempotency; unchanged other provider records; PostgreSQL persistence and Website dashboard after reload; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; 44px actions; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
   await browser.close();await db.close();server.close();await app.close();process.exit(0);

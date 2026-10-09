@@ -6,6 +6,8 @@ import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type ProviderReport, type Ranked } from "./model";
 import { websiteTestResult, type WebsiteTestResult } from "./websiteTest";
 import { websiteRequestDimensions, websiteRequestLabels, type WebsiteRequestResult } from "./websiteRequests";
+import { instagramTestResult, type InstagramTestResult as InstagramResult } from "./instagramTest";
+import { InstagramTestResult } from "./InstagramTestResult";
 
 const unavailablePrevious = (r: WebsiteRequestResult) => r.request === "previous" && (r.reason === "no_data" || r.reason === "retention_limit");
 
@@ -72,6 +74,7 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
   const [data, setData] = useState(initial), [period, setPeriod] = useState(initial.period);
   const [loading, setLoading] = useState(false), [syncing, setSyncing] = useState(false), [message, setMessage] = useState("");
   const [testingWebsite, setTestingWebsite] = useState(false), [websiteResult, setWebsiteResult] = useState<WebsiteTestResult | null>(null);
+  const [testingInstagram, setTestingInstagram] = useState(false), [instagramResult, setInstagramResult] = useState<InstagramResult | null>(null);
   const serial = useRef(0), syncingRef = useRef(false), periodRef = useRef(period);
   async function select(p: Period) {
     const id = ++serial.current; setPeriod(p); periodRef.current = p; setLoading(true); setMessage("");
@@ -99,7 +102,20 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
     } catch { if (provider) setWebsiteResult(websiteTestResult(null, httpStatus)); else setMessage("Posljednje osvježavanje nije uspjelo. Sačuvani podaci ostaju dostupni. Ponovo učitajte pregled prije novog pokušaja."); }
     finally { syncingRef.current = false; setSyncing(false); setTestingWebsite(false); }
   }
-  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing && !testingWebsite ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
+  async function testInstagram() {
+    if (syncingRef.current) return;
+    syncingRef.current = true; setSyncing(true); setTestingInstagram(true); setMessage(""); setInstagramResult(null);
+    const p = periodRef.current; let httpStatus = 0;
+    try {
+      const res = await fetch("/api/admin/analytics/sync", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: p, requestId: crypto.randomUUID(), provider: "instagram" }), signal: AbortSignal.timeout(115000) });
+      httpStatus = res.status;
+      if (!res.ok) throw new Error(); const body = await res.json();
+      if (periodRef.current === p) setData(body.dashboard);
+      setInstagramResult(instagramTestResult(body, httpStatus));
+    } catch { setInstagramResult(instagramTestResult(null, httpStatus)); }
+    finally { syncingRef.current = false; setSyncing(false); setTestingInstagram(false); }
+  }
+  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing && !testingWebsite && !testingInstagram ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
     <div className={styles.toolbar}><div><p className={shared.eyebrow}>Period izvještaja</p><p>{loading ? "Učitavam period…" : `${data.reports[0].range.start} — ${data.reports[0].range.end}`}</p></div><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div></div>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {data.storage !== "ready" && <p className={styles.notice} role="status">{data.storage === "migration_required" ? "Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni." : data.storage === "preview_required" ? "Analitika je dostupna samo na namijenjenom Preview okruženju." : "Historija analitike trenutno nije dostupna."}</p>}
@@ -128,6 +144,10 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
           </div>)}
           {websiteResult.requests.some(r => r.httpStatus === 400 && !unavailablePrevious(r)) && <p>Vercel je odbio parametre označenog zahtjeva (HTTP 400). To samo po sebi ne potvrđuje da metrika nije podržana.</p>}
         </div>}
+      </>}{r.provider === "instagram" && data.storage !== "preview_required" && <>
+        <button type="button" className={shared.secondary} onClick={testInstagram} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{testingInstagram ? "Testiram Instagram…" : "Test Instagram"}</button>
+        <p className={styles.context}>Samo Instagram · postojeći token · izabrani period · Preview.</p>
+        {instagramResult && <div className={styles.notice}><InstagramTestResult result={instagramResult} /></div>}
       </>}</Source>)}
       <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} /></div>)}</div></section>
       <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>PROVIDER / SYNC STATUS</p><h2>Izvori i historija osvježavanja.</h2><p className={styles.context}>Pokreće administrator. Automatski raspored nije aktiviran.</p><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><div><span>Uspješno: {date(r.lastSuccessAt)}</span><small>Pokušaj: {date(r.lastAttemptAt)}{r.requiredPermissions.length > 0 ? ` · Potrebne dozvole: ${r.requiredPermissions.join(", ")}` : ""}</small></div></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku od {date(data.sync.startedAt)}. <button className={shared.secondary} onClick={() => select(period)} disabled={loading || syncing}>Provjeri status</button></p>}<h3 className={styles.historyTitle}>Posljednja osvježavanja</h3>{data.history.length ? <ul className={styles.history}>{data.history.map(run => <li key={run.id}><time>{date(run.started_at)}</time><span>{{ running: "U toku", success: "Uspješno", partial: "Djelimično · provjerite izvore", failed: "Bez dostupnih podataka", abandoned: "Prekinuto · moguće ponoviti" }[run.outcome]}</span></li>)}</ul> : <p className={styles.empty}>Podaci još nijesu dostupni</p>}</section>

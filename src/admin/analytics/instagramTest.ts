@@ -1,0 +1,59 @@
+import { reasonNames, type ProviderState, type Range, type Reason } from "./model";
+import { validDay } from "./period";
+
+export const instagramRequests = ["account", "account_type", "followers", "insights", "media", "media_insights"] as const;
+export const instagramMetrics = ["views", "total_interactions", "reach", "profile_links_taps", "follows_and_unfollows"] as const;
+export const instagramHints = ["token", "permission", "professional_account", "account", "fields", "metric", "metric_type", "period", "breakdown", "date_range", "account_threshold", "api_version", "rate_limit"] as const;
+export const instagramAccountTypes = ["BUSINESS", "MEDIA_CREATOR", "CREATOR", "PERSONAL"] as const;
+export const instagramAccessStates = ["verified", "denied", "partially_verified", "unverified"] as const;
+export type InstagramRequestResult = {
+  request: typeof instagramRequests[number]; metric: typeof instagramMetrics[number] | null;
+  metricType: "total_value" | "time_series" | null; period: "day" | null; range: Range | null;
+  httpStatus: number | null; reason: Reason | null; code: number | null; subcode: number | null;
+  errorType: "OAuthException" | "GraphMethodException" | "IGApiException" | "InstagramApiException" | "Exception" | null;
+  hints: typeof instagramHints[number][];
+};
+export type InstagramDiagnostic = {
+  tokenPresent: boolean; accountDiscovered: boolean; accountId: string | null;
+  expectedAccountMatches: boolean | null;
+  accountIdSource: "user_id" | "id" | null; accountType: typeof instagramAccountTypes[number] | null;
+  insightsAccess: typeof instagramAccessStates[number]; requests: InstagramRequestResult[];
+};
+export type InstagramTestResult = {
+  message: string; httpStatus: number; state: ProviderState | null; reason: Reason | null;
+  range: Range | null; stored: boolean; diagnostic: InstagramDiagnostic | null;
+};
+const record = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
+const numericCode = (v: unknown) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 2147483647 ? v : null;
+const rangeOf = (v: unknown): Range | null => { const r = record(v); return validDay(r.start) && validDay(r.end) && r.start <= r.end ? { start: r.start, end: r.end } : null; };
+
+/** Explicit safe projection; no raw API text, token, URL, headers or arbitrary keys. */
+export function instagramTestResult(value: unknown, httpStatus: number): InstagramTestResult {
+  const result: InstagramTestResult = { message: httpStatus === 401 ? "Sesija je istekla. Prijavite se ponovo." : httpStatus === 403 ? "Instagram test nije dozvoljen iz ovog administratorskog prostora." : "Instagram test nije završen. Sačuvani podaci ostaju dostupni.", httpStatus, state: null, reason: null, range: null, stored: false, diagnostic: null };
+  if (httpStatus < 200 || httpStatus >= 300) return result;
+  const body = record(value);
+  if (body.acquired !== true) { result.message = body.outcome === "cooldown" ? "Sačekajte dvije minute između osvježavanja. Instagram test nije pokrenut." : "Osvježavanje je već u toku ili nije pokrenuto. Instagram test nije pokrenut."; return result; }
+  const dashboard = record(body.dashboard), d = record(body.instagramDiagnostic);
+  if (body.instagramDiagnostic) result.diagnostic = {
+    tokenPresent: d.tokenPresent === true, accountDiscovered: d.accountDiscovered === true,
+    expectedAccountMatches: typeof d.expectedAccountMatches === "boolean" ? d.expectedAccountMatches : null,
+    accountId: d.accountDiscovered === true && typeof d.accountId === "string" && /^\d{1,32}$/.test(d.accountId) ? d.accountId : null,
+    accountIdSource: d.accountIdSource === "user_id" || d.accountIdSource === "id" ? d.accountIdSource : null,
+    accountType: instagramAccountTypes.find(t => t === d.accountType) ?? null,
+    insightsAccess: instagramAccessStates.find(s => s === d.insightsAccess) ?? "unverified",
+    requests: Array.isArray(d.requests) ? d.requests.slice(0, 160).flatMap(v => {
+      const r = record(v), request = instagramRequests.find(n => n === r.request);
+      if (!request) return [];
+      return [{ request, metric: instagramMetrics.find(m => m === r.metric) ?? null, metricType: r.metricType === "total_value" || r.metricType === "time_series" ? r.metricType : null, period: r.period === "day" ? "day" : null, range: rangeOf(r.range), httpStatus: typeof r.httpStatus === "number" && Number.isInteger(r.httpStatus) && r.httpStatus >= 100 && r.httpStatus <= 599 ? r.httpStatus : null, reason: reasonNames.find(s => s === r.reason) ?? null, code: numericCode(r.code), subcode: numericCode(r.subcode), errorType: (["OAuthException", "GraphMethodException", "IGApiException", "InstagramApiException", "Exception"] as const).find(t => t === r.errorType) ?? null, hints: instagramHints.filter(h => Array.isArray(r.hints) && r.hints.includes(h)) }];
+    }) : [],
+  };
+  const report = Array.isArray(dashboard.reports) ? record(dashboard.reports.find(r => record(r).provider === "instagram")) : {};
+  result.state = (["connected", "not_configured", "permission_required", "temporarily_unavailable", "error"] as const).find(s => s === report.state) ?? null;
+  result.reason = reasonNames.find(r => r === report.reason) ?? null; result.range = rangeOf(report.range);
+  const run = Array.isArray(dashboard.history) ? record(dashboard.history.find(r => record(r).id === body.runId)) : {};
+  result.stored = dashboard.storage === "ready" && run.outcome === "success" && result.state === "connected" && typeof report.fetchedAt === "string" && Number.isFinite(Date.parse(report.fetchedAt));
+  result.message = "Instagram test je završen.";
+  return result;
+}
+export const instagramRequestLabels: Record<InstagramRequestResult["request"], string> = { account: "Otkrivanje računa · /me", account_type: "Tip računa", followers: "Pratioci", insights: "Insights računa", media: "Objave računa", media_insights: "Insights objave" };
+export const instagramAccessLabels: Record<InstagramDiagnostic["insightsAccess"], string> = { verified: "Potvrđen stvarnim Insights odgovorom", denied: "Odbijen od Meta API-ja", partially_verified: "Djelimično potvrđen; neke dozvole su odbijene", unverified: "Nije potvrđen" };
