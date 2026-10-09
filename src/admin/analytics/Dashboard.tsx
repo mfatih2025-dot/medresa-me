@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Shell } from "../Shell";
 import shared from "../admin.module.css";
 import styles from "./analytics.module.css";
 import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type ProviderReport, type Ranked } from "./model";
+import { websiteTestResult, type WebsiteTestResult } from "./websiteTest";
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
@@ -46,12 +47,13 @@ function Trend({ report, metric }: { report: ProviderReport; metric: Metric }) {
     <div className={styles.axis}><span>{report.range.start}</span><span>{report.range.end}</span></div>
   </figure>;
 }
-function Source({ report }: { report: ProviderReport }) {
+function Source({ report, children }: { report: ProviderReport; children?: ReactNode }) {
   const [dimension, setDimension] = useState<keyof ProviderReport["breakdowns"]>("pages");
   const keys = primaryMetrics[report.provider];
   const chartKey = report.provider === "website" ? "pageviews" : report.provider === "instagram" ? "reach" : "views";
   return <section id={`analytics-${report.provider}`} className={styles.source} aria-label={`${providerLabels[report.provider]} analitika`}>
     <header className={styles.sectionHead}><div><p className={shared.eyebrow}>{report.source}</p><h2>{providerLabels[report.provider]}</h2></div><span className={styles.state} data-state={report.state}>{stateLabels[report.state]}</span></header>
+    {children}
     {report.reason && <p className={styles.sourceNotice}>{reasonLabels[report.reason]}{report.lastSuccessAt ? " · prikazani su sačuvani podaci" : ""}</p>}
     <div className={styles.metrics}>{keys.map(k => <div key={k}><span>{metricLabels[k]}</span><strong>{format(report.totals[k])}</strong><Change current={report.totals[k]} previous={report.previousTotals[k]} complete={report.range.end < report.todayDate} /></div>)}</div>
     <p className={styles.context}>Prethodni period: {report.previousRange.start} — {report.previousRange.end} · Dani prema izvoru: {report.timezone}. Višednevni periodi obuhvataju završene dane.</p>
@@ -65,6 +67,7 @@ function Source({ report }: { report: ProviderReport }) {
 export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
   const [data, setData] = useState(initial), [period, setPeriod] = useState(initial.period);
   const [loading, setLoading] = useState(false), [syncing, setSyncing] = useState(false), [message, setMessage] = useState("");
+  const [testingWebsite, setTestingWebsite] = useState(false), [websiteResult, setWebsiteResult] = useState<WebsiteTestResult | null>(null);
   const serial = useRef(0), syncingRef = useRef(false), periodRef = useRef(period);
   async function select(p: Period) {
     const id = ++serial.current; setPeriod(p); periodRef.current = p; setLoading(true); setMessage("");
@@ -75,26 +78,43 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
     } catch { if (id === serial.current) setMessage("Podaci nijesu učitani. Pokušajte ponovo."); }
     finally { if (id === serial.current) setLoading(false); }
   }
-  async function sync() {
+  async function sync(provider?: "website") {
     if (syncingRef.current) return; syncingRef.current = true; setSyncing(true); setMessage("");
+    setTestingWebsite(provider === "website");
+    if (provider) setWebsiteResult(null);
     const p = periodRef.current;
+    let httpStatus = 0;
     try {
-      const res = await fetch("/api/admin/analytics/sync", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: p, requestId: crypto.randomUUID() }), signal: AbortSignal.timeout(115000) });
+      const res = await fetch("/api/admin/analytics/sync", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: p, requestId: crypto.randomUUID(), ...(provider ? { provider } : {}) }), signal: AbortSignal.timeout(115000) });
+      httpStatus = res.status;
       if (!res.ok) throw new Error(); const body = await res.json();
       if (periodRef.current === p) setData(body.dashboard);
+      if (provider) { setWebsiteResult(websiteTestResult(body, httpStatus)); return; }
       const outcome = body.dashboard?.history?.find((run: AnalyticsDashboard["history"][number]) => run.id === body.runId)?.outcome;
       setMessage(body.outcome === "running" ? "Osvježavanje je već u toku. Podaci će biti dostupni po završetku." : body.outcome === "cooldown" ? "Sačekajte dvije minute između osvježavanja." : ["success", "partial"].includes(outcome) ? "Dostupni podaci su osvježeni. Status svakog izvora je prikazan ispod." : "Osvježavanje je završeno; izvori još nijesu vratili dostupne podatke.");
-    } catch { setMessage("Posljednje osvježavanje nije uspjelo. Sačuvani podaci ostaju dostupni. Ponovo učitajte pregled prije novog pokušaja."); }
-    finally { syncingRef.current = false; setSyncing(false); }
+    } catch { if (provider) setWebsiteResult(websiteTestResult(null, httpStatus)); else setMessage("Posljednje osvježavanje nije uspjelo. Sačuvani podaci ostaju dostupni. Ponovo učitajte pregled prije novog pokušaja."); }
+    finally { syncingRef.current = false; setSyncing(false); setTestingWebsite(false); }
   }
-  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={sync} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
+  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing && !testingWebsite ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
     <div className={styles.toolbar}><div><p className={shared.eyebrow}>Period izvještaja</p><p>{loading ? "Učitavam period…" : `${data.reports[0].range.start} — ${data.reports[0].range.end}`}</p></div><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div></div>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {data.storage !== "ready" && <p className={styles.notice} role="status">{data.storage === "migration_required" ? "Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni." : data.storage === "preview_required" ? "Analitika je dostupna samo na namijenjenom Preview okruženju." : "Historija analitike trenutno nije dostupna."}</p>}
     <nav className={styles.contents} aria-label="Analitičke sekcije">{["Dnevni pregled", "Website", "Instagram", "Facebook", "YouTube", "Top sadržaj", "Status izvora"].map((name, i) => <a key={name} href={["#daily-overview", "#analytics-website", "#analytics-instagram", "#analytics-facebook", "#analytics-youtube", "#top-content", "#sync-status"][i]}>{name}</a>)}</nav>
     <div aria-busy={loading} className={loading ? styles.loading : undefined}>
       <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas, uz jučerašnji kontekst.</h2></div></header><p className={styles.context}>Danas prikazuje podatke do sada, juče cijeli dan. Strelica i razlika porede dostupne vrijednosti; procenti su izostavljeni dok današnji dan traje. Prazna vrijednost je —, potvrđena nula je 0.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><h3>{providerLabels[r.provider]}</h3><div className={styles.dailyHead}><span>Metrika</span><span>Danas</span><span>Juče</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <div key={k} className={styles.dailyRow}><span>{metricLabels[k]}</span><strong>{format(r.today?.metrics[k])}</strong><span>{format(r.yesterday?.metrics[k])}<Change current={r.today?.metrics[k]} previous={r.yesterday?.metrics[k]} partial /></span></div>)}{(r.provider === "instagram" || r.provider === "facebook") && <div className={styles.dailyRow}><span>Promjena pratilaca</span><strong>{format(r.today?.metrics.followerChange)}</strong><span>{format(r.yesterday?.metrics.followerChange)}<Change current={r.today?.metrics.followerChange} previous={r.yesterday?.metrics.followerChange} partial /></span></div>}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
-      {data.reports.map(r => <Source key={r.provider} report={r} />)}
+      {data.reports.map(r => <Source key={r.provider} report={r}>{r.provider === "website" && data.storage !== "preview_required" && <>
+        <button type="button" className={shared.secondary} onClick={() => sync("website")} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{testingWebsite ? "Testiram Website…" : "Test Website"}</button>
+        <p className={styles.context}>Samo Website / Vercel · izabrani period · Preview.</p>
+        {websiteResult && <div className={styles.notice} role="status" aria-label="Rezultat Website testa">
+          <p>{websiteResult.message}</p>
+          <p>HTTP: {websiteResult.httpStatus || "—"} · Website: {websiteResult.state ? `${stateLabels[websiteResult.state]} (${websiteResult.state})` : "—"}</p>
+          {websiteResult.reason && <p>Razlog: {reasonLabels[websiteResult.reason]} ({websiteResult.reason})</p>}
+          <p>Period: {websiteResult.range ? `${websiteResult.range.start} — ${websiteResult.range.end} · UTC` : "—"}</p>
+          <p>Pregledi stranica: {format(websiteResult.pageviews)} · Posjetioci: {format(websiteResult.visitors)}</p>
+          <p>{websiteResult.stored ? "Rezultat sačuvan u Preview Supabase." : "Novi Website podaci nijesu potvrđeni."}</p>
+          {websiteResult.warnings.length > 0 && <p>{websiteResult.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
+        </div>}
+      </>}</Source>)}
       <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} /></div>)}</div></section>
       <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>PROVIDER / SYNC STATUS</p><h2>Izvori i historija osvježavanja.</h2><p className={styles.context}>Pokreće administrator. Automatski raspored nije aktiviran.</p><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><div><span>Uspješno: {date(r.lastSuccessAt)}</span><small>Pokušaj: {date(r.lastAttemptAt)}{r.requiredPermissions.length > 0 ? ` · Potrebne dozvole: ${r.requiredPermissions.join(", ")}` : ""}</small></div></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku od {date(data.sync.startedAt)}. <button className={shared.secondary} onClick={() => select(period)} disabled={loading || syncing}>Provjeri status</button></p>}<h3 className={styles.historyTitle}>Posljednja osvježavanja</h3>{data.history.length ? <ul className={styles.history}>{data.history.map(run => <li key={run.id}><time>{date(run.started_at)}</time><span>{{ running: "U toku", success: "Uspješno", partial: "Djelimično · provjerite izvore", failed: "Bez dostupnih podataka", abandoned: "Prekinuto · moguće ponoviti" }[run.outcome]}</span></li>)}</ul> : <p className={styles.empty}>Podaci još nijesu dostupni</p>}</section>
     </div>

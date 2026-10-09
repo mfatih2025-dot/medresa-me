@@ -32,6 +32,25 @@ test('comparisons: missing/partial/zero/negative/NaN never invent percentages', 
   for(const v of [null,undefined,NaN,Infinity]) assert.equal(comparison(v,2).delta,null);
   assert.equal(comparison(2,1,false).delta,null); assert.equal(number(''),null); assert.equal(number(0),0);
 });
+test('Website test summary shows only sanitized status/dates/metrics and never treats old data as a new success', () => {
+  const { websiteTestResult }=load('src/admin/analytics/websiteTest');
+  const runId=randomUUID(),web=reports()[0];web.totals={pageviews:0,visitors:4};
+  const body={acquired:true,runId,dashboard:{storage:'ready',reports:[web],history:[{id:runId,outcome:'success'}]}};
+  const success=websiteTestResult(body,200);assert.equal(success.stored,true);assert.equal(success.pageviews,0);assert.equal(success.visitors,4);assert.equal(success.state,'connected');assert.deepEqual(success.range,web.range);
+  for(const outcome of ['cooldown','running']) {
+    const skipped=websiteTestResult({...body,acquired:false,outcome},200);assert.equal(skipped.stored,false);assert.equal(skipped.pageviews,null);assert.equal(skipped.state,null);assert.match(skipped.message,/nije pokrenut/);
+  }
+  const failure=websiteTestResult({...body,dashboard:{...body.dashboard,reports:[{...web,state:'permission_required',reason:'expired_credential'}],history:[{id:runId,outcome:'failed'}]}},200);
+  assert.equal(failure.reason,'expired_credential');assert.equal(failure.stored,false);assert.equal(failure.pageviews,null);
+  const secret='never-show-credential-fixture';
+  const unsafe=websiteTestResult({error:secret,acquired:true,runId,dashboard:{storage:secret,reports:[{provider:'website',state:secret,reason:secret,range:{start:secret,end:secret},totals:{pageviews:secret,visitors:Infinity},warnings:[secret],fetchedAt:secret}],history:[{id:runId,outcome:secret}]}},200);
+  assert.ok(!JSON.stringify(unsafe).includes(secret));assert.equal(unsafe.range,null);assert.equal(unsafe.pageviews,null);assert.deepEqual(unsafe.warnings,[]);
+  for(const status of [0,401,403,503]) {
+    const rejected=websiteTestResult({error:secret,...body},status);assert.equal(rejected.stored,false);assert.equal(rejected.state,null);assert.ok(!JSON.stringify(rejected).includes(secret));
+  }
+  const empty=websiteTestResult({...body,dashboard:{...body.dashboard,reports:[{...web,warnings:['no_data']}]}},200);
+  assert.equal(empty.stored,true);assert.equal(empty.pageviews,null);assert.ok(empty.warnings.includes('no_data'));
+});
 test('exact Preview guard rejects wrong project/branch/Production before any remote request', async () => {
   credentials(); previewConfiguration(true); let calls=0; globalThis.fetch=()=>{calls++;throw new Error();};
   const service=load('src/server/admin/analytics/service');

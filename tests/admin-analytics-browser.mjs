@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -41,7 +41,8 @@ const origin='http://localhost:3213';
       if(['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(u.hostname)) {
         providerCalls.push(u.hostname);
         assert.equal(u.hostname,'api.vercel.com','Unselected provider called during Website-only sync');
-        const json=body=>new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
+        const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+        if(websiteDenied) return json({error:{message:'local-vercel-browser-fixture raw-error-must-stay-hidden'}},403);
         if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
         assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
         const by=u.searchParams.get('by');
@@ -73,7 +74,7 @@ const origin='http://localhost:3213';
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics page overflow '+width);
-    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke']) {
+    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website']) {
       const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44 && box.width>=44,name+' touch target '+width);
     }
     assert.equal(await page.locator('svg[role="img"]').count(),4);
@@ -107,19 +108,47 @@ const origin='http://localhost:3213';
   });
   const unchanged=await unrelated();await releaseCooldown(db);websiteFixture=true;
   Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-vercel-browser-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-browser-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-browser-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-secret-browser-fixture',YOUTUBE_REFRESH_TOKEN:'unused-refresh-browser-fixture'});
-  const scopedId=randomUUID();
-  const scoped=await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:scopedId,provider:'website'}});
+  const posted=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST');
+  const answered=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();
+  const submitted=(await posted).postDataJSON();const scopedId=submitted.requestId;
+  assert.deepEqual(Object.keys(submitted).sort(),['period','provider','requestId']);assert.equal(submitted.provider,'website');assert.equal(submitted.period,'30');
+  assert.equal(await page.getByRole('button',{name:'Testiram Website…',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);
+  const scoped=await answered;
   assert.equal(scoped.status(),200);const scopedBody=await scoped.json();
   const website=scopedBody.dashboard.reports.find(r=>r.provider==='website');assert.equal(website.state,'connected');assert.deepEqual(website.totals,{pageviews:42,visitors:9});
   assert.ok(providerCalls.length>=10);assert.ok(providerCalls.every(host=>host==='api.vercel.com'));assert.equal(await unrelated(),unchanged);
+  const visibleResult=page.getByRole('status',{name:'Rezultat Website testa',exact:true});
+  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
+  assert.ok((await visibleResult.innerText()).includes('connected'));assert.ok((await visibleResult.innerText()).includes('Pregledi stranica: 42'));assert.ok((await visibleResult.innerText()).includes(website.range.start));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   const count=providerCalls.length;
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:scopedId,provider:'website'}})).status(),200);assert.equal(providerCalls.length,count);
   const reloaded=await (await context.request.get(origin+'/api/admin/analytics?period=30')).json();assert.deepEqual(reloaded.reports.find(r=>r.provider==='website').totals,website.totals);
   await page.reload();assert.equal((await db.query('select provider,outcome from medresa_analytics_sync_runs where id=$1',[scopedId])).rows[0].outcome,'success');
   const storedWebsite=page.getByRole('region',{name:'Website analitika',exact:true});
   assert.ok((await storedWebsite.innerText()).includes('42'));assert.ok((await storedWebsite.innerText()).includes('Povezano'));
+  const cooldownResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();await cooldownResponse;
+  await visibleResult.getByText('Sačekajte dvije minute između osvježavanja. Website test nije pokrenut.',{exact:true}).waitFor();assert.equal(providerCalls.length,count);
+  assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));
+  const privateError='never-display-cookie-token-or-credential-fixture';
+  await page.route('**/api/admin/analytics/sync',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:privateError})}));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();
+  await visibleResult.getByText('Website test nije završen. Sačuvani podaci ostaju dostupni.',{exact:true}).waitFor();
+  assert.ok((await visibleResult.innerText()).includes('HTTP: 503'));assert.ok(!(await page.content()).includes(privateError));assert.ok((await storedWebsite.innerText()).includes('42'));
+  await page.unroute('**/api/admin/analytics/sync');await releaseCooldown(db);websiteDenied=true;
+  const deniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();await deniedResponse;
+  await visibleResult.getByText('Razlog: Pristup analitici nije odobren (permission_required)',{exact:true}).waitFor();
+  assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));assert.ok(!(await page.content()).includes('raw-error-must-stay-hidden'));assert.equal(await unrelated(),unchanged);
+  assert.ok(providerCalls.every(host=>host==='api.vercel.com'));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
   const html=await page.content();
   for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN]) assert.ok(!html.includes(secret));

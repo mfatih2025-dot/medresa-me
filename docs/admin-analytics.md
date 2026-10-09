@@ -20,6 +20,8 @@ Apply only the follow-up `supabase/migrations/202610090001_analytics_provider_sy
 
 Authenticated `POST /api/admin/analytics/sync` optionally accepts `provider` equal to `website`, `instagram`, `facebook` or `youtube`, alongside the existing `period` and UUID `requestId`. Omit `provider` for the unchanged **Osvježi podatke** full refresh. A selected provider is the only provider fetched and its rows are the only provider rows updated. The returned dashboard still reads saved results for all sections. Missing follow-up migration stops a scoped refresh before any provider call; the original full refresh remains available. No new credentials or scheduling are required.
 
+In the Preview Website section, **Test Website** sends only `provider=website` using the existing authenticated session and selected period. It shares the refresh lock/progress guard and displays only known status/reason codes, dates, numeric metrics and persistence status. Raw error bodies, credentials and other-provider results are never displayed by the test summary. Cooldown, failed and empty-data tests do not present old metrics as newly fetched values. The original full-refresh button is unchanged.
+
 Without the original `202610080004_analytics_history.sql` migration, Analytics shows its configuration/state UI and disables refresh. Existing News and translation remain independent.
 
 ## Providers and data definitions
