@@ -1,8 +1,8 @@
 import { dayAt, days, shiftDay, startInstant } from "@/admin/analytics/period";
 import type { Daily, Metric, Metrics, Period, ProviderReport, Range } from "@/admin/analytics/model";
 import { blank, number, providerJson, ProviderFailure, safeText, safeUrl, success } from "./common";
-import { instagramGraph } from "./instagramDiagnostic";
-import { instagramAccountTypes, type InstagramDiagnostic } from "@/admin/analytics/instagramTest";
+import { discoverInstagramFacebook, instagramGraph } from "./instagramDiagnostic";
+import type { InstagramDiagnostic } from "@/admin/analytics/instagramTest";
 // Existing feed credentials and official account: no second login or token store.
 const FACEBOOK_PAGE_ID = "578640758657974";
 export const instagramConfigured = () => !!process.env.INSTAGRAM_ACCESS_TOKEN?.trim();
@@ -45,20 +45,7 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
   if (!instagramConfigured()) return report;
   const token = process.env.INSTAGRAM_ACCESS_TOKEN!;
   const query = (path: string, params: Record<string, string>) => instagramGraph(token, path, params, signal, diagnostic);
-  const account = await query("me", { fields: "id,user_id,username" });
-  const id = account.user_id ?? account.id;
-  if (typeof id !== "string" || !/^\d+$/.test(id)) throw new ProviderFailure("error", "invalid_response");
-  if (diagnostic) {
-    diagnostic.accountDiscovered = true;
-    diagnostic.accountId = id.length <= 32 && safeText(id, [token]) === id ? id : null;
-    diagnostic.expectedAccountMatches = typeof account.username === "string" ? account.username.toLowerCase() === "medresacg" : null;
-    diagnostic.accountIdSource = account.user_id !== undefined ? "user_id" : "id";
-    diagnostic.accountType = instagramAccountTypes.find(t => t === account.account_type) ?? null;
-    if (!diagnostic.accountType) {
-      try { const profile = await query(id, { fields: "account_type" }); diagnostic.accountType = instagramAccountTypes.find(t => t === profile.account_type) ?? null; }
-      catch { /* Optional diagnostic field; never blocks the existing analytics requests. */ }
-    }
-  }
+  const id = await discoverInstagramFacebook(token, FACEBOOK_PAGE_ID, signal, diagnostic);
   const failedOptional = (error: unknown) => { report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response"); };
   try { const counts = await query(id, { fields: "followers_count" }); report.current.followers = number(counts.followers_count); } catch (error) { failedOptional(error); }
   async function metricTotal(range: Range, metric: string, additive: boolean) {
@@ -117,7 +104,7 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
     }
   } catch (error) { failedOptional(error); }
   report.topContent.sort((a, b) => b.value - a.value);
-  if (report.state === "permission_required") report.requiredPermissions = ["instagram_business_manage_insights"];
+  if (report.state === "permission_required") report.requiredPermissions = ["instagram_manage_insights"];
   return finish(report, now);
 }
 export async function facebook(period: Period, now: Date, signal: AbortSignal) {

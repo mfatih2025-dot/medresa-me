@@ -13,7 +13,7 @@ export async function collectProvider(provider: Provider, period: Period, now: D
     const r = blank(provider, period, now, timezones[provider], configurations[provider]());
     const e = error instanceof ProviderFailure ? error : new ProviderFailure("error", "invalid_response");
     r.state = e.state; r.reason = e.reason; r.lastAttemptAt = now.toISOString();
-    if (e.state === "permission_required") r.requiredPermissions = provider === "instagram" ? ["instagram_business_manage_insights"] : provider === "facebook" ? ["read_insights", "pages_read_engagement"] : provider === "youtube" ? ["youtube.readonly", "yt-analytics.readonly"] : [];
+    if (e.state === "permission_required") r.requiredPermissions = provider === "instagram" ? ["instagram_manage_insights"] : provider === "facebook" ? ["read_insights", "pages_read_engagement"] : provider === "youtube" ? ["youtube.readonly", "yt-analytics.readonly"] : [];
     return r;
   }
 }

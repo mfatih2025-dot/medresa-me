@@ -14,6 +14,14 @@ function credentials() {
   for(const k of ['VERCEL_ANALYTICS_TOKEN','INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
 }
 
+// Facebook Login Instagram discovery fixtures only. No live provider calls/data.
+function instagramDiscovery(u) {
+  if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'instagram_manage_insights',status:'granted'},{permission:'instagram_basic',status:'granted'}]});
+  if(u.pathname.endsWith('/me/accounts')) return json({data:[{id:'578640758657974'}]});
+  if(u.pathname.endsWith('/578640758657974') && u.searchParams.get('fields')==='instagram_business_account') return json({id:'578640758657974',instagram_business_account:{id:'1001'}});
+  return null;
+}
+
 test('all periods, previous equivalent ranges, year boundaries and DST calendar days', () => {
   assert.equal(parsePeriod(undefined),'30'); for(const x of ['',[], '8', 'all']) assert.throws(()=>parsePeriod(x));
   for(const p of ['today','yesterday','7','30','60','90']) {
@@ -245,9 +253,10 @@ test('Meta reuses feed tokens, discovers account/page and detects individual mis
   credentials(); process.env.INSTAGRAM_ACCESS_TOKEN='fixture-instagram-private'; process.env.FACEBOOK_PAGE_ACCESS_TOKEN='fixture-facebook-private';
   globalThis.fetch=async(input,init)=>{
     const u=new URL(input); assert.ok(!u.searchParams.has('access_token'));
-    if(u.hostname==='graph.instagram.com') {
+    if(new Headers(init.headers).get('Authorization')==='Bearer fixture-instagram-private') {
+      assert.equal(u.hostname,'graph.facebook.com');
+      const discovered=instagramDiscovery(u);if(discovered)return discovered;
       assert.equal(new Headers(init.headers).get('Authorization'),'Bearer fixture-instagram-private');
-      if(u.pathname.endsWith('/me')) return json({id:'1001',user_id:'1001'});
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:11});
       if(u.pathname.endsWith('/media')) return json({data:[]});
       const m=u.searchParams.get('metric');
@@ -271,10 +280,10 @@ test('Instagram test reuses the token, discovers the exact ID source, verifies a
   credentials();process.env.INSTAGRAM_ACCESS_TOKEN='private-instagram-test-fixture';
   const {newInstagramDiagnostic}=load('src/server/admin/analytics/instagramDiagnostic'),d=newInstagramDiagnostic(),requests=[];
   globalThis.fetch=async(input,init)=>{
-    const u=new URL(input);requests.push(u);assert.equal(u.hostname,'graph.instagram.com');assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-instagram-test-fixture');assert.ok(!u.searchParams.has('access_token'));
-    if(u.pathname.endsWith('/me')) return json({id:'9999',user_id:'1001',username:'medresacg'});
+    const u=new URL(input);requests.push(u);assert.equal(u.hostname,'graph.facebook.com');assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-instagram-test-fixture');assert.ok(!u.searchParams.has('access_token'));
+    const discovered=instagramDiscovery(u);if(discovered)return discovered;
     assert.ok(u.pathname.startsWith('/v26.0/1001'));
-    if(u.searchParams.get('fields')==='account_type') return json({account_type:'BUSINESS'});
+    if(u.searchParams.get('fields')==='id,username,account_type') return json({id:'1001',username:'medresacg',account_type:'BUSINESS'});
     if(u.searchParams.get('fields')==='followers_count') return json({followers_count:11});
     if(u.pathname.endsWith('/media')) return json({data:[]});
     const m=u.searchParams.get('metric');
@@ -283,40 +292,73 @@ test('Instagram test reuses the token, discovers the exact ID source, verifies a
     return json({data:[{name:m,total_value:{value:0}}]});
   };
   const r=await collectProvider('instagram','7',now,new AbortController().signal,undefined,d);
-  assert.equal(r.state,'connected');assert.equal(d.tokenPresent,true);assert.equal(d.accountDiscovered,true);assert.equal(d.accountId,'1001');assert.equal(d.accountIdSource,'user_id');assert.equal(d.expectedAccountMatches,true);assert.equal(d.accountType,'BUSINESS');assert.equal(d.insightsAccess,'verified');assert.equal(r.totals.views,0);
+  assert.equal(r.state,'connected');assert.equal(d.tokenPresent,true);assert.equal(d.accountDiscovered,true);assert.equal(d.accountId,'1001');assert.equal(d.accountIdSource,'instagram_business_account');assert.equal(d.pageDiscovered,true);assert.equal(d.pageId,'578640758657974');assert.equal(d.insightsPermission,'granted');assert.equal(d.differsFromOldLoginId,true);assert.equal(d.expectedAccountMatches,true);assert.equal(d.accountType,'BUSINESS');assert.equal(d.insightsAccess,'verified');assert.equal(r.totals.views,0);
   assert.equal(d.requests.find(r=>r.request==='insights'&&r.metric==='views').httpStatus,200);assert.ok(!JSON.stringify([r,d]).includes('private-instagram-test-fixture'));
-  const count=requests.filter(u=>u.searchParams.get('fields')==='account_type').length;
+  const count=requests.filter(u=>u.searchParams.get('fields')==='id,username,account_type').length;
   await collectProvider('instagram','7',now,new AbortController().signal);
-  assert.equal(requests.filter(u=>u.searchParams.get('fields')==='account_type').length,count,'Extra account-type read is test-only');
+  assert.equal(requests.filter(u=>u.searchParams.get('fields')==='id,username,account_type').length,count,'Extra account-type read is test-only');
   delete process.env.INSTAGRAM_ACCESS_TOKEN;const absent=newInstagramDiagnostic();const before=requests.length;
   assert.equal((await collectProvider('instagram','7',now,new AbortController().signal,undefined,absent)).state,'not_configured');assert.equal(absent.tokenPresent,false);assert.equal(requests.length,before);
 });
 test('Instagram diagnostic isolates permission, expired token and invalid request evidence without leaking raw Meta responses', async () => {
   credentials();process.env.INSTAGRAM_ACCESS_TOKEN='private-instagram-rejection-fixture';
   const {newInstagramDiagnostic}=load('src/server/admin/analytics/instagramDiagnostic');
-  for(const [code,message,expectedReason,access] of [[100,'Requires instagram_business_manage_insights permission.','permission_required','denied'],[100,'Invalid metric_type parameter.','invalid_response','unverified'],[100,'Unsupported metric views.','unsupported_metric','unverified']]) {
+  for(const [code,message,expectedReason,access] of [[10,'Application does not have permission for this account.','permission_required','denied'],[100,'Requires instagram_manage_insights permission.','permission_required','denied'],[100,'Invalid metric_type parameter.','invalid_response','unverified'],[100,'Unsupported metric views.','unsupported_metric','unverified']]) {
     const d=newInstagramDiagnostic();globalThis.fetch=async(input)=>{
-      const u=new URL(input);assert.equal(u.hostname,'graph.instagram.com');
-      if(u.pathname.endsWith('/me')) return json({id:'1001'});
-      if(u.searchParams.get('fields')==='account_type') return json({error:{code:100,message:'Unknown account_type field'}},400);
+      const u=new URL(input);assert.equal(u.hostname,'graph.facebook.com');
+      const discovered=instagramDiscovery(u);if(discovered)return discovered;
+      if(u.searchParams.get('fields')==='id,username,account_type') return json({error:{code:100,message:'Unknown account_type field'}},400);
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:8});
       if(u.pathname.endsWith('/media')) return json({data:[]});
-      return json({error:{code,error_subcode:33,type:'OAuthException',message:message+' private-instagram-rejection-fixture raw-private-response',fbtrace_id:'private-trace-fixture'}},400);
+      return json({error:{code,error_subcode:33,type:'OAuthException',message:message+' private-instagram-rejection-fixture raw-private-response',fbtrace_id:'private-trace-fixture'}},code===10?403:400);
     };
     const r=await collectProvider('instagram','7',now,new AbortController().signal,undefined,d);
     assert.ok(r.warnings.includes(expectedReason));assert.equal(d.insightsAccess,access);assert.equal(d.accountType,null);assert.equal(r.totals.views,null);
-    const rejected=d.requests.find(r=>r.request==='insights');assert.equal(rejected.httpStatus,400);assert.equal(rejected.code,code);assert.equal(rejected.subcode,33);assert.equal(rejected.errorType,'OAuthException');assert.equal(rejected.reason,expectedReason);
-    if(access==='denied'){assert.equal(r.state,'permission_required');assert.ok(r.requiredPermissions.includes('instagram_business_manage_insights'));}
+    const rejected=d.requests.find(r=>r.request==='insights');assert.equal(rejected.httpStatus,code===10?403:400);assert.equal(rejected.code,code);assert.equal(rejected.subcode,33);assert.equal(rejected.errorType,'OAuthException');assert.equal(rejected.reason,expectedReason);
+    assert.equal(d.insightsPermission,'granted','Granted scope must not conceal actual Insights denial');
+    if(access==='denied'){assert.equal(r.state,'permission_required');assert.ok(r.requiredPermissions.includes('instagram_manage_insights'));}
     for(const secret of ['private-instagram-rejection-fixture','raw-private-response','private-trace-fixture']) assert.ok(!JSON.stringify([r,d]).includes(secret));
   }
   const d=newInstagramDiagnostic();let calls=0;globalThis.fetch=async()=>{calls++;return json({error:{code:190,error_subcode:463,type:'OAuthException',message:'Expired private-instagram-rejection-fixture'}},400);};
   const r=await collectProvider('instagram','7',now,new AbortController().signal,undefined,d);
   assert.equal(calls,1);assert.equal(r.reason,'expired_credential');assert.equal(d.tokenPresent,true);assert.equal(d.accountDiscovered,false);assert.equal(d.requests[0].code,190);
 });
+test('Facebook Login Instagram discovery paginates safely, selects only Medresa Page and never falls back to the old login ID', async () => {
+  const {newInstagramDiagnostic,discoverInstagramFacebook}=load('src/server/admin/analytics/instagramDiagnostic');
+  const token='private-discovery-fixture',d=newInstagramDiagnostic(),calls=[];
+  globalThis.fetch=async(input,init)=>{
+    const u=new URL(input);calls.push(u);assert.equal(u.hostname,'graph.facebook.com');assert.equal(new Headers(init.headers).get('Authorization'),`Bearer ${token}`);assert.ok(!u.searchParams.has('access_token'));
+    if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'instagram_manage_insights',status:'granted'}]});
+    if(u.pathname.endsWith('/me/accounts')) {
+      assert.equal(u.searchParams.get('fields'),'id');
+      return u.searchParams.has('after')?json({data:[{id:'578640758657974'}]}):json({data:[{id:'9999',instagram_business_account:{id:'9998'}}],paging:{next:`https://evil.invalid/?access_token=${token}`,cursors:{after:'cursor-fixture'}}});
+    }
+    if(u.pathname.endsWith('/578640758657974')) {assert.equal(u.searchParams.get('fields'),'instagram_business_account');return json({instagram_business_account:{id:'17841472991265776'}});}
+    assert.ok(u.pathname.endsWith('/17841472991265776'));return json({id:'17841472991265776',username:'medresacg',account_type:'BUSINESS'});
+  };
+  assert.equal(await discoverInstagramFacebook(token,'578640758657974',new AbortController().signal,d),'17841472991265776');
+  assert.equal(d.pageDiscovered,true);assert.equal(d.accountDiscovered,true);assert.equal(d.differsFromOldLoginId,false,'Equal IDs are accepted only when freshly discovered through Page linkage');assert.equal(d.basicPermission,'not_returned');assert.equal(d.insightsPermission,'granted');
+  assert.equal(calls.filter(u=>u.pathname.endsWith('/me/accounts')).length,2);assert.ok(!JSON.stringify(d).includes(token));
+});
+test('Facebook Login missing Page or inaccessible IG linkage stops before any metrics and never uses another account', async () => {
+  credentials();process.env.INSTAGRAM_ACCESS_TOKEN='private-link-fixture';
+  const {newInstagramDiagnostic}=load('src/server/admin/analytics/instagramDiagnostic');
+  for(const mode of ['missing_page','missing_link','invalid_link']) {
+    const d=newInstagramDiagnostic(),calls=[];globalThis.fetch=async(input)=>{
+      const u=new URL(input);calls.push(u);assert.equal(u.hostname,'graph.facebook.com');
+      if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'instagram_manage_insights',status:'granted'}]});
+      if(u.pathname.endsWith('/me/accounts')) return json({data:mode==='missing_page'?[{id:'9999',instagram_business_account:{id:'9998'}}]:[{id:'578640758657974'}]});
+      assert.ok(u.pathname.endsWith('/578640758657974'));return json(mode==='missing_link'?{}:{instagram_business_account:{id:'invalid-private-link-fixture'}});
+    };
+    const r=await collectProvider('instagram','7',now,new AbortController().signal,undefined,d);
+    assert.equal(r.state,mode==='invalid_link'?'error':'permission_required');assert.equal(d.accountDiscovered,false);assert.equal(d.accountId,null);assert.equal(d.pageDiscovered,mode!=='missing_page');assert.equal(d.pageLinkStatus,mode==='missing_link'?'missing':'not_checked');assert.ok(!calls.some(u=>u.pathname.endsWith('/insights')));assert.ok(!JSON.stringify([r,d]).includes('private-link-fixture'));
+    if(mode!=='invalid_link') assert.deepEqual(r.requiredPermissions,['instagram_manage_insights']);
+  }
+});
 test('Instagram test summary projects fixed status and account metadata only, never arbitrary values or stale success', () => {
   const {instagramTestResult}=load('src/admin/analytics/instagramTest');
   const runId=randomUUID(),ig=reports()[1],secret='private-instagram-summary-fixture';
-  const body={acquired:true,runId,instagramDiagnostic:{tokenPresent:true,accountDiscovered:true,accountId:'1001',accountIdSource:'user_id',expectedAccountMatches:true,accountType:'BUSINESS',insightsAccess:'verified',access_token:secret,requests:[{request:'insights',metric:'views',metricType:'total_value',period:'day',httpStatus:400,reason:'invalid_response',range:ig.range,code:100,subcode:33,errorType:'OAuthException',hints:['metric_type',secret],message:secret,url:secret}]},dashboard:{storage:'ready',reports:[ig],history:[{id:runId,outcome:'success'}]}};
+  const body={acquired:true,runId,instagramDiagnostic:{tokenPresent:true,accountDiscovered:true,accountId:'1001',accountIdSource:'instagram_business_account',expectedAccountMatches:true,accountType:'BUSINESS',insightsAccess:'verified',access_token:secret,requests:[{request:'insights',metric:'views',metricType:'total_value',period:'day',httpStatus:400,reason:'invalid_response',range:ig.range,code:100,subcode:33,errorType:'OAuthException',hints:['metric_type',secret],message:secret,url:secret}]},dashboard:{storage:'ready',reports:[ig],history:[{id:runId,outcome:'success'}]}};
   const r=instagramTestResult(body,200);assert.equal(r.stored,true);assert.equal(r.diagnostic.tokenPresent,true);assert.equal(r.diagnostic.accountId,'1001');assert.deepEqual(r.diagnostic.requests[0].hints,['metric_type']);assert.ok(!JSON.stringify(r).includes(secret));
   for(const status of [401,403,503]) {const rejected=instagramTestResult(body,status);assert.equal(rejected.stored,false);assert.equal(rejected.diagnostic,null);}
   for(const outcome of ['cooldown','running']) {const skipped=instagramTestResult({...body,acquired:false,outcome},200);assert.equal(skipped.stored,false);assert.equal(skipped.diagnostic,null);assert.match(skipped.message,/nije pokrenut/);}
@@ -329,9 +371,9 @@ test('Instagram-only sync stores measured analytics but never its diagnostic and
     const seed=randomUUID();await begin(db,seed,'30');await finish(db,seed,reports('30'));await releaseCooldown(db);
     const other=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'instagram' order by provider")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'instagram' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'instagram' order by provider,day")).rows}),before=await other(),adapter=restFixture(db),calls=[];
     globalThis.fetch=async(input,init)=>{
-      const u=new URL(input);if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);calls.push(u);assert.equal(u.hostname,'graph.instagram.com');
-      if(u.pathname.endsWith('/me')) return json({id:'1001',user_id:'1001',username:'medresacg'});
-      if(u.searchParams.get('fields')==='account_type') return json({account_type:'BUSINESS'});
+      const u=new URL(input);if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);calls.push(u);assert.equal(u.hostname,'graph.facebook.com');
+      const discovered=instagramDiscovery(u);if(discovered)return discovered;
+      if(u.searchParams.get('fields')==='id,username,account_type') return json({id:'1001',username:'medresacg',account_type:'BUSINESS'});
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:12});
       if(u.pathname.endsWith('/media')) return json({data:[]});
       return json({data:[]});

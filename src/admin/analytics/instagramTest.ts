@@ -1,11 +1,12 @@
 import { reasonNames, type ProviderState, type Range, type Reason } from "./model";
 import { validDay } from "./period";
 
-export const instagramRequests = ["account", "account_type", "followers", "insights", "media", "media_insights"] as const;
+export const instagramRequests = ["pages", "page_link", "permissions", "account_type", "followers", "insights", "media", "media_insights"] as const;
 export const instagramMetrics = ["views", "total_interactions", "reach", "profile_links_taps", "follows_and_unfollows"] as const;
 export const instagramHints = ["token", "permission", "professional_account", "account", "fields", "metric", "metric_type", "period", "breakdown", "date_range", "account_threshold", "api_version", "rate_limit"] as const;
 export const instagramAccountTypes = ["BUSINESS", "MEDIA_CREATOR", "CREATOR", "PERSONAL"] as const;
 export const instagramAccessStates = ["verified", "denied", "partially_verified", "unverified"] as const;
+export const instagramPermissionStates = ["granted", "declined", "expired", "not_returned", "unverified"] as const;
 export type InstagramRequestResult = {
   request: typeof instagramRequests[number]; metric: typeof instagramMetrics[number] | null;
   metricType: "total_value" | "time_series" | null; period: "day" | null; range: Range | null;
@@ -14,9 +15,12 @@ export type InstagramRequestResult = {
   hints: typeof instagramHints[number][];
 };
 export type InstagramDiagnostic = {
-  tokenPresent: boolean; accountDiscovered: boolean; accountId: string | null;
+  tokenPresent: boolean; pageDiscovered: boolean; pageId: string | null;
+  pageLinkStatus: "not_checked" | "missing" | "linked";
+  accountDiscovered: boolean; accountId: string | null; differsFromOldLoginId: boolean | null;
   expectedAccountMatches: boolean | null;
-  accountIdSource: "user_id" | "id" | null; accountType: typeof instagramAccountTypes[number] | null;
+  accountIdSource: "instagram_business_account" | null; accountType: typeof instagramAccountTypes[number] | null;
+  insightsPermission: typeof instagramPermissionStates[number]; basicPermission: typeof instagramPermissionStates[number];
   insightsAccess: typeof instagramAccessStates[number]; requests: InstagramRequestResult[];
 };
 export type InstagramTestResult = {
@@ -36,10 +40,16 @@ export function instagramTestResult(value: unknown, httpStatus: number): Instagr
   const dashboard = record(body.dashboard), d = record(body.instagramDiagnostic);
   if (body.instagramDiagnostic) result.diagnostic = {
     tokenPresent: d.tokenPresent === true, accountDiscovered: d.accountDiscovered === true,
+    pageDiscovered: d.pageDiscovered === true,
+    pageId: d.pageDiscovered === true && typeof d.pageId === "string" && /^\d{1,32}$/.test(d.pageId) ? d.pageId : null,
+    pageLinkStatus: d.pageLinkStatus === "linked" || d.pageLinkStatus === "missing" ? d.pageLinkStatus : "not_checked",
+    differsFromOldLoginId: typeof d.differsFromOldLoginId === "boolean" ? d.differsFromOldLoginId : null,
     expectedAccountMatches: typeof d.expectedAccountMatches === "boolean" ? d.expectedAccountMatches : null,
     accountId: d.accountDiscovered === true && typeof d.accountId === "string" && /^\d{1,32}$/.test(d.accountId) ? d.accountId : null,
-    accountIdSource: d.accountIdSource === "user_id" || d.accountIdSource === "id" ? d.accountIdSource : null,
+    accountIdSource: d.accountIdSource === "instagram_business_account" ? d.accountIdSource : null,
     accountType: instagramAccountTypes.find(t => t === d.accountType) ?? null,
+    insightsPermission: instagramPermissionStates.find(t => t === d.insightsPermission) ?? "unverified",
+    basicPermission: instagramPermissionStates.find(t => t === d.basicPermission) ?? "unverified",
     insightsAccess: instagramAccessStates.find(s => s === d.insightsAccess) ?? "unverified",
     requests: Array.isArray(d.requests) ? d.requests.slice(0, 160).flatMap(v => {
       const r = record(v), request = instagramRequests.find(n => n === r.request);
@@ -55,5 +65,5 @@ export function instagramTestResult(value: unknown, httpStatus: number): Instagr
   result.message = "Instagram test je završen.";
   return result;
 }
-export const instagramRequestLabels: Record<InstagramRequestResult["request"], string> = { account: "Otkrivanje računa · /me", account_type: "Tip računa", followers: "Pratioci", insights: "Insights računa", media: "Objave računa", media_insights: "Insights objave" };
+export const instagramRequestLabels: Record<InstagramRequestResult["request"], string> = { pages: "Otkrivanje Page · /me/accounts", page_link: "Page → instagram_business_account", permissions: "Dozvole · /me/permissions", account_type: "Tip računa", followers: "Pratioci", insights: "Insights računa", media: "Objave računa", media_insights: "Insights objave" };
 export const instagramAccessLabels: Record<InstagramDiagnostic["insightsAccess"], string> = { verified: "Potvrđen stvarnim Insights odgovorom", denied: "Odbijen od Meta API-ja", partially_verified: "Djelimično potvrđen; neke dozvole su odbijene", unverified: "Nije potvrđen" };

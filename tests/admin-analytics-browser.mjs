@@ -37,14 +37,16 @@ const origin='http://localhost:3213';
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
     if(instagramFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
-      const u=new URL(address);providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.instagram.com','Unselected provider called during Instagram-only sync');
+      const u=new URL(address);providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com','Unselected provider called during Instagram-only sync');
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
       assert.equal(new Headers(init.headers).get('Authorization'),'Bearer local-instagram-browser-fixture');assert.ok(!u.searchParams.has('access_token'));
-      if(u.pathname.endsWith('/me')) return json({id:'1001',user_id:'1001',username:'medresacg'});
-      if(u.searchParams.get('fields')==='account_type') return json({account_type:'BUSINESS'});
+      if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'instagram_manage_insights',status:'granted'},{permission:'instagram_basic',status:'granted'}]});
+      if(u.pathname.endsWith('/me/accounts')) return json({data:[{id:'578640758657974'}]});
+      if(u.searchParams.get('fields')==='instagram_business_account') return json({id:'578640758657974',instagram_business_account:{id:'1001'}});
+      if(u.searchParams.get('fields')==='id,username,account_type') return json({id:'1001',username:'medresacg',account_type:'BUSINESS'});
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:17});
       if(u.pathname.endsWith('/media')) return json({data:[]});
-      if(instagramDenied) return json({error:{code:100,error_subcode:33,type:'OAuthException',message:'Requires instagram_business_manage_insights permission. local-instagram-browser-fixture raw-private-instagram-response',fbtrace_id:'private-instagram-trace-fixture'}},400);
+      if(instagramDenied) return json({error:{code:100,error_subcode:33,type:'OAuthException',message:'Requires instagram_manage_insights permission. local-instagram-browser-fixture raw-private-instagram-response',fbtrace_id:'private-instagram-trace-fixture'}},400);
       if(u.searchParams.get('metric_type')==='time_series') return json({data:[]});
       const metric=u.searchParams.get('metric');
       return json({data:[{name:metric,total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
@@ -193,9 +195,9 @@ const origin='http://localhost:3213';
   const instagramPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),instagramResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
   await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();
   assert.equal((await instagramPost).postDataJSON().provider,'instagram');assert.equal(await page.getByRole('button',{name:'Testiram Instagram…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
-  const igBody=await (await instagramResponse).json();assert.equal(igBody.websiteRequests,undefined);assert.equal(igBody.instagramDiagnostic.tokenPresent,true);assert.equal(igBody.instagramDiagnostic.accountId,'1001');assert.equal(igBody.instagramDiagnostic.insightsAccess,'verified');
+  const igBody=await (await instagramResponse).json();assert.equal(igBody.websiteRequests,undefined);assert.equal(igBody.instagramDiagnostic.tokenPresent,true);assert.equal(igBody.instagramDiagnostic.accountId,'1001');assert.equal(igBody.instagramDiagnostic.pageDiscovered,true);assert.equal(igBody.instagramDiagnostic.insightsPermission,'granted');assert.equal(igBody.instagramDiagnostic.differsFromOldLoginId,true);assert.equal(igBody.instagramDiagnostic.insightsAccess,'verified');
   const igResult=page.getByRole('status',{name:'Rezultat Instagram testa',exact:true});await igResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.match(await igResult.innerText(),/Token na serveru: da · račun otkriven: da/);assert.match(await igResult.innerText(),/tip: BUSINESS/);assert.match(await igResult.innerText(),/Potvrđen stvarnim Insights odgovorom/);assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.instagram.com'));
+  assert.match(await igResult.innerText(),/Token na serveru: da · račun otkriven: da/);assert.match(await igResult.innerText(),/tip: BUSINESS/);assert.match(await igResult.innerText(),/Potvrđen stvarnim Insights odgovorom/);assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.facebook.com'));
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   await page.reload();assert.equal((await (await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='instagram').current.followers,17);assert.equal(await nonInstagram(),locked);
   await releaseCooldown(db);instagramDenied=true;
