@@ -24,8 +24,6 @@ export function PreviewDiagnostics() {
       const checks = Object.fromEntries(names.map(name => [name, report.checks?.[name] === true]));
       const translationNames = ["previewEnvironment", "adminBranch", "openAiKeyPresent", "supabaseConfigurationAvailable", "supabaseWritesEnabled"];
       const translationChecks = Object.fromEntries(translationNames.map(name => [name, report.translation?.checks?.[name] === true]));
-      const delivery = report.translation?.keyDelivery;
-      const safeBooleans = (value: Record<string, unknown> | undefined, fields: string[]) => Object.fromEntries(fields.map(name => [name, value?.[name] === true]));
       setResult(JSON.stringify({
         configuration: {
           accepted: report.configurationAccepted === true,
@@ -39,10 +37,6 @@ export function PreviewDiagnostics() {
           failedChecks: translationNames.filter(name => !translationChecks[name]),
           checks: translationChecks,
           commitSha: typeof report.translation?.commitSha === "string" && /^[a-f0-9]{40}$/.test(report.translation.commitSha) ? report.translation.commitSha : null,
-          keyDelivery: {
-            build: { ...safeBooleans(delivery?.build, ["captured", "keyDefined", "keyNonEmpty", "keyHasNonWhitespace", "previewEnvironment", "adminBranch"]), commitSha: typeof delivery?.build?.commitSha === "string" && /^[a-f0-9]{40}$/.test(delivery.build.commitSha) ? delivery.build.commitSha : null },
-            runtime: safeBooleans(delivery?.runtime, ["keyDefined", "keyNonEmpty", "keyHasNonWhitespace", "staticLookupMatchesNodeRuntime", "alternateKeyNamePresent"]),
-          },
         },
       }, null, 2));
     } catch { setError("Provjera nije završena. Pokušajte ponovo."); }

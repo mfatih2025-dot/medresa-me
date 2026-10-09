@@ -6,8 +6,6 @@ import { applyTranslationDraft, bosnianTranslationReady, existingTranslationLoca
 import { canonicalDraft, getNews, saveDraft } from "./news";
 import { supabaseConfiguration } from "./supabase";
 import { medresaGlossary } from "./translationGlossary";
-import { env as nodeEnvironment } from "node:process";
-import { translationBuildPresence } from "./translationBuildPresence";
 
 /** Authenticated diagnostics: presence/guard booleans only, never secret values. */
 export function translationConfigurationDiagnostic() {
@@ -21,21 +19,9 @@ export function translationConfigurationDiagnostic() {
   };
   const failedChecks = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
-  const direct = process.env.OPENAI_API_KEY;
-  const runtime: unknown = Reflect.get(nodeEnvironment, "OPENAI_API_KEY");
   return {
     available: failedChecks.length === 0, checks, failedChecks,
-    commitSha: sha && /^[a-f0-9]{40}$/.test(sha) && sha !== direct && sha !== runtime ? sha : null,
-    keyDelivery: {
-      build: translationBuildPresence,
-      runtime: {
-        keyDefined: typeof runtime === "string",
-        keyNonEmpty: typeof runtime === "string" && runtime.length > 0,
-        keyHasNonWhitespace: typeof runtime === "string" && runtime.trim().length > 0,
-        staticLookupMatchesNodeRuntime: direct === runtime,
-        alternateKeyNamePresent: Object.keys(nodeEnvironment).some(name => name !== "OPENAI_API_KEY" && name.trim().toUpperCase() === "OPENAI_API_KEY"),
-      },
-    },
+    commitSha: sha && /^[a-f0-9]{40}$/.test(sha) && sha !== process.env.OPENAI_API_KEY ? sha : null,
   };
 }
 export function translationAvailable() { return translationConfigurationDiagnostic().available; }

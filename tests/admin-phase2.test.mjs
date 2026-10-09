@@ -284,10 +284,10 @@ test("diagnostic API is authenticated, GET-only, Preview-only and never exposes 
   }
   assert.equal(requests,0);
 }));
-test("rejected news GET diagnostics are server-only, Preview-branch-only, value-free and never bypass authentication", async () => environment(async () => {
+test("news GET rejects missing and tampered sessions without diagnostic logging or bypassing authentication", async () => environment(async () => {
   const handler = load("src/pages/api/admin/news/index.ts").default;
   const info = console.info; const logs = []; let requests = 0;
-  console.info = value => logs.push(JSON.parse(value));
+  console.info = value => logs.push(value);
   try {
     configure();
     process.env.MEDRESA_ADMIN_USER = "private-user-fixture";
@@ -302,11 +302,11 @@ test("rejected news GET diagnostics are server-only, Preview-branch-only, value-
     const req = { method: "GET", url: "/api/admin/news", headers: { host: "admin.example.test", cookie: `${name}=${token}` }, cookies: {} };
     const missing = response(); await handler(req, missing);
     assert.equal(missing.statusCode, 401); assert.deepEqual(missing.body, { error: "Prijavite se za nastavak." });
-    assert.deepEqual(logs[0], { event: "medresa.admin.auth_rejected", reason: "cookie-missing", authConfigured: true, expectsSecureCookie: true, parsedCookiePresent: false, headerContainsExpectedCookie: true, originMatchesRequestHost: true });
+    assert.deepEqual(logs, []);
     const invalid = response(); await handler({ ...req, cookies: { [name]: token + "x" } }, invalid);
-    assert.equal(invalid.statusCode, 401); assert.equal(logs[1].reason, "signature-mismatch"); assert.equal(logs[1].parsedCookiePresent, true);
+    assert.equal(invalid.statusCode, 401); assert.deepEqual(logs, []);
     const mismatch = response(); await handler({ ...req, headers: { host: process.env.MEDRESA_ADMIN_SESSION_SECRET }, cookies: { [name]: token + "x" } }, mismatch);
-    assert.equal(mismatch.statusCode, 401); assert.equal(logs[2].originMatchesRequestHost, false);
+    assert.equal(mismatch.statusCode, 401); assert.deepEqual(logs, []);
     const serialized = JSON.stringify(logs);
     for (const secret of [token, ...envNames.map(n => process.env[n]).filter(v => v && v.length > 10)]) assert.ok(!serialized.includes(secret));
     assert.equal(requests, 0);
