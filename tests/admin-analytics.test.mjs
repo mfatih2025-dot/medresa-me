@@ -85,8 +85,59 @@ test('Vercel uses official Preview aggregates, direct unique totals, no Producti
   assert.ok(requests.length>=10); assert.ok(!JSON.stringify(r).includes(process.env.VERCEL_ANALYTICS_TOKEN));
   const selected=requests.find(u=>u.searchParams.get('by')==='environment');const selectedRange=ranges('7',now,'UTC').current;
   assert.equal(selected.searchParams.get('since'),selectedRange.start+'T00:00:00Z');assert.equal(selected.searchParams.get('until'),selectedRange.end+'T23:59:59.999Z');
+  assert.equal(requests.find(u=>u.searchParams.get('by')==='day').searchParams.get('since'),selected.searchParams.get('since'));
+  assert.equal(requests.find(u=>u.searchParams.get('by')==='day').searchParams.get('until'),selected.searchParams.get('until'));
   globalThis.fetch=async(input)=>new URL(input).pathname.startsWith('/v9/')?json({id:'prj_verified_fixture',name:'medresa-me'}):json({data:[]});
   const empty=await collectProvider('website','7',now,new AbortController().signal); assert.deepEqual(empty.totals,{}); assert.ok(empty.warnings.includes('no_data'));
+});
+test('Website daily query stays in each selected period and the successful selected-period URL is byte-for-byte unchanged', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-optional-history-fixture';
+  for(const period of ['today','yesterday','7','30','60','90']) {
+    const requests=[],observations=[];
+    globalThis.fetch=async(input)=>{const u=new URL(input);requests.push(u);return u.pathname.startsWith('/v9/')?json({name:'medresa-me',id:'prj_fixture'}):json({data:[]});};
+    const r=await collectProvider('website',period,now,new AbortController().signal,row=>observations.push(row));
+    const expected=new URL('https://api.vercel.com/v1/query/web-analytics/visits/aggregate');
+    expected.search=new URLSearchParams({projectId:'prj_fixture',slug:'mmf16',since:r.range.start+'T00:00:00Z',until:r.range.end+'T23:59:59.999Z',by:'environment',limit:'10',filter:"environment eq 'preview' and not startswith(requestPath, '/admin')"}).toString();
+    assert.equal(requests[1].href,expected.href);
+    const daily=requests.find(u=>u.searchParams.get('by')==='day');
+    assert.equal(daily.searchParams.get('since'),expected.searchParams.get('since'));assert.equal(daily.searchParams.get('until'),expected.searchParams.get('until'));
+    for(const name of ['daily','previous']) assert.deepEqual(observations.find(r=>r.request===name),{request:name,range:name==='daily'?r.range:r.previousRange,httpStatus:200,reason:'no_data'});
+    assert.equal(r.state,'connected');assert.deepEqual(r.totals,{});assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);
+  }
+});
+test('Website skips only proven empty pre-tracking optional history, not re-enabled or contradictory real data', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-tracking-fixture';
+  for(const [metadata,realTotals,skip] of [
+    [{enabledAt:now.getTime(),hasData:false},false,true],
+    [{enabledAt:now.getTime(),hasData:true},false,false],
+    [{enabledAt:now.getTime(),hasData:false},true,false],
+    [{enabledAt:now.getTime()+1,hasData:false},false,false],
+    [{enabledAt:'not-a-timestamp',hasData:false},false,false],
+    [{enabledAt:now.getTime()},false,false],
+  ]) {
+    const requests=[],observations=[];
+    globalThis.fetch=async(input)=>{const u=new URL(input);requests.push(u);return u.pathname.startsWith('/v9/')?json({name:'medresa-me',id:'prj_fixture',webAnalytics:metadata}):json({data:realTotals&&u.searchParams.get('by')==='environment'?[{environment:'preview',pageviews:2,visitors:1}]:[]});};
+    const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
+    assert.equal(r.state,'connected');assert.equal(requests.some(u=>u.searchParams.get('by')==='day'),!skip);
+    for(const name of ['daily','previous']) {const request=observations.find(r=>r.request===name);assert.equal(request.httpStatus,skip?null:200);assert.equal(request.reason,realTotals&&name==='previous'?null:'no_data');}
+    assert.equal(observations.find(r=>r.request==='current').httpStatus,200);
+    assert.deepEqual(r.totals,realTotals?{pageviews:2,visitors:1}:{});assert.equal(r.trackingStart,null);assert.deepEqual(r.cumulative,{});
+    if(skip){assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);assert.ok(!r.warnings.includes('invalid_response'));}
+  }
+});
+test('Website explicit optional reporting-window rejection stays unavailable, never zero or an invented comparison', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-retention-fixture';const observations=[];
+  const range=ranges('30',now,'UTC').current;
+  globalThis.fetch=async(input)=>{
+    const u=new URL(input);if(u.pathname.startsWith('/v9/')) return json({name:'medresa-me',id:'prj_fixture'});
+    if(u.searchParams.get('by')==='day'||u.searchParams.get('until').slice(0,10)<range.start) return json({error:{code:'bad_request',message:"The 'since' timestamp is outside the reporting window."}},400);
+    return json({data:u.searchParams.get('by')==='environment'?[{environment:'preview',pageviews:9,visitors:3}]:[]});
+  };
+  const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
+  assert.equal(r.state,'connected');assert.deepEqual(r.totals,{pageviews:9,visitors:3});assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);
+  assert.ok(r.warnings.includes('retention_limit'));assert.ok(!r.warnings.includes('invalid_response'));assert.ok(!r.warnings.includes('no_data'));
+  for(const name of ['daily','previous']) {const row=observations.find(r=>r.request===name);assert.equal(row.httpStatus,400);assert.equal(row.reason,'retention_limit');assert.equal(row.rejection.reportingWindowMentioned,true);}
+  assert.equal(comparison(r.totals.pageviews,r.previousTotals.pageviews).percent,null);
 });
 test('Website optional HTTP 400 queries keep direct current totals and report the exact rejected requests without raw errors', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-diagnostic-fixture';
@@ -350,6 +401,28 @@ test('single-provider database scope is idempotent, atomic and preserves other p
   } finally {await db.close();}
 });
 
+test('Website-only empty pre-tracking history persists and reloads without manufactured daily snapshots', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-empty-history-fixture';
+  const db=await database();try {
+    const adapter=restFixture(db),external=[];
+    globalThis.fetch=async(input,init)=>{
+      const u=new URL(input);if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);
+      assert.equal(u.hostname,'api.vercel.com');external.push(u);
+      return u.pathname.startsWith('/v9/')?json({name:'medresa-me',id:'prj_fixture',webAnalytics:{enabledAt:Date.now()-1000,hasData:false}}):json({data:[]});
+    };
+    const service=load('src/server/admin/analytics/service'),id=randomUUID();
+    const result=await service.synchronize('30',id,'website'),web=result.dashboard.reports.find(r=>r.provider==='website');
+    assert.equal(result.dashboard.storage,'ready');assert.equal(web.state,'connected');assert.deepEqual(web.totals,{});assert.deepEqual(web.previousTotals,{});assert.deepEqual(web.daily,[]);
+    assert.ok(web.warnings.includes('no_data'));assert.ok(!web.warnings.includes('invalid_response'));
+    assert.equal(result.websiteRequests.find(r=>r.request==='current').httpStatus,200);
+    for(const name of ['daily','previous']) assert.equal(result.websiteRequests.find(r=>r.request===name).reason,'no_data');
+    assert.equal(external.some(u=>u.searchParams.get('by')==='day'),false);
+    assert.equal((await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n,0);
+    assert.equal((await db.query('select outcome from medresa_analytics_sync_runs where id=$1',[id])).rows[0].outcome,'success');
+    const reload=await service.dashboard('30');assert.deepEqual(reload.reports.find(r=>r.provider==='website').totals,{});
+    assert.equal((await db.query("select count(*)::int n from medresa_analytics_provider_state where provider<>'website' and last_attempt_at is not null")).rows[0].n,0);
+  }finally{await db.close();}
+});
 test('Website-only service sync calls only Vercel, persists and reloads real-shaped aggregates without changing other providers', async () => {
   credentials();
   Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-vercel-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-youtube-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'unused-youtube-fixture'});

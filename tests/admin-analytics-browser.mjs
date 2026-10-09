@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -43,8 +43,9 @@ const origin='http://localhost:3213';
         assert.equal(u.hostname,'api.vercel.com','Unselected provider called during Website-only sync');
         const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
         if(websiteDenied) return json({error:{message:'local-vercel-browser-fixture raw-error-must-stay-hidden'}},403);
-        if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
+        if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture',...(websiteNoHistory?{webAnalytics:{enabledAt:Date.now()-1000,hasData:false}}:{})});
         assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+        if(websiteNoHistory) return json({data:[]});
         const by=u.searchParams.get('by');
         if(websiteOptionalRejected&&(by==='day'||by==='referrerHostname')) return json({error:{code:'invalid_odata_filter',message:"Cannot parse 'filter' expression: local-vercel-browser-fixture raw-error-must-stay-hidden"}},400);
         if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
@@ -158,6 +159,18 @@ const origin='http://localhost:3213';
   await visibleResult.getByText('Razlog: Pristup analitici nije odobren (permission_required)',{exact:true}).waitFor();
   assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));assert.ok(!(await page.content()).includes('raw-error-must-stay-hidden'));assert.equal(await unrelated(),unchanged);
   assert.ok(providerCalls.every(host=>host==='api.vercel.com'));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  await releaseCooldown(db);websiteDenied=false;websiteOptionalRejected=false;websiteNoHistory=true;
+  const historyBefore=JSON.stringify((await db.query("select day,metrics,complete from medresa_analytics_daily where provider='website' order by day")).rows);
+  const emptyResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();const emptyBody=await (await emptyResponse).json();
+  assert.equal(emptyBody.dashboard.reports.find(r=>r.provider==='website').state,'connected');
+  assert.equal(emptyBody.websiteRequests.find(r=>r.request==='current').httpStatus,200);
+  for(const name of ['daily','previous']) assert.deepEqual({status:emptyBody.websiteRequests.find(r=>r.request===name).httpStatus,reason:emptyBody.websiteRequests.find(r=>r.request===name).reason},{status:null,reason:'no_data'});
+  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
+  assert.match(await visibleResult.innerText(),/Dnevni tok · by=day · HTTP —/);assert.match(await visibleResult.innerText(),/Prethodni period · by=environment · HTTP —/);
+  assert.match(await visibleResult.innerText(),/Period prethodi uključenju praćenja/);assert.match(await visibleResult.innerText(),/Pregledi stranica: — · Posjetioci: —/);
+  assert.equal(JSON.stringify((await db.query("select day,metrics,complete from medresa_analytics_daily where provider='website' order by day")).rows),historyBefore);assert.equal(await unrelated(),unchanged);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);

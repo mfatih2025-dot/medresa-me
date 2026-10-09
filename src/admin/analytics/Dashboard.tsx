@@ -114,8 +114,10 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
           <p>Pregledi stranica: {format(websiteResult.pageviews)} · Posjetioci: {format(websiteResult.visitors)}</p>
           <p>{websiteResult.stored ? "Rezultat sačuvan u Preview Supabase." : "Novi Website podaci nijesu potvrđeni."}</p>
           {websiteResult.warnings.length > 0 && <p>{websiteResult.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
-          {websiteResult.requests.filter(r => r.request === "current" || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <div key={r.request}>
+          {websiteResult.requests.filter(r => ["current", "daily", "previous"].includes(r.request) || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <div key={r.request}>
             <p>Vercel: {websiteRequestLabels[r.request]}{websiteRequestDimensions[r.request] ? ` · by=${websiteRequestDimensions[r.request]}` : ""} · HTTP {r.httpStatus ?? "—"}{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}</p>
+            {r.reason === "no_data" && <p>{r.httpStatus === null ? "Period prethodi uključenju praćenja; Vercel potvrđuje da historija još nema podataka. Zahtjev nije poslan." : "Nema podataka za ovaj period. Vrijednosti ostaju —."}</p>}
+            {r.reason === "retention_limit" && <p>Dio perioda je izvan dostupne Vercel historije. Poređenje ili dnevni tok ostaje —.</p>}
             {r.rejection && <p>Validacija Vercela: kod {r.rejection.code ?? "nije prepoznat"} · parametri navedeni u odgovoru: {r.rejection.parameters.join(", ") || "nijesu navedeni"}{r.rejection.reportingWindowMentioned ? " · odgovor navodi ograničenje dostupne historije" : ""}. {r.rejection.detailsPresent ? "Detalji odgovora su provjereni bez prikazivanja izvornog teksta." : "Odgovor nema prepoznate detalje validacije."}</p>}
             {r.rejection && <p>Oblik odgovora: {r.rejection.responseShape} · teme navedene u odgovoru: {r.rejection.hints.join(", ") || "nijesu prepoznate"}.</p>}
           </div>)}

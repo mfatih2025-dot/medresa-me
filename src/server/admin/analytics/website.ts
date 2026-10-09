@@ -39,12 +39,17 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   async function request(request: WebsiteRequest, url: URL | string, range: Range | null = null) {
     let httpStatus: number | null = null, reason: WebsiteRequestResult["reason"] = null;
     let rejection: VercelRejection | undefined;
-    try { return await providerJson(url, { headers: { Authorization: `Bearer ${token}` } }, signal, (status, body) => { httpStatus = status; if (status === 400 && body) rejection = vercelRejection(body); }); }
+    try {
+      const body = await providerJson(url, { headers: { Authorization: `Bearer ${token}` } }, signal, (status, body) => { httpStatus = status; if (status === 400 && body) rejection = vercelRejection(body); });
+      if ((request === "daily" || request === "previous") && Array.isArray(body.data) && body.data.length === 0) reason = "no_data";
+      return body;
+    }
     catch (error) {
       // Vercel documents HTTP 400 as an invalid query value, not an unsupported
       // metric. The shared Meta-style mapping must not make that claim here.
       if (httpStatus === 400 && error instanceof ProviderFailure && error.reason === "unsupported_metric") {
-        reason = "invalid_response"; throw new ProviderFailure("error", reason);
+        reason = (request === "daily" || request === "previous") && rejection?.reportingWindowMentioned ? "retention_limit" : "invalid_response";
+        throw new ProviderFailure("error", reason);
       }
       reason = error instanceof ProviderFailure ? error.reason : "invalid_response"; throw error;
     }
@@ -70,7 +75,16 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   // Current-period totals are required. Comparisons/trends are optional: a rejected
   // query (including a plan's reporting-window restriction) cannot discard totals.
   const current = await aggregate("current", report.range);
+  // Documented project metadata, not an inferred date or a hard-coded plan window.
+  // enabledAt alone can refer to a re-enable; require hasData=false as well so
+  // prior real history is never hidden merely because tracking was restarted.
+  const webAnalytics = project.webAnalytics && typeof project.webAnalytics === "object" && !Array.isArray(project.webAnalytics) ? project.webAnalytics as Record<string, unknown> : {};
+  const enabledAt = typeof webAnalytics.enabledAt === "number" && Number.isSafeInteger(webAnalytics.enabledAt) && webAnalytics.enabledAt > 0 && webAnalytics.enabledAt <= now.getTime() ? dayAt(new Date(webAnalytics.enabledAt), "UTC") : null;
   async function optional(name: Exclude<WebsiteRequest, "project" | "current">, range: Range, limit = 10) {
+    if ((name === "daily" || name === "previous") && webAnalytics.hasData === false && enabledAt && range.end < enabledAt && !current.some(row => (number(row.pageviews) ?? 0) > 0 || (number(row.visitors) ?? 0) > 0)) {
+      observe?.({ request: name, range, httpStatus: null, reason: "no_data" });
+      return [];
+    }
     try { return await aggregate(name, range, limit); }
     catch (error) {
       report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response");
@@ -79,7 +93,7 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   }
   const [previous, daily, today, yesterday] = await Promise.all([
     optional("previous", report.previousRange),
-    optional("daily", { start: report.previousRange.start, end: report.todayDate }),
+    optional("daily", report.range),
     optional("today", { start: report.todayDate, end: report.todayDate }), optional("yesterday", { start: yesterdayDate, end: yesterdayDate }),
   ]);
   report.totals = total(current); report.previousTotals = total(previous);
