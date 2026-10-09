@@ -1,6 +1,6 @@
 import { reasonNames, type ProviderState, type Reason, type Range } from "./model";
 import { validDay } from "./period";
-import { websiteRequestDimensions, vercelQueryParameters, vercelRejectionCodes, type WebsiteRequest, type WebsiteRequestResult } from "./websiteRequests";
+import { websiteRequestDimensions, vercelQueryParameters, vercelErrorCode, vercelResponseShapes, vercelValidationHints, type WebsiteRequest, type WebsiteRequestResult } from "./websiteRequests";
 
 export type WebsiteTestResult = {
   message: string; httpStatus: number; state: ProviderState | null; reason: Reason | null;
@@ -31,9 +31,11 @@ export function websiteTestResult(value: unknown, httpStatus: number): WebsiteTe
       httpStatus: typeof row.httpStatus === "number" && Number.isInteger(row.httpStatus) && row.httpStatus >= 100 && row.httpStatus <= 599 ? row.httpStatus : null,
       reason: reasonNames.find(r => r === row.reason) ?? null,
       ...(row.httpStatus === 400 && row.rejection ? { rejection: {
-        code: vercelRejectionCodes.find(code => code === rejection.code) ?? null,
+        code: vercelErrorCode(rejection.code),
         parameters: vercelQueryParameters.filter(parameter => Array.isArray(rejection.parameters) && rejection.parameters.includes(parameter)),
         reportingWindowMentioned: rejection.reportingWindowMentioned === true, detailsPresent: rejection.detailsPresent === true,
+        responseShape: vercelResponseShapes.find(shape => shape === rejection.responseShape) ?? "unrecognized",
+        hints: vercelValidationHints.filter(hint => Array.isArray(rejection.hints) && rejection.hints.includes(hint)),
       } } : {}) }];
   });
   const report = Array.isArray(dashboard.reports) ? record(dashboard.reports.find(r => record(r).provider === "website")) : {};

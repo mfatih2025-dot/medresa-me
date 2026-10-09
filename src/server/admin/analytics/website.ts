@@ -1,20 +1,35 @@
 import { dayAt, shiftDay, validDay } from "@/admin/analytics/period";
 import type { Metrics, Period, Range } from "@/admin/analytics/model";
-import { websiteRequestDimensions, vercelQueryParameters, vercelRejectionCodes, type VercelRejection, type WebsiteRequest, type WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
+import { websiteRequestDimensions, vercelQueryParameters, vercelErrorCode, type VercelRejection, type WebsiteRequest, type WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
 import { blank, number, providerJson, safeText, success, ProviderFailure } from "./common";
 export function websiteConfigured() { return !!process.env.VERCEL_ANALYTICS_TOKEN?.trim(); }
 /** Project validation evidence to fixed enums/booleans. Never return raw messages or values. */
 export function vercelRejection(body: Record<string, unknown>): VercelRejection {
   const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   const error = record(body.error);
-  const details = [error, ...[error.errors, error.issues, body.errors].flatMap(value => Array.isArray(value) ? value.slice(0, 16).map(record) : [])];
-  const message = details.flatMap(row => typeof row.message === "string" ? [row.message.slice(0, 1000)] : []).join(" ").slice(0, 4000);
+  const details = [error, body, ...[error.errors, error.issues, error.details, body.errors, body.issues].flatMap(value => Array.isArray(value) ? value.slice(0, 16).map(record) : [])];
+  const message = [typeof body.error === "string" ? body.error : "", ...details.flatMap(row => typeof row.message === "string" ? [row.message] : [])].map(text => text.slice(0, 1000)).join(" ").slice(0, 4000);
+  const rawCode = error.code ?? body.code;
+  const code = safeText(rawCode) === rawCode ? vercelErrorCode(rawCode) : null;
+  // These are words actually mentioned by Vercel, not a diagnosis from HTTP status.
+  const evidence = `${code ?? ""} ${message}`;
+  const tests: Record<VercelRejection["hints"][number], RegExp> = {
+    filter_syntax: /\b(?:odata|filter)\b.{0,80}\b(?:parse|parser|parsing|syntax|malformed|expression)\b|\b(?:parse|parser|parsing|syntax|malformed)\b.{0,40}\b(?:odata|filter)\b/i,
+    operator_or_function: /\b(?:unsupported|unknown|invalid|not supported)\b.{0,40}\b(?:operator|function)\b|\b(?:operator|function)\b.{0,40}\b(?:unsupported|unknown|invalid|not supported)\b/i,
+    date_range: /\b(?:date|since|until|timestamp)\b.{0,50}\b(?:invalid|format|range|before|after)\b|\binvalid\b.{0,30}\b(?:date|since|until|timestamp)\b/i,
+    project_context: /\bproject\b.{0,50}\b(?:not found|invalid|mismatch|does not exist)\b/i,
+    team_context: /\b(?:team|account)\b.{0,50}\b(?:not found|invalid|mismatch|does not exist|scope)\b/i,
+    access: /\b(?:permission|permissions|forbidden|unauthorized|insufficient scope|insufficient access)\b/i,
+    analytics_configuration: /\banalytics\b.{0,50}\b(?:disabled|not enabled|not configured)\b/i,
+  };
   return {
-    code: vercelRejectionCodes.find(code => code === error.code) ?? null,
+    code,
     parameters: vercelQueryParameters.filter(parameter => details.some(row => row.parameter === parameter || row.param === parameter || row.field === parameter || (Array.isArray(row.path) && row.path.includes(parameter)))
-      || error.code === `invalid_${parameter.toLowerCase()}` || new RegExp("['\"`]" + parameter + "['\"`]|\\b(?:parameter|property|field)\\s+" + parameter + "\\b", "i").test(message)),
+      || code?.split("_").includes(parameter.toLowerCase()) || new RegExp("['\"`]" + parameter + "['\"`]|\\b(?:parameter|property|field)\\s+" + parameter + "\\b", "i").test(message)),
     reportingWindowMentioned: /\bretention\b|\breporting window\b|\b(?:date range|since|timestamp)\b.{0,80}\b(?:too old|outside|earlier than|before the|last \d+ days)\b/i.test(message),
-    detailsPresent: Object.keys(error).length > 0 || details.length > 1,
+    detailsPresent: Object.keys(error).length > 0 || typeof body.error === "string" || typeof body.message === "string" || details.length > 2,
+    responseShape: Object.keys(error).length ? "error_object" : typeof body.error === "string" ? "error_string" : typeof body.message === "string" || typeof body.code === "string" ? "top_level" : "unrecognized",
+    hints: (Object.keys(tests) as VercelRejection["hints"]).filter(hint => tests[hint].test(evidence.replace(/_/g, " "))),
   };
 }
 export async function website(period: Period, now: Date, signal: AbortSignal, observe?: (result: WebsiteRequestResult) => void) {

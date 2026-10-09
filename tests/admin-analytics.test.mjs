@@ -128,8 +128,8 @@ test('Website required totals rejection is attributed to that request, makes no 
 test('Vercel query validation preserves only named parameters/known codes and reporting-window evidence, never raw response values', async () => {
   const {vercelRejection}=load('src/server/admin/analytics/website');
   const secret='private-vercel-validation-fixture';
-  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`Invalid query parameter 'filter': ${secret}`,errors:[{path:['query','filter'],value:secret}]}}),{code:'bad_request',parameters:['filter'],reportingWindowMentioned:false,detailsPresent:true});
-  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`The 'since' timestamp is outside the reporting window. ${secret}`}}),{code:'bad_request',parameters:['since'],reportingWindowMentioned:true,detailsPresent:true});
+  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`Invalid query parameter 'filter': ${secret}`,errors:[{path:['query','filter'],value:secret}]}}),{code:'bad_request',parameters:['filter'],reportingWindowMentioned:false,detailsPresent:true,responseShape:'error_object',hints:[]});
+  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`The 'since' timestamp is outside the reporting window. ${secret}`}}),{code:'bad_request',parameters:['since'],reportingWindowMentioned:true,detailsPresent:true,responseShape:'error_object',hints:[]});
   const unknown=vercelRejection({error:{code:secret,message:secret,field:secret}});assert.equal(unknown.code,null);assert.deepEqual(unknown.parameters,[]);assert.ok(!JSON.stringify(unknown).includes(secret));
   credentials();process.env.VERCEL_ANALYTICS_TOKEN=secret;
   const requests=[];
@@ -138,7 +138,26 @@ test('Vercel query validation preserves only named parameters/known codes and re
   assert.equal(requests.length,2);assert.equal(requests[1].rejection.code,'bad_request');assert.deepEqual(requests[1].rejection.parameters,['filter']);assert.ok(!JSON.stringify(requests).includes(secret));
   const {websiteTestResult}=load('src/admin/analytics/websiteTest');
   const summary=websiteTestResult({acquired:true,websiteRequests:[...requests,{request:'daily',httpStatus:400,rejection:{code:secret,parameters:['since',secret],reportingWindowMentioned:secret,detailsPresent:secret,message:secret}}]},200);
-  assert.deepEqual(summary.requests[2].rejection,{code:null,parameters:['since'],reportingWindowMentioned:false,detailsPresent:false});assert.ok(!JSON.stringify(summary).includes(secret));
+  assert.deepEqual(summary.requests[2].rejection,{code:null,parameters:['since'],reportingWindowMentioned:false,detailsPresent:false,responseShape:'unrecognized',hints:[]});assert.ok(!JSON.stringify(summary).includes(secret));
+});
+test('Website validation handles formerly discarded code/string/top-level forms without changing requests or exposing raw text', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-discarded-error-fixture';
+  const {vercelRejection}=load('src/server/admin/analytics/website');const {websiteTestResult}=load('src/admin/analytics/websiteTest');
+  const cases=[
+    {body:{error:{code:'invalid_odata_filter',message:'Cannot parse filter expression private-discarded-error-fixture'}},shape:'error_object',code:'invalid_odata_filter',hint:'filter_syntax'},
+    {body:{error:'Unsupported operator in OData filter expression private-discarded-error-fixture'},shape:'error_string',code:null,hint:'operator_or_function'},
+    {body:{code:'invalid_team_context',message:'Team account scope is invalid private-discarded-error-fixture'},shape:'top_level',code:'invalid_team_context',hint:'team_context'},
+  ];
+  for(const {body,shape,code,hint} of cases) {
+    const rejection=vercelRejection(body);assert.equal(rejection.responseShape,shape);assert.equal(rejection.code,code);assert.ok(rejection.hints.includes(hint));
+    assert.ok(!JSON.stringify(rejection).includes('private-discarded-error-fixture'));
+    globalThis.fetch=async(input)=>new URL(input).pathname.startsWith('/v9/projects/')?json({id:'prj_fixture',name:'medresa-me'}):json(body,400);
+    const requests=[];const report=await collectProvider('website','30',now,new AbortController().signal,row=>requests.push(row));
+    assert.equal(report.state,'error');assert.deepEqual(report.totals,{});assert.deepEqual(requests[1].rejection,rejection);
+    const summary=websiteTestResult({acquired:true,websiteRequests:requests},200);assert.deepEqual(summary.requests[1].rejection,rejection);assert.ok(!JSON.stringify(summary).includes('private-discarded-error-fixture'));
+  }
+  const hostile=websiteTestResult({acquired:true,websiteRequests:[{request:'current',httpStatus:400,rejection:{code:'invalid_private_discarded_error_fixture',responseShape:'private-discarded-error-fixture',hints:['filter_syntax','private-discarded-error-fixture'],message:'private-discarded-error-fixture'}}]},200);
+  assert.equal(hostile.requests[0].rejection.code,null);assert.equal(hostile.requests[0].rejection.responseShape,'unrecognized');assert.deepEqual(hostile.requests[0].rejection.hints,['filter_syntax']);
 });
 test('Website exposes only returned totals; missing visitors and malformed optional rows never become fabricated zeroes', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-fixture';
