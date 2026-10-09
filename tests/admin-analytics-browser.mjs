@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0;
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -36,6 +36,20 @@ const origin='http://localhost:3213';
     }
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
+    if(websiteFixture) {
+      const u=new URL(address);
+      if(['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(u.hostname)) {
+        providerCalls.push(u.hostname);
+        assert.equal(u.hostname,'api.vercel.com','Unselected provider called during Website-only sync');
+        const json=body=>new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
+        if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
+        assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+        const by=u.searchParams.get('by');
+        if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
+        if(by==='day') return json({data:[]});
+        return json({data:[{[by]:by==='requestPath'?'/vijesti/local-fixture':'mobile',pageviews:42}]});
+      }
+    }
     return originalFetch(input,init);
   };
   for(const k of ['INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','VERCEL_ANALYTICS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
@@ -84,16 +98,36 @@ const origin='http://localhost:3213';
   const saved=await context.request.get(origin+'/api/admin/analytics?period=30');assert.equal(saved.status(),200);
   const body=await saved.json();assert.equal(body.reports[0].totals.visitors,3);assert.equal(body.reports[0].state,'not_configured');assert.ok(body.reports[0].lastSuccessAt);
   await page.reload();assert.equal(await page.locator('svg[role="img"]').count(),4);
+  // The actual authenticated production route selects only Website; other tokens
+  // are configured deliberately to catch an accidental full-provider refresh.
+  const unrelated=async()=>JSON.stringify({
+    reports:(await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider,start_date")).rows,
+    daily:(await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows,
+    states:(await db.query("select * from medresa_analytics_provider_state where provider<>'website' order by provider")).rows,
+  });
+  const unchanged=await unrelated();await releaseCooldown(db);websiteFixture=true;
+  Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-vercel-browser-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-browser-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-browser-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-secret-browser-fixture',YOUTUBE_REFRESH_TOKEN:'unused-refresh-browser-fixture'});
+  const scopedId=randomUUID();
+  const scoped=await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:scopedId,provider:'website'}});
+  assert.equal(scoped.status(),200);const scopedBody=await scoped.json();
+  const website=scopedBody.dashboard.reports.find(r=>r.provider==='website');assert.equal(website.state,'connected');assert.deepEqual(website.totals,{pageviews:42,visitors:9});
+  assert.ok(providerCalls.length>=10);assert.ok(providerCalls.every(host=>host==='api.vercel.com'));assert.equal(await unrelated(),unchanged);
+  const count=providerCalls.length;
+  assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:scopedId,provider:'website'}})).status(),200);assert.equal(providerCalls.length,count);
+  const reloaded=await (await context.request.get(origin+'/api/admin/analytics?period=30')).json();assert.deepEqual(reloaded.reports.find(r=>r.provider==='website').totals,website.totals);
+  await page.reload();assert.equal((await db.query('select provider,outcome from medresa_analytics_sync_runs where id=$1',[scopedId])).rows[0].outcome,'success');
+  const storedWebsite=page.getByRole('region',{name:'Website analitika',exact:true});
+  assert.ok((await storedWebsite.innerText()).includes('42'));assert.ok((await storedWebsite.innerText()).includes('Povezano'));
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
   const html=await page.content();
-  for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!html.includes(secret));
+  for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN]) assert.ok(!html.includes(secret));
   const scripts=await page.locator('script[src]').evaluateAll(xs=>xs.map(x=>x.src));
   for(const script of scripts) {
     const code=await (await context.request.get(script)).text();
     for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync',process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
   }
-  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; PostgreSQL persistence after reload; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; 44px actions; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
+  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; optional Website-only sync invokes only Vercel despite configured other providers; scoped idempotency; unchanged other provider records; PostgreSQL persistence and Website dashboard after reload; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; 44px actions; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
   await browser.close();await db.close();server.close();await app.close();process.exit(0);
 })().catch(e=>{console.error((e.stack||e.message).split('Call log:')[0]);process.exit(1);});

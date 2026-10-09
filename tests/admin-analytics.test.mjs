@@ -119,7 +119,8 @@ test('bounded retries, provider failure isolation and explicit sanitized project
 test('Analytics endpoints require Admin session and same-origin writes before provider/DB access', async () => {
   credentials(); const salt='ab'.repeat(16); Object.assign(process.env,{MEDRESA_ADMIN_USER:'analytics-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync('local-password',salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:'local-session-fixture-'.repeat(3),MEDRESA_ADMIN_ORIGIN:'http://localhost:3213'});
   const auth=load('src/server/admin/auth'); const token=auth.createSession(); let calls=0;
-  const isolated=moduleLoader({'@/server/admin/analytics/service':{dashboard:async()=>{calls++;return {};},synchronize:async()=>{calls++;return {};}}});
+  const selections=[];
+  const isolated=moduleLoader({'@/server/admin/analytics/service':{dashboard:async()=>{calls++;return {};},synchronize:async(...args)=>{calls++;selections.push(args);return {};}}});
   const get=isolated('src/pages/api/admin/analytics/index').default,post=isolated('src/pages/api/admin/analytics/sync').default;
   async function request(handler,patch={}) {
     const req={method:'GET',headers:{},cookies:{},query:{},body:{},...patch}; const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(b){this.body=b;return this;}};
@@ -129,9 +130,19 @@ test('Analytics endpoints require Admin session and same-origin writes before pr
   assert.equal((await request(post,{method:'POST',cookies:{[auth.cookieName()]:token},headers:{origin:'https://evil.invalid'}})).code,403);
   assert.equal((await request(get,{cookies:{[auth.cookieName()]:token},query:{period:'all'}})).code,422); assert.equal(calls,0);
   assert.equal((await request(get,{cookies:{[auth.cookieName()]:token}})).code,200); assert.equal(calls,1);
+  const authenticated={method:'POST',cookies:{[auth.cookieName()]:token},headers:{origin:process.env.MEDRESA_ADMIN_ORIGIN}};
+  for(const provider of ['website','instagram','facebook','youtube',undefined]) {
+    const requestId=randomUUID();
+    assert.equal((await request(post,{...authenticated,body:{period:'7',requestId,...(provider===undefined?{}:{provider})}})).code,200);
+    assert.deepEqual(selections.at(-1),['7',requestId,provider]);
+  }
+  const before=calls;
+  for(const provider of [null,'all','WEBSITE','',[],{},1]) assert.equal((await request(post,{...authenticated,body:{requestId:randomUUID(),provider}})).code,422);
+  assert.equal((await request(post,{...authenticated,body:{requestId:randomUUID(),provider:'website',extra:true}})).code,422);
+  assert.equal(calls,before);
 });
 test('new migration executes in PostgreSQL, RLS/service-only grants and News/Storage remain unchanged', async () => {
-  const db=await database(); try {
+  const db=await database({providerSync:false}); try {
     const tables=(await db.query("select relname,relrowsecurity from pg_class where relname like 'medresa_analytics_%' and relkind='r'")).rows;
     assert.equal(tables.length,5);assert.ok(tables.every(t=>t.relrowsecurity));
     for(const t of tables) {
@@ -196,5 +207,95 @@ test('real service sync writes/readbacks local PostgreSQL and preserves unique m
     assert.equal(result.dashboard.reports[0].totals.pageviews,0);assert.equal(result.dashboard.reports[0].totals.visitors,2);assert.equal(result.dashboard.reports[2].state,'permission_required');
     const count=(await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n;await service.synchronize('7',id);assert.equal((await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n,count);
     const repeat=await service.dashboard('7');assert.equal(repeat.reports[0].totals.visitors,2);assert.equal(repeat.reports[0].daily.length,7);assert.equal(repeat.history.length,1);assert.ok(!JSON.stringify(repeat).includes(process.env.SUPABASE_SERVICE_ROLE_KEY));
+  }finally{await db.close();}
+});
+
+test('single-provider database scope is idempotent, atomic and preserves other provider rows and security', async () => {
+  const db=await database(); try {
+    const old=randomUUID();await begin(db,old);await finish(db,old,reports());await releaseCooldown(db);
+    const unrelated=async()=>({
+      reports:(await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider")).rows,
+      daily:(await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows,
+      states:(await db.query("select * from medresa_analytics_provider_state where provider<>'website' order by provider")).rows,
+    });
+    const before=await unrelated();const id=randomUUID();
+    await db.exec('set role service_role');
+    assert.equal((await begin(db,id,'7','website')).acquired,true);
+    assert.equal((await begin(db,id,'7','website')).acquired,false);
+    await assert.rejects(begin(db,id,'7','instagram'),/Idempotency request mismatch/);
+    await assert.rejects(begin(db,id),/Idempotency request mismatch/);
+    assert.equal((await begin(db,randomUUID(),'7','instagram')).outcome,'running');
+    await assert.rejects(finish(db,id,reports()),/Invalid analytics reports/);
+    await assert.rejects(finish(db,id,[reports()[1]]),/provider does not match claimed run/);
+    const changed=reports()[0];changed.totals={pageviews:23,visitors:4};changed.daily[0].metrics={pageviews:23,visitors:4};
+    await finish(db,id,[changed]);await finish(db,id,[changed]);
+    assert.deepEqual(await unrelated(),before);
+    assert.equal((await db.query('select provider,outcome from medresa_analytics_sync_runs where id=$1',[id])).rows[0].outcome,'success');
+    assert.equal((await db.query('select provider from medresa_analytics_sync_runs where id=$1',[id])).rows[0].provider,'website');
+    assert.deepEqual((await db.query("select report->'totals' totals from medresa_analytics_reports where provider='website'")).rows[0].totals,changed.totals);
+    await db.exec('reset role');await releaseCooldown(db);
+    const full=randomUUID();await begin(db,full);
+    await assert.rejects(finish(db,full,[changed]),/Invalid analytics reports/);
+    await finish(db,full,reports());
+    const funcs=(await db.query("select proname,prosecdef,proconfig,has_function_privilege('anon',oid,'EXECUTE') browser,has_function_privilege('authenticated',oid,'EXECUTE') authenticated,has_function_privilege('service_role',oid,'EXECUTE') server from pg_proc where proname like 'medresa_analytics_%'")).rows;
+    assert.equal(funcs.length,4);assert.ok(funcs.every(f=>!f.prosecdef&&!f.browser&&!f.authenticated&&f.server&&f.proconfig.includes('search_path=public, pg_temp')));
+    await assert.rejects(begin(db,randomUUID(),'7','bad-provider'),/Invalid analytics provider/);
+  } finally {await db.close();}
+});
+
+test('Website-only service sync calls only Vercel, persists and reloads real-shaped aggregates without changing other providers', async () => {
+  credentials();
+  Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-vercel-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-youtube-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'unused-youtube-fixture'});
+  const db=await database(); try {
+    const full=randomUUID();await begin(db,full,'30');await finish(db,full,reports('30'));await releaseCooldown(db);
+    const unrelated=async()=>JSON.stringify((await db.query("select provider,report,fetched_at from medresa_analytics_reports where provider<>'website' order by provider")).rows);
+    const before=await unrelated(),adapter=restFixture(db),external=[];
+    globalThis.fetch=async(input,init)=>{
+      const u=new URL(input);
+      if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);
+      external.push(u);
+      assert.equal(u.hostname,'api.vercel.com','No Meta/YouTube request is allowed in a Website-only sync');
+      if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_fixture'});
+      assert.equal(u.pathname,'/v1/query/web-analytics/visits/aggregate');
+      assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+      const by=u.searchParams.get('by');
+      if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
+      if(by==='day') return json({data:[]});
+      return json({data:[{[by]:by==='requestPath'?'/vijesti/fixture':'mobile',pageviews:42}]});
+    };
+    const service=load('src/server/admin/analytics/service'),id=randomUUID();
+    const result=await service.synchronize('30',id,'website');
+    assert.equal(result.dashboard.storage,'ready');
+    const web=result.dashboard.reports.find(r=>r.provider==='website');
+    assert.equal(web.state,'connected');assert.deepEqual(web.totals,{pageviews:42,visitors:9});
+    assert.ok(external.length>=10);assert.equal(await unrelated(),before);
+    const states=(await db.query("select provider,last_attempt_at from medresa_analytics_provider_state where provider<>'website' order by provider")).rows;
+    const daily=(await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows;
+    const callCount=external.length;await service.synchronize('30',id,'website');assert.equal(external.length,callCount);
+    await assert.rejects(service.synchronize('30',id,'instagram'));assert.equal(external.length,callCount);
+    assert.deepEqual((await db.query("select provider,last_attempt_at from medresa_analytics_provider_state where provider<>'website' order by provider")).rows,states);
+    assert.deepEqual((await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows,daily);
+    const reload=await service.dashboard('30');assert.deepEqual(reload.reports.find(r=>r.provider==='website').totals,web.totals);
+    assert.equal((await db.query('select count(*)::int n from medresa_analytics_sync_runs')).rows[0].n,2);
+    assert.equal((await db.query('select outcome from medresa_analytics_sync_runs where id=$1',[id])).rows[0].outcome,'success');
+    assert.ok(!JSON.stringify(reload).includes(process.env.VERCEL_ANALYTICS_TOKEN));
+    await assert.rejects(service.synchronize('30',randomUUID(),'invalid'),e=>e.status===422);
+    assert.equal(external.length,callCount);
+  } finally {await db.close();}
+});
+
+test('missing provider-sync migration stops before provider calls; existing full refresh still works', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-vercel-fixture';
+  const db=await database({providerSync:false});try {
+    globalThis.fetch=restFixture(db);const calls=[];
+    const service=moduleLoader({'./providers':{
+      configurations:Object.fromEntries(['website','instagram','facebook','youtube'].map(p=>[p,()=>true])),
+      timezones:{website:'UTC',instagram:'UTC',facebook:'America/Los_Angeles',youtube:'America/Los_Angeles'},
+      collectProvider:async(p,period,date)=>{calls.push(p);return reports(period,date).find(r=>r.provider===p);},
+    }})('src/server/admin/analytics/service');
+    await assert.rejects(service.synchronize('7',randomUUID(),'website'),e=>e.status===503 && e.message.includes('pojedinačne izvore'));
+    assert.deepEqual(calls,[]);assert.equal((await db.query('select count(*)::int n from medresa_analytics_sync_runs')).rows[0].n,0);
+    const result=await service.synchronize('7',randomUUID());assert.equal(result.dashboard.storage,'ready');
+    assert.deepEqual(calls,['website','instagram','facebook','youtube']);
   }finally{await db.close();}
 });

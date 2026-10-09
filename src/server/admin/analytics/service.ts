@@ -89,15 +89,16 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
   } catch { result.storage = "unavailable"; }
   return result;
 }
-export async function synchronize(period: Period, id: string) {
+export async function synchronize(period: Period, id: string, provider?: Provider) {
   previewConfiguration(true);
+  if (provider !== undefined && !providers.includes(provider)) throw new AdminError(422, "Izvor analitike nije ispravan.");
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) throw new AdminError(422, "Zahtjev za osvježavanje nije ispravan.");
   let claim: { acquired: boolean; runId: string; outcome: string };
-  try { claim = await call("medresa_analytics_begin_sync", { p_id: id, p_period: period }); }
-  catch { throw new AdminError(503, "Historija analitike nije spremna. Provjerite Preview analitičku migraciju."); }
+  try { claim = await call("medresa_analytics_begin_sync", { p_id: id, p_period: period, ...(provider ? { p_provider: provider } : {}) }); }
+  catch { throw new AdminError(503, provider ? "Osvježavanje pojedinačnog izvora nije spremno. Provjerite Preview migraciju analitike za pojedinačne izvore." : "Historija analitike nije spremna. Provjerite Preview analitičku migraciju."); }
   if (!claim.acquired) return { ...claim, dashboard: await dashboard(period) };
   const now = new Date(), signal = AbortSignal.timeout(75000);
-  const reports = await Promise.all(providers.map(async p => {
+  const reports = await Promise.all((provider ? [provider] : providers).map(async p => {
     const r = await collectProvider(p, period, now, signal);
     // Include daily overview in history; duplicate dates are merged deterministically.
     const daily = new Map(r.daily.map(d => [d.date, d]));

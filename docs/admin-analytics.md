@@ -14,7 +14,13 @@ All new tables have RLS, no browser policies or privileges, and only service-rol
 
 Refresh claims a global database lease before calling providers. Repeated request UUIDs and simultaneous requests cannot duplicate a run. A two-minute cooldown limits provider traffic; an expired eight-minute lease can be replaced safely. All four provider results commit atomically. Failed providers retain earlier reports/snapshots and update only their sanitized status. Daily primary keys prevent duplicate aggregates. Missing values cannot erase previously confirmed complete metrics. Partial values are not promoted to completed-day observations when a different metric becomes available.
 
-Without this migration, Analytics shows its configuration/state UI and disables refresh. Existing News and translation remain independent.
+### Optional provider-specific refresh
+
+Apply only the follow-up `supabase/migrations/202610090001_analytics_provider_sync.sql` in the same Preview project after the original Analytics migration. It adds nullable `provider` scope to sync history, a three-argument claim RPC, and scope-aware atomic completion. The existing two-argument claim RPC remains compatible; old/full runs have NULL scope and still require all four reports. Request IDs are bound to both period and provider scope. RLS, service-only privileges, lease/cooldown and aggregate validation remain enforced. No existing report, snapshot, News or Storage data is changed by installation.
+
+Authenticated `POST /api/admin/analytics/sync` optionally accepts `provider` equal to `website`, `instagram`, `facebook` or `youtube`, alongside the existing `period` and UUID `requestId`. Omit `provider` for the unchanged **Osvježi podatke** full refresh. A selected provider is the only provider fetched and its rows are the only provider rows updated. The returned dashboard still reads saved results for all sections. Missing follow-up migration stops a scoped refresh before any provider call; the original full refresh remains available. No new credentials or scheduling are required.
+
+Without the original `202610080004_analytics_history.sql` migration, Analytics shows its configuration/state UI and disables refresh. Existing News and translation remain independent.
 
 ## Providers and data definitions
 

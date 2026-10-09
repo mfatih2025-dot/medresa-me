@@ -19,17 +19,18 @@ export function reports(period = '7', date = now) {
     return r;
   });
 }
-export async function database() {
+export async function database({ providerSync = true } = {}) {
   const db = new PGlite();
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
   for (const migration of ['202610070001_admin_news','202610080002_publication_integrity','202610080003_locale_publication','202610080004_analytics_history']) await db.exec(readFileSync(`supabase/migrations/${migration}.sql`, 'utf8'));
+  if (providerSync) await db.exec(readFileSync('supabase/migrations/202610090001_analytics_provider_sync.sql', 'utf8'));
   return db;
 }
 export async function call(db, name, args) {
   const values = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a);
   return (await db.query(`select to_jsonb(${name}(${values.map((_,i) => '$' + (i+1)).join(',')})) as result`, values)).rows[0].result;
 }
-export const begin = (db,id,period='7') => call(db,'medresa_analytics_begin_sync',[id,period]);
+export const begin = (db,id,period='7',provider) => call(db,'medresa_analytics_begin_sync',[id,period,...(provider === undefined ? [] : [provider])]);
 export const finish = (db,id,r) => call(db,'medresa_analytics_complete_sync',[id,r]);
 export async function releaseCooldown(db) { await db.exec("update medresa_analytics_sync_lock set last_started_at=now()-interval '3 minutes'"); }
 // In-memory adapter: no request is sent to Supabase. Only Analytics tables/RPCs allowed.
@@ -42,7 +43,7 @@ export function restFixture(db) {
       const name = url.pathname.split('/').pop();
       if (url.pathname.startsWith('/rest/v1/rpc/')) {
         const b = JSON.parse(init.body);
-        if (name === 'medresa_analytics_begin_sync') return json(await begin(db,b.p_id,b.p_period));
+        if (name === 'medresa_analytics_begin_sync') return json(await begin(db,b.p_id,b.p_period,b.p_provider));
         if (name === 'medresa_analytics_complete_sync') {await finish(db,b.p_id,b.p_reports);return new Response(null,{status:204});}
         throw new Error('Unapproved local RPC');
       }
