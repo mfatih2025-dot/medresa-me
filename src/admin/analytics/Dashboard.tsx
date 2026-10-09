@@ -3,19 +3,23 @@ import { Shell } from "../Shell";
 import shared from "../admin.module.css";
 import styles from "./analytics.module.css";
 import { comparison, days } from "./period";
-import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type ProviderReport, type Ranked } from "./model";
+import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type Provider, type ProviderReport, type Ranked } from "./model";
 import { websiteTestResult, type WebsiteTestResult } from "./websiteTest";
 import { websiteRequestDimensions, websiteRequestLabels, type WebsiteRequestResult } from "./websiteRequests";
 import { instagramTestResult, type InstagramTestResult as InstagramResult } from "./instagramTest";
 import { InstagramTestResult } from "./InstagramTestResult";
 import { facebookTestResult, type FacebookTestResult as FacebookResult } from "./facebookTest";
 import { FacebookTestResult } from "./FacebookTestResult";
+import { youtubeTestResult, type YouTubeTestResult as YouTubeResult } from "./youtubeTest";
+import { YouTubeTestResult } from "./YouTubeTestResult";
+import { formatYouTube } from "./formatYouTube";
 
 const unavailablePrevious = (r: WebsiteRequestResult) => r.request === "previous" && (r.reason === "no_data" || r.reason === "retention_limit");
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
 const format = (n: number | null | undefined) => typeof n === "number" && Number.isFinite(n) ? new Intl.NumberFormat("bs-BA", { maximumFractionDigits: 1 }).format(n) : "—";
+const formatFor = (provider: Provider | undefined, n: number | null | undefined) => provider === "youtube" ? formatYouTube(n) : format(n);
 // Numeric parts avoid server/browser CLDR month-name differences during hydration.
 const date = (s: string | null) => {
   if (!s || !Number.isFinite(Date.parse(s))) return "—";
@@ -23,13 +27,13 @@ const date = (s: string | null) => {
   const part = (name: string) => parts.find(p => p.type === name)?.value ?? "";
   return `${part("day")}.${part("month")}.${part("year")}. · ${part("hour")}:${part("minute")}`;
 };
-function Change({ current, previous, complete = true, partial = false }: { current: number | null | undefined; previous: number | null | undefined; complete?: boolean; partial?: boolean }) {
+function Change({ current, previous, complete = true, partial = false, provider }: { current: number | null | undefined; previous: number | null | undefined; complete?: boolean; partial?: boolean; provider?: Provider }) {
   const c = comparison(current, previous, complete);
-  return <span className={styles.change}>{c.direction}{c.delta !== null && c.delta !== 0 ? ` ${c.delta > 0 ? "+" : ""}${format(c.delta)}` : ""}{!partial && c.percent !== null ? ` · ${format(c.percent)}%` : ""}</span>;
+  return <span className={styles.change}>{c.direction}{c.delta !== null && c.delta !== 0 ? ` ${c.delta > 0 ? "+" : ""}${formatFor(provider, c.delta)}` : ""}{!partial && c.percent !== null ? ` · ${formatFor(provider, c.percent)}%` : ""}</span>;
 }
-function Ranking({ rows, empty = "Nema podataka za izabrani period" }: { rows: Ranked[]; empty?: string }) {
+function Ranking({ rows, empty = "Nema podataka za izabrani period", provider }: { rows: Ranked[]; empty?: string; provider?: Provider }) {
   if (!rows.length) return <p className={styles.empty}>{empty}</p>;
-  return <ol className={styles.ranking}>{rows.map((row, i) => <li key={`${i}-${row.label}`}><span className={styles.ordinal}>{String(i + 1).padStart(2, "0")}</span><span>{row.url ? <a href={row.url} target="_blank" rel="noopener noreferrer">{row.label} ↗</a> : row.label}<small>{row.basis === "lifetime" ? "Ukupni pregledi od objave" : "Pregledi u izabranom periodu"}</small></span><strong>{format(row.value)}</strong></li>)}</ol>;
+  return <ol className={styles.ranking}>{rows.map((row, i) => <li key={`${i}-${row.label}`}><span className={styles.ordinal}>{String(i + 1).padStart(2, "0")}</span><span>{row.url ? <a href={row.url} target="_blank" rel="noopener noreferrer">{row.label} ↗</a> : row.label}<small>{row.basis === "lifetime" ? "Ukupni pregledi od objave" : "Pregledi u izabranom periodu"}</small></span><strong>{formatFor(provider, row.value)}</strong></li>)}</ol>;
 }
 function Trend({ report, metric }: { report: ProviderReport; metric: Metric }) {
   const [position, setPosition] = useState(0);
@@ -42,7 +46,7 @@ function Trend({ report, metric }: { report: ProviderReport; metric: Metric }) {
   series.forEach((point, i) => { if (point.value === null) gap = true; else { path += `${gap ? "M" : "L"}${x(i)},${y(point.value)} `; gap = false; } });
   const selected = Math.min(position, series.length - 1), p = series[selected];
   return <figure className={styles.chart}>
-    <figcaption><span>{metricLabels[metric]} · dnevni tok</span><strong>{p.day} <span>{format(p.value)}</span></strong></figcaption>
+    <figcaption><span>{metricLabels[metric]} · dnevni tok</span><strong>{p.day} <span>{formatFor(report.provider, p.value)}</span></strong></figcaption>
     <svg viewBox="0 0 600 180" role="img" aria-label={`Dnevni tok: ${metricLabels[metric]}`}>
       <title>{`${metricLabels[metric]} od ${report.range.start} do ${report.range.end}. Nedostajući dani su prekidi linije.`}</title>
       {[25, 90, 155].map(h => <line key={h} x1="20" x2="580" y1={h} y2={h} stroke="#dce1d7" strokeWidth="1" />)}
@@ -62,10 +66,10 @@ function Source({ report, children }: { report: ProviderReport; children?: React
     <header className={styles.sectionHead}><div><p className={shared.eyebrow}>{report.source}</p><h2>{providerLabels[report.provider]}</h2></div><span className={styles.state} data-state={report.state}>{stateLabels[report.state]}</span></header>
     {children}
     {report.reason && <p className={styles.sourceNotice}>{reasonLabels[report.reason]}{report.lastSuccessAt ? " · prikazani su sačuvani podaci" : ""}</p>}
-    <div className={styles.metrics}>{keys.map(k => <div key={k}><span>{metricLabels[k]}</span><strong>{format(report.totals[k])}</strong><Change current={report.totals[k]} previous={report.previousTotals[k]} complete={report.range.end < report.todayDate} /></div>)}</div>
+    <div className={styles.metrics}>{keys.map(k => <div key={k}><span>{metricLabels[k]}</span><strong>{formatFor(report.provider, report.totals[k])}</strong><Change current={report.totals[k]} previous={report.previousTotals[k]} complete={report.range.end < report.todayDate} provider={report.provider} /></div>)}</div>
     <p className={styles.context}>Prethodni period: {report.previousRange.start} — {report.previousRange.end} · Dani prema izvoru: {report.timezone}. Višednevni periodi obuhvataju završene dane.</p>
     {report.provider === "website" && report.state === "connected" && !Object.values(report.previousTotals).some(v => typeof v === "number") && <p className={styles.context}>Nema dostupnih podataka za prethodni period.</p>}
-    {report.provider === "website" ? <div className={styles.total}><p className={shared.eyebrow}>UKUPNO POSJETA</p><strong>{format(report.cumulative.visits)}</strong><p>Vercel ne mjeri sesije / posjete. Posjetioci i pregledi stranica su zasebne metrike.</p><p>Ukupno od početka praćenja: {report.trackingStart ?? "datum nije potvrđen"}</p><span>Pregledi stranica: {format(report.cumulative.pageviews)} · Historijski baseline: —</span><p className={styles.context}>Website obuhvata Preview projekta; Admin putanje su isključene. Javni tracker nije dodan niti promijenjen.</p></div> : <div className={styles.current}><span>{report.provider === "youtube" ? "Pretplatnici · trenutno" : "Pratioci · trenutno"}</span><strong>{format(report.provider === "youtube" ? report.current.subscribers : report.current.followers)}</strong></div>}
+    {report.provider === "website" ? <div className={styles.total}><p className={shared.eyebrow}>UKUPNO POSJETA</p><strong>{format(report.cumulative.visits)}</strong><p>Vercel ne mjeri sesije / posjete. Posjetioci i pregledi stranica su zasebne metrike.</p><p>Ukupno od početka praćenja: {report.trackingStart ?? "datum nije potvrđen"}</p><span>Pregledi stranica: {format(report.cumulative.pageviews)} · Historijski baseline: —</span><p className={styles.context}>Website obuhvata Preview projekta; Admin putanje su isključene. Javni tracker nije dodan niti promijenjen.</p></div> : <div className={styles.current}><span>{report.provider === "youtube" ? "Pretplatnici · trenutno" : "Pratioci · trenutno"}</span><strong>{formatFor(report.provider, report.provider === "youtube" ? report.current.subscribers : report.current.followers)}</strong></div>}
     <Trend key={`${report.provider}-${report.range.start}-${report.range.end}`} report={report} metric={chartKey} />
     {report.provider === "website" && <div className={styles.breakdowns}><div className={styles.tabs} aria-label="Website raspodjela">{(["pages", "referrers", "devices", "countries"] as const).map((d, i) => <button key={d} type="button" aria-pressed={dimension === d} onClick={() => setDimension(d)}>{["Stranice", "Izvori posjeta", "Uređaji", "Zemlje"][i]}</button>)}</div><Ranking rows={report.breakdowns[dimension]} /></div>}
     {report.warnings.length > 0 && <p className={styles.context}>{report.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
@@ -78,6 +82,7 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
   const [testingWebsite, setTestingWebsite] = useState(false), [websiteResult, setWebsiteResult] = useState<WebsiteTestResult | null>(null);
   const [testingInstagram, setTestingInstagram] = useState(false), [instagramResult, setInstagramResult] = useState<InstagramResult | null>(null);
   const [testingFacebook, setTestingFacebook] = useState(false), [facebookResult, setFacebookResult] = useState<FacebookResult | null>(null);
+  const [testingYouTube, setTestingYouTube] = useState(false), [youtubeResult, setYouTubeResult] = useState<YouTubeResult | null>(null);
   const serial = useRef(0), syncingRef = useRef(false), periodRef = useRef(period);
   async function select(p: Period) {
     const id = ++serial.current; setPeriod(p); periodRef.current = p; setLoading(true); setMessage("");
@@ -131,13 +136,26 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
     } catch { setFacebookResult(facebookTestResult(null, httpStatus)); }
     finally { syncingRef.current = false; setSyncing(false); setTestingFacebook(false); }
   }
-  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing && !testingWebsite && !testingInstagram && !testingFacebook ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
+  async function testYouTube() {
+    if (syncingRef.current) return;
+    syncingRef.current = true; setSyncing(true); setTestingYouTube(true); setMessage(""); setYouTubeResult(null);
+    const p = periodRef.current; let httpStatus = 0;
+    try {
+      const res = await fetch("/api/admin/analytics/sync", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: p, requestId: crypto.randomUUID(), provider: "youtube" }), signal: AbortSignal.timeout(115000) });
+      httpStatus = res.status;
+      if (!res.ok) throw new Error(); const body = await res.json();
+      if (periodRef.current === p) setData(body.dashboard);
+      setYouTubeResult(youtubeTestResult(body, httpStatus));
+    } catch { setYouTubeResult(youtubeTestResult(null, httpStatus)); }
+    finally { syncingRef.current = false; setSyncing(false); setTestingYouTube(false); }
+  }
+  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj. Jedan pregled, isključivo stvarni podaci." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing && !testingWebsite && !testingInstagram && !testingFacebook && !testingYouTube ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
     <div className={styles.toolbar}><div><p className={shared.eyebrow}>Period izvještaja</p><p>{loading ? "Učitavam period…" : `${data.reports[0].range.start} — ${data.reports[0].range.end}`}</p></div><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div></div>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {data.storage !== "ready" && <p className={styles.notice} role="status">{data.storage === "migration_required" ? "Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni." : data.storage === "preview_required" ? "Analitika je dostupna samo na namijenjenom Preview okruženju." : "Historija analitike trenutno nije dostupna."}</p>}
     <nav className={styles.contents} aria-label="Analitičke sekcije">{["Dnevni pregled", "Website", "Instagram", "Facebook", "YouTube", "Top sadržaj", "Status izvora"].map((name, i) => <a key={name} href={["#daily-overview", "#analytics-website", "#analytics-instagram", "#analytics-facebook", "#analytics-youtube", "#top-content", "#sync-status"][i]}>{name}</a>)}</nav>
     <div aria-busy={loading} className={loading ? styles.loading : undefined}>
-      <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas, uz jučerašnji kontekst.</h2></div></header><p className={styles.context}>Danas prikazuje podatke do sada, juče cijeli dan. Strelica i razlika porede dostupne vrijednosti; procenti su izostavljeni dok današnji dan traje. Prazna vrijednost je —, potvrđena nula je 0.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><h3>{providerLabels[r.provider]}</h3><div className={styles.dailyHead}><span>Metrika</span><span>Danas</span><span>Juče</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <div key={k} className={styles.dailyRow}><span>{metricLabels[k]}</span><strong>{format(r.today?.metrics[k])}</strong><span>{format(r.yesterday?.metrics[k])}<Change current={r.today?.metrics[k]} previous={r.yesterday?.metrics[k]} partial /></span></div>)}{(r.provider === "instagram" || r.provider === "facebook") && <div className={styles.dailyRow}><span>Promjena pratilaca</span><strong>{format(r.today?.metrics.followerChange)}</strong><span>{format(r.yesterday?.metrics.followerChange)}<Change current={r.today?.metrics.followerChange} previous={r.yesterday?.metrics.followerChange} partial /></span></div>}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
+      <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas, uz jučerašnji kontekst.</h2></div></header><p className={styles.context}>Danas prikazuje podatke do sada, juče cijeli dan. Strelica i razlika porede dostupne vrijednosti; procenti su izostavljeni dok današnji dan traje. Prazna vrijednost je —, potvrđena nula je 0.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><h3>{providerLabels[r.provider]}</h3><div className={styles.dailyHead}><span>Metrika</span><span>Danas</span><span>Juče</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <div key={k} className={styles.dailyRow}><span>{metricLabels[k]}</span><strong>{formatFor(r.provider, r.today?.metrics[k])}</strong><span>{formatFor(r.provider, r.yesterday?.metrics[k])}<Change current={r.today?.metrics[k]} previous={r.yesterday?.metrics[k]} partial provider={r.provider} /></span></div>)}{(r.provider === "instagram" || r.provider === "facebook") && <div className={styles.dailyRow}><span>Promjena pratilaca</span><strong>{format(r.today?.metrics.followerChange)}</strong><span>{format(r.yesterday?.metrics.followerChange)}<Change current={r.today?.metrics.followerChange} previous={r.yesterday?.metrics.followerChange} partial /></span></div>}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
       {data.reports.map(r => <Source key={r.provider} report={r}>{r.provider === "website" && data.storage !== "preview_required" && <>
         <button type="button" className={shared.secondary} onClick={() => sync("website")} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{testingWebsite ? "Testiram Website…" : "Test Website"}</button>
         <p className={styles.context}>Samo Website / Vercel · izabrani period · Preview.</p>
@@ -168,8 +186,12 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
         <button type="button" className={shared.secondary} onClick={testFacebook} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{testingFacebook ? "Testiram Facebook…" : "Test Facebook"}</button>
         <p className={styles.context}>Samo Facebook · postojeći token · izabrani period · Preview.</p>
         {facebookResult && <div className={styles.notice}><FacebookTestResult result={facebookResult} /></div>}
+      </>}{r.provider === "youtube" && data.storage !== "preview_required" && <>
+        <button type="button" className={shared.secondary} onClick={testYouTube} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{testingYouTube ? "Testiram YouTube…" : "Test YouTube"}</button>
+        <p className={styles.context}>Samo YouTube · izabrani period · Preview.</p>
+        {youtubeResult && <div className={styles.notice}><YouTubeTestResult result={youtubeResult} /></div>}
       </>}</Source>)}
-      <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} /></div>)}</div></section>
+      <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} provider={r.provider} /></div>)}</div></section>
       <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>PROVIDER / SYNC STATUS</p><h2>Izvori i historija osvježavanja.</h2><p className={styles.context}>Pokreće administrator. Automatski raspored nije aktiviran.</p><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><div><span>Uspješno: {date(r.lastSuccessAt)}</span><small>Pokušaj: {date(r.lastAttemptAt)}{r.requiredPermissions.length > 0 ? ` · Potrebne dozvole: ${r.requiredPermissions.join(", ")}` : ""}</small></div></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku od {date(data.sync.startedAt)}. <button className={shared.secondary} onClick={() => select(period)} disabled={loading || syncing}>Provjeri status</button></p>}<h3 className={styles.historyTitle}>Posljednja osvježavanja</h3>{data.history.length ? <ul className={styles.history}>{data.history.map(run => <li key={run.id}><time>{date(run.started_at)}</time><span>{{ running: "U toku", success: "Uspješno", partial: "Djelimično · provjerite izvore", failed: "Bez dostupnih podataka", abandoned: "Prekinuto · moguće ponoviti" }[run.outcome]}</span></li>)}</ul> : <p className={styles.empty}>Podaci još nijesu dostupni</p>}</section>
     </div>
   </Shell>;

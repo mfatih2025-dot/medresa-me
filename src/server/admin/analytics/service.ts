@@ -7,6 +7,7 @@ import { collectProvider, configurations, timezones } from "./providers";
 import type { WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
 import { newInstagramDiagnostic } from "./instagramDiagnostic";
 import { newFacebookDiagnostic } from "./facebookDiagnostic";
+import { newYouTubeDiagnostic } from "./youtubeDiagnostic";
 const validStates = ["connected", "not_configured", "permission_required", "temporarily_unavailable", "error"];
 /** Explicit schema projection, never passthrough of raw provider or stored JSON. */
 export function sanitizedReport(raw: ProviderReport, base: ProviderReport): ProviderReport {
@@ -104,8 +105,9 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   const websiteRequests: WebsiteRequestResult[] = [];
   const instagramDiagnostic = provider === "instagram" ? newInstagramDiagnostic() : undefined;
   const facebookDiagnostic = provider === "facebook" ? newFacebookDiagnostic() : undefined;
+  const youtubeDiagnostic = provider === "youtube" ? newYouTubeDiagnostic() : undefined;
   const reports = await Promise.all((provider ? [provider] : providers).map(async p => {
-    const r = await collectProvider(p, period, now, signal, provider === "website" ? result => { websiteRequests.push(result); } : undefined, instagramDiagnostic, facebookDiagnostic);
+    const r = await collectProvider(p, period, now, signal, provider === "website" ? result => { websiteRequests.push(result); } : undefined, instagramDiagnostic, facebookDiagnostic, youtubeDiagnostic);
     // Include daily overview in history; duplicate dates are merged deterministically.
     const daily = new Map(r.daily.map(d => [d.date, d]));
     for (const d of [r.today, r.yesterday]) if (d && Object.values(d.metrics).some(v => typeof v === "number")) daily.set(d.date, { ...d, metrics: { ...daily.get(d.date)?.metrics, ...d.metrics } });
@@ -115,5 +117,5 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   try { await call("medresa_analytics_complete_sync", { p_id: id, p_reports: reports }); }
   catch { throw new AdminError(503, "Osvježavanje nije sačuvano. Prethodni podaci ostaju dostupni; pokušajte ponovo nakon isteka aktivnog osvježavanja."); }
   // Provider diagnostics are ephemeral, scoped-test-only; never stored in reports.
-  return { ...claim, outcome: "completed", dashboard: await dashboard(period), ...(provider === "website" ? { websiteRequests } : {}), ...(instagramDiagnostic ? { instagramDiagnostic } : {}), ...(facebookDiagnostic ? { facebookDiagnostic } : {}) };
+  return { ...claim, outcome: "completed", dashboard: await dashboard(period), ...(provider === "website" ? { websiteRequests } : {}), ...(instagramDiagnostic ? { instagramDiagnostic } : {}), ...(facebookDiagnostic ? { facebookDiagnostic } : {}), ...(youtubeDiagnostic ? { youtubeDiagnostic } : {}) };
 }

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import http from 'node:http';
-import { database, reports, begin, finish, releaseCooldown, restFixture, fixtureEnvironment, providerHost } from './fixtures/analytics.mjs';
+import { database, reports, begin, finish, releaseCooldown, restFixture, fixtureEnvironment, providerHost, load } from './fixtures/analytics.mjs';
 const requireProject=createRequire(resolve('package.json'));
 const next=requireProject('next'),{chromium}=requireProject('playwright');
 
@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false,facebookFixture=false,facebookDenied=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false,facebookFixture=false,facebookDenied=false,youtubeFixture=false,youtubeDenied=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -36,6 +36,18 @@ const origin='http://localhost:3213';
     }
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
+    if(youtubeFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
+      const u=new URL(address);providerCalls.push(u.hostname);assert.ok(['oauth2.googleapis.com','www.googleapis.com','youtubeanalytics.googleapis.com'].includes(u.hostname),'Verified Website or Meta invoked during YouTube-only test');
+      const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+      if(u.hostname==='oauth2.googleapis.com') {
+        const body=new URLSearchParams(init.body);assert.equal(body.get('client_id'),'local-youtube-client-browser-fixture');assert.equal(body.get('client_secret'),'private-youtube-client-browser-fixture');assert.equal(body.get('refresh_token'),'private-youtube-refresh-browser-fixture');
+        return youtubeDenied?json({error:'invalid_grant',error_description:'private-youtube-refresh-browser-fixture raw-private-youtube-response'},400):json({access_token:'private-youtube-access-browser-fixture'});
+      }
+      assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-youtube-access-browser-fixture');assert.ok(!u.searchParams.has('access_token'));
+      if(u.pathname.endsWith('/channels')) {assert.equal(u.searchParams.get('mine'),'true');assert.ok(!u.searchParams.has('id'));return json({items:[{id:'UC'+'a'.repeat(22),statistics:{subscriberCount:'31'}}]});}
+      const dimension=u.searchParams.get('dimensions'),metrics=['views','estimatedMinutesWatched','subscribersGained','subscribersLost'];
+      return json({columnHeaders:[...(dimension?[{name:dimension}]:[]),...metrics.map(name=>({name}))],rows:dimension==='day'?load('src/admin/analytics/period').days({start:u.searchParams.get('startDate'),end:u.searchParams.get('endDate')}).map(day=>[day,1,0.5,0,0]):dimension==='video'?[]:[[30,15,0,0]]});
+    }
     if(facebookFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
       const u=new URL(address),auth=new Headers(init.headers).get('Authorization');providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com');assert.ok(!u.searchParams.has('access_token'));
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
@@ -89,13 +101,13 @@ const origin='http://localhost:3213';
     }
     return originalFetch(input,init);
   };
-  for(const k of ['INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','VERCEL_ANALYTICS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
+  for(const k of ['INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','VERCEL_ANALYTICS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN','YOUTUBE_CHANNEL_ID']) delete process.env[k];
   const password=randomBytes(24).toString('base64url'),salt=randomBytes(16).toString('hex');
   Object.assign(process.env,fixtureEnvironment,{NEXT_TELEMETRY_DISABLED:'1',MEDRESA_ADMIN_USER:'analytics-browser-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
   const app=next({dev:false,dir:process.cwd(),hostname:'localhost',port:3213});await app.prepare();
   const server=http.createServer(app.getRequestHandler());await new Promise(r=>server.listen(3213,'localhost',r));
   const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM||(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:true,args:['--no-sandbox']});
-  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push({message:e.message,stage:{websiteFixture,instagramFixture,facebookFixture,youtubeFixture,youtubeDenied,missingSchema}}));
   assert.ok([302,307].includes((await context.request.get(origin+'/admin/analitika',{maxRedirects:0})).status()));
   assert.equal((await context.request.get(origin+'/api/admin/analytics')).status(),401);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:randomUUID()}})).status(),401);
@@ -110,7 +122,7 @@ const origin='http://localhost:3213';
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics page overflow '+width);
-    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website','Test Instagram','Test Facebook']) {
+    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website','Test Instagram','Test Facebook','Test YouTube']) {
       const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44 && box.width>=44,name+' touch target '+width);
     }
     assert.equal(await page.locator('svg[role="img"]').count(),4);
@@ -229,18 +241,43 @@ const origin='http://localhost:3213';
   const fbPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),fbResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
   await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();assert.equal((await fbPost).postDataJSON().provider,'facebook');assert.equal(await page.getByRole('button',{name:'Testiram Facebook…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
   const fbBody=await(await fbResponse).json();assert.equal(fbBody.instagramDiagnostic,undefined);assert.equal(fbBody.websiteRequests,undefined);assert.equal(fbBody.facebookDiagnostic.tokenPresent,true);assert.equal(fbBody.facebookDiagnostic.pageId,'578640758657974');assert.equal(fbBody.facebookDiagnostic.permissions.read_insights,'granted');assert.equal(fbBody.facebookDiagnostic.insightsAccess,'verified');
-  const fbResult=page.getByRole('status',{name:'Rezultat Facebook testa',exact:true});await fbResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await fbResult.innerText(),/CONNECTED · VERIFIED/);assert.match(await fbResult.innerText(),/Token na serveru: YES/);assert.match(await fbResult.innerText(),/Medresa Page potvrđena: YES/);assert.match(await fbResult.innerText(),/ANALYZE/);assert.equal(await nonFacebook(),protectedBefore);
+  const fbResult=page.getByRole('status',{name:'Rezultat Facebook testa',exact:true});await fbResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await fbResult.innerText(),/CONNECTED · VERIFIED/);for(const removed of ['Token na serveru','Medresa Page','Page ID','read_insights','Page zadaci','Page token']) assert.ok(!(await fbResult.innerText()).includes(removed),'Temporary Facebook dump remains in normal UI');assert.equal(await nonFacebook(),protectedBefore);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   await page.reload();assert.equal((await(await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='facebook').current.followers,23);assert.equal(await nonFacebook(),protectedBefore);
   await releaseCooldown(db);facebookDenied=true;const fbDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();const fbDenied=await(await fbDeniedResponse).json();assert.equal(fbDenied.facebookDiagnostic.insightsAccess,'denied');await fbResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await fbResult.innerText(),/Meta kod 200 · podkod 33/);assert.equal(await nonFacebook(),protectedBefore);
   const savedFacebook=(await db.query("select report from medresa_analytics_reports where provider='facebook' and start_date=$1 and end_date=$2",[fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.start,fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.end])).rows[0].report;assert.equal(savedFacebook.current.followers,23);
   for(const marker of ['local-facebook-browser-fixture','local-facebook-page-browser-fixture','raw-private-facebook-response','private-facebook-trace-fixture']) assert.ok(!JSON.stringify(fbDenied).includes(marker)&&!(await page.content()).includes(marker));
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  // Missing configuration is diagnosed from the authenticated runtime, not guessed.
+  await releaseCooldown(db);youtubeFixture=true;providerCalls.length=0;
+  for(const k of ['YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
+  const nonYouTube=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'youtube' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'youtube' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'youtube' order by provider,day")).rows}),verifiedProviders=await nonYouTube();
+  const absentResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();const absent=await(await absentResponse).json();
+  assert.ok(Object.values(absent.youtubeDiagnostic.configuration).every(v=>v===false));assert.equal(providerCalls.length,0);
+  const ytResult=page.getByRole('status',{name:'Rezultat YouTube testa',exact:true});await ytResult.getByText(/Nedostaje Preview konfiguracija/).waitFor();assert.equal(await nonYouTube(),verifiedProviders);assert.ok(!(await ytResult.innerText()).includes('CONNECTED · VERIFIED'));
+  await releaseCooldown(db);Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-browser-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-browser-fixture'});
+  const ytPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),ytResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();assert.equal((await ytPost).postDataJSON().provider,'youtube');assert.equal(await page.getByRole('button',{name:'Testiram YouTube…',exact:true}).isDisabled(),true);
+  for(const name of ['Test Website','Test Instagram','Test Facebook','Osvježi podatke']) assert.equal(await page.getByRole('button',{name,exact:true}).isDisabled(),true);
+  const ytBody=await(await ytResponse).json();assert.equal(ytBody.websiteRequests,undefined);assert.equal(ytBody.instagramDiagnostic,undefined);assert.equal(ytBody.facebookDiagnostic,undefined);assert.equal(ytBody.youtubeDiagnostic.analyticsVerified,true);
+  await ytResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await ytResult.innerText(),/CONNECTED · VERIFIED/);assert.equal(await nonYouTube(),verifiedProviders);
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  const ssrContext=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await ssrContext.addCookies(await context.cookies());const ssrPage=await ssrContext.newPage();await ssrPage.goto(origin+'/admin/analitika');
+  const leafText=async page=>page.locator('main').evaluate(root=>{const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[];while(walker.nextNode()) {const text=walker.currentNode.textContent.trim();if(text) out.push(text);}return out;});
+  const serverText=await leafText(ssrPage);
+  await page.reload();await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();const clientText=await leafText(page);
+  const mismatch=serverText.findIndex((text,i)=>text!==clientText[i]);assert.equal(mismatch,-1,JSON.stringify({server:serverText.slice(Math.max(0,mismatch-2),mismatch+4),client:clientText.slice(Math.max(0,mismatch-2),mismatch+4)}));await ssrContext.close();
+  const ytSaved=(await(await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='youtube');assert.equal(ytSaved.current.subscribers,31);assert.equal(ytSaved.totals.views,30);assert.equal(await nonYouTube(),verifiedProviders);
+  await releaseCooldown(db);youtubeDenied=true;const ytDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();const ytDenied=await(await ytDeniedResponse).json();
+  assert.equal(ytDenied.youtubeDiagnostic.requests[0].googleReason,'invalid_grant');await ytResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await ytResult.innerText(),/Google OAuth · HTTP 400/);assert.match(await ytResult.innerText(),/invalid_grant/);assert.ok(!(await ytResult.innerText()).includes('CONNECTED · VERIFIED'));assert.equal(ytDenied.dashboard.reports.find(r=>r.provider==='youtube').totals.views,30);assert.equal(await nonYouTube(),verifiedProviders);
+  for(const marker of ['private-youtube-client-browser-fixture','private-youtube-refresh-browser-fixture','private-youtube-access-browser-fixture','raw-private-youtube-response']) assert.ok(!JSON.stringify(ytDenied).includes(marker)&&!(await page.content()).includes(marker));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Facebook',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Test YouTube',exact:true}).isDisabled(),true);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
   const html=await page.content();
   for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN]) assert.ok(!html.includes(secret));
@@ -248,8 +285,8 @@ const origin='http://localhost:3213';
   for(const script of scripts) {
     const code=await (await context.request.get(script)).text();
     // The public Graph hostname is deliberately displayed; helpers, headers and both tokens stay server-only.
-    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync','discoverInstagramFacebook','Authorization',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN,'local-instagram-page-browser-fixture','local-facebook-browser-fixture','local-facebook-page-browser-fixture','facebookGraph']) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
+    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync','discoverInstagramFacebook','Authorization',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN,'local-instagram-page-browser-fixture','local-facebook-browser-fixture','local-facebook-page-browser-fixture','facebookGraph','youtubeJson','private-youtube-client-browser-fixture','private-youtube-refresh-browser-fixture','private-youtube-access-browser-fixture']) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
   }
-  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; isolated Website, Instagram and Facebook test actions; concise Instagram status and optional sanitized failures; scoped idempotency; unchanged unselected provider records; PostgreSQL persistence and dashboard after reload; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; all test actions >=44px; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
+  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; isolated Website, Instagram, Facebook and YouTube actions; concise Meta status and optional sanitized failures; YouTube runtime missing-configuration checks, OAuth/owner/Insights verification and saved metrics after reload; unchanged unselected providers; scoped idempotency; PostgreSQL persistence; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; all test actions >=44px; 360/390/412/430px without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
   await browser.close();await db.close();server.close();await app.close();process.exit(0);
 })().catch(e=>{console.error((e.stack||e.message).split('Call log:')[0]);process.exit(1);});

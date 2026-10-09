@@ -13,7 +13,7 @@ const { collectProvider } = load('src/server/admin/analytics/providers');
 const json=(b,status=200)=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json'}});
 function credentials() {
   Object.assign(process.env,fixtureEnvironment);
-  for(const k of ['VERCEL_ANALYTICS_TOKEN','INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
+  for(const k of ['VERCEL_ANALYTICS_TOKEN','INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN','YOUTUBE_CHANNEL_ID']) delete process.env[k];
 }
 
 // Facebook Login Instagram discovery fixtures only. No live provider calls/data.
@@ -520,6 +520,8 @@ test('Facebook UI projection rejects secrets/raw metadata and Instagram status n
   const result={message:'Instagram test je završen.',httpStatus:200,state:'connected',reason:null,stored:true,diagnostic:{insightsAccess:'verified',requests:[]}};
   const html=renderToStaticMarkup(React.createElement(InstagramTestResult,{result}));assert.match(html,/CONNECTED · VERIFIED/);
   for(const removed of ['User token lookup','Page token lookup','instagram_manage_insights','Graph host','Page token dobijen']) assert.ok(!html.includes(removed));
+  const {FacebookTestResult}=load('src/admin/analytics/FacebookTestResult'),facebookHtml=renderToStaticMarkup(React.createElement(FacebookTestResult,{result:parsed}));assert.match(facebookHtml,/CONNECTED · VERIFIED/);
+  for(const removed of ['Token na serveru','Medresa Page','Page ID','read_insights','Page zadaci','Page token']) assert.ok(!facebookHtml.includes(removed));
 });
 test('YouTube uses owner OAuth/channel discovery, handles delayed days and preserves hidden subscriber counts', async () => {
   credentials(); Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'private-refresh-fixture'});
@@ -527,7 +529,7 @@ test('YouTube uses owner OAuth/channel discovery, handles delayed days and prese
     const u=new URL(input);
     if(u.hostname==='oauth2.googleapis.com') {assert.equal(init.method,'POST');return json({access_token:'private-derived-youtube'});}
     assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-derived-youtube');
-    if(u.pathname.endsWith('/channels')) {assert.equal(u.searchParams.get('mine'),'true');assert.equal(u.searchParams.has('id'),false);return json({items:[{id:'UCfixture',statistics:{subscriberCount:'20',hiddenSubscriberCount:true}}]});}
+    if(u.pathname.endsWith('/channels')) {assert.equal(u.searchParams.get('mine'),'true');assert.equal(u.searchParams.has('id'),false);return json({items:[{id:'UC'+'a'.repeat(22),statistics:{subscriberCount:'20',hiddenSubscriberCount:true}}]});}
     if(u.searchParams.get('dimensions')==='video') return json({columnHeaders:[{name:'video'},{name:'views'}],rows:[]});
     return json({columnHeaders:[{name:'day'},{name:'views'},{name:'estimatedMinutesWatched'},{name:'subscribersGained'},{name:'subscribersLost'}],rows:[['2026-10-06',0,0,0,0]]});
   };
@@ -535,6 +537,85 @@ test('YouTube uses owner OAuth/channel discovery, handles delayed days and prese
   assert.equal(r.state,'connected'); assert.equal(r.current.subscribers,null); assert.equal(r.today,null); assert.equal(r.yesterday,null); assert.equal(r.totals.views,undefined); assert.equal(r.daily[0].metrics.views,0); assert.ok(r.warnings.includes('provider_delay'));
   globalThis.fetch=async()=>json({error:'invalid_grant',error_description:'private-refresh-fixture'},400);
   const rejected=await collectProvider('youtube','7',now,new AbortController().signal); assert.equal(rejected.state,'permission_required');assert.equal(rejected.reason,'expired_credential');
+});
+test('YouTube configuration is presence-only; owner discovery verifies configured IDs and never queries another public channel', async () => {
+  credentials();const {newYouTubeDiagnostic}=load('src/server/admin/analytics/youtubeDiagnostic');
+  let calls=0;globalThis.fetch=async()=>{calls++;throw Error('No request allowed without configuration');};
+  const missing=newYouTubeDiagnostic(),r=await collectProvider('youtube','7',now,new AbortController().signal,undefined,undefined,undefined,missing);
+  assert.equal(r.state,'not_configured');assert.ok(Object.values(missing.configuration).every(x=>x===false));assert.equal(calls,0);
+  Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture',YOUTUBE_CHANNEL_ID:'UC'+'b'.repeat(22)});
+  for(const items of [[],[{id:'UC'+'a'.repeat(22)}],[{id:'UC'+'a'.repeat(22)},{id:'UC'+'b'.repeat(22)}]]) {
+    const d=newYouTubeDiagnostic();calls=0;
+    globalThis.fetch=async(input,init)=>{const u=new URL(input);calls++;if(u.hostname==='oauth2.googleapis.com') return json({access_token:'private-youtube-owner-fixture'});assert.equal(u.hostname,'www.googleapis.com');assert.equal(u.searchParams.get('mine'),'true');assert.ok(!u.searchParams.has('id'));assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-youtube-owner-fixture');return json({items});};
+    const report=await collectProvider('youtube','7',now,new AbortController().signal,undefined,undefined,undefined,d);
+    assert.equal(report.reason,'project_mismatch');assert.equal(calls,2);assert.equal(d.analyticsVerified,false);
+    if(items.length===1) {assert.equal(d.configuredChannelMatches,false);assert.equal(d.channelId,items[0].id);}
+    for(const secret of ['private-youtube-client-fixture','private-youtube-refresh-fixture','private-youtube-owner-fixture']) assert.ok(!JSON.stringify([report,d]).includes(secret));
+  }
+});
+test('YouTube official owner/OAuth queries retain native metrics and reject malformed or duplicate reporting days', async () => {
+  credentials();const channel='UC'+'a'.repeat(22);Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture',YOUTUBE_CHANNEL_ID:channel});
+  const {newYouTubeDiagnostic}=load('src/server/admin/analytics/youtubeDiagnostic');let mode='valid',calls=[];
+  globalThis.fetch=async(input,init)=>{
+    const u=new URL(input);calls.push(u);
+    if(u.hostname==='oauth2.googleapis.com') {assert.equal(init.method,'POST');const b=new URLSearchParams(init.body);assert.equal(b.get('grant_type'),'refresh_token');assert.equal(b.get('refresh_token'),'private-youtube-refresh-fixture');return json({access_token:'private-youtube-owner-fixture'});}
+    assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-youtube-owner-fixture');assert.ok(!u.searchParams.has('access_token'));
+    if(u.pathname.endsWith('/channels')) {assert.equal(u.searchParams.get('mine'),'true');return json({items:[{id:channel,statistics:{subscriberCount:'31'}}]});}
+    if(u.pathname.endsWith('/videos')) return json({items:[{id:'abcdefghijk',snippet:{title:'Video private-youtube-owner-fixture'}}]});
+    assert.equal(u.hostname,'youtubeanalytics.googleapis.com');assert.equal(u.searchParams.get('ids'),'channel=='+channel);assert.equal(u.searchParams.get('metrics'),'views,estimatedMinutesWatched,subscribersGained,subscribersLost');
+    const dimension=u.searchParams.get('dimensions'),columns=['views','estimatedMinutesWatched','subscribersGained','subscribersLost'];let rows;
+    if(dimension==='day') {rows=days({start:u.searchParams.get('startDate'),end:u.searchParams.get('endDate')}).map(day=>[day,0,0,0,0]);if(mode==='duplicate') rows.push(rows[0]);if(mode==='malformed') rows=[null];if(mode==='out_of_range') rows=[['2020-01-01',1,1,1,1]];}
+    else if(dimension==='video') {assert.equal(u.searchParams.get('sort'),'-views');assert.equal(u.searchParams.get('maxResults'),'10');rows=[['abcdefghijk',4,1.5,0,0]];}
+    else rows=[[14,3.5,3,1]];
+    return json({columnHeaders:[...(dimension?[{name:dimension}]:[]),...columns.map(name=>({name}))],rows});
+  };
+  const d=newYouTubeDiagnostic(),r=await collectProvider('youtube','7',now,new AbortController().signal,undefined,undefined,undefined,d);
+  assert.equal(r.state,'connected');assert.equal(r.current.subscribers,31);assert.deepEqual(r.totals,{views:14,watchMinutes:3.5,subscriberChange:2});assert.deepEqual(r.previousTotals,r.totals);assert.equal(r.daily[0].metrics.views,0);assert.equal(d.oauthVerified,true);assert.equal(d.configuredChannelMatches,true);assert.equal(d.analyticsVerified,true);assert.ok(d.requests.every(r=>r.httpStatus===200));
+  assert.equal(r.topContent[0].label,'Video [skriveno]');assert.ok(!JSON.stringify([r,d]).includes('private-youtube-owner-fixture'));
+  for(mode of ['duplicate','malformed','out_of_range']) {const invalid=newYouTubeDiagnostic();calls=[];const failed=await collectProvider('youtube','7',now,new AbortController().signal,undefined,undefined,undefined,invalid);assert.equal(failed.state,'error');assert.equal(failed.reason,'invalid_response');assert.equal(failed.fetchedAt,null);assert.equal(invalid.analyticsVerified,false);assert.equal(calls.length,3);}
+});
+test('YouTube diagnostics retain only fixed Google error enums and UI never treats missing configuration or stale data as verified', async () => {
+  const {formatYouTube}=load('src/admin/analytics/formatYouTube');for(const [value,expected] of [[0.5,'0,5'],[12345.5,'12.345,5'],[-1.5,'-1,5'],[0,'0'],[null,'—'],[NaN,'—'],[Infinity,'—']]) assert.equal(formatYouTube(value),expected);
+  credentials();Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture'});
+  const {newYouTubeDiagnostic}=load('src/server/admin/analytics/youtubeDiagnostic'),{youtubeTestResult}=load('src/admin/analytics/youtubeTest'),{YouTubeTestResult}=load('src/admin/analytics/YouTubeTestResult');
+  for(const mode of ['oauth','permission','invalid']) {
+    const d=newYouTubeDiagnostic();globalThis.fetch=async input=>{
+      const u=new URL(input);
+      if(u.hostname==='oauth2.googleapis.com') return mode==='oauth'?json({error:'invalid_grant',error_description:'private-youtube-refresh-fixture'},400):json({access_token:'private-youtube-owner-fixture'});
+      if(u.pathname.endsWith('/channels')) return json({items:[{id:'UC'+'a'.repeat(22)}]});
+      return json({error:{code:mode==='permission'?403:400,status:mode==='permission'?'PERMISSION_DENIED':'INVALID_ARGUMENT',message:'private-youtube-owner-fixture raw private response',errors:[{reason:mode==='permission'?'insufficientPermissions':'invalidParameter'}],details:[{secret:'private-youtube-client-fixture'}]}},mode==='permission'?403:400);
+    };
+    const r=await collectProvider('youtube','7',now,new AbortController().signal,undefined,undefined,undefined,d);assert.equal(r.reason,mode==='oauth'?'expired_credential':mode==='permission'?'permission_required':'invalid_response');assert.equal(d.analyticsVerified,false);assert.ok(!JSON.stringify([r,d]).includes('private-youtube'));assert.equal(d.requests.at(-1).googleReason,mode==='oauth'?'invalid_grant':mode==='permission'?'insufficientPermissions':'invalidParameter');
+  }
+  const id=randomUUID(),yt=reports()[3],body={acquired:true,runId:id,youtubeDiagnostic:{configuration:{YOUTUBE_OAUTH_CLIENT_ID:true,YOUTUBE_OAUTH_CLIENT_SECRET:true,YOUTUBE_REFRESH_TOKEN:true},oauthVerified:true,channelDiscovered:true,channelId:'UC'+'a'.repeat(22),analyticsVerified:true,access_token:'private-ui-secret-fixture',requests:[{request:'daily',httpStatus:403,reason:'permission_required',googleReason:'private-ui-secret-fixture',googleStatus:'PERMISSION_DENIED',message:'private-ui-secret-fixture'}]},dashboard:{storage:'ready',reports:[yt],history:[{id,outcome:'success'}]}};
+  const parsed=youtubeTestResult(body,200);assert.equal(parsed.stored,true);assert.equal(parsed.diagnostic.requests[0].googleReason,null);assert.ok(!JSON.stringify(parsed).includes('private-ui-secret-fixture'));
+  assert.match(renderToStaticMarkup(React.createElement(YouTubeTestResult,{result:parsed})),/CONNECTED · VERIFIED/);
+  for(const status of [401,403,503]) {const r=youtubeTestResult(body,status);assert.equal(r.stored,false);assert.equal(r.diagnostic,null);}
+  assert.equal(youtubeTestResult({...body,acquired:false,outcome:'cooldown'},200).stored,false);
+  const missing=youtubeTestResult({...body,youtubeDiagnostic:newYouTubeDiagnostic(),dashboard:{...body.dashboard,reports:[{...yt,state:'not_configured',reason:'not_configured'}],history:[{id,outcome:'failed'}]}},200);
+  assert.equal(missing.stored,false);assert.ok(!renderToStaticMarkup(React.createElement(YouTubeTestResult,{result:missing})).includes('CONNECTED · VERIFIED'));
+});
+test('YouTube-only sync persists native aggregates, leaves all verified providers unchanged and retains data after OAuth failure', async () => {
+  credentials();Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture',VERCEL_ANALYTICS_TOKEN:'unused-website-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-fixture'});
+  const db=await database();try {
+    const seed=randomUUID();await begin(db,seed,'30');await finish(db,seed,reports('30'));await releaseCooldown(db);const adapter=restFixture(db),service=load('src/server/admin/analytics/service'),{youtubeTestResult}=load('src/admin/analytics/youtubeTest');let denied=false;
+    const otherRows=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'youtube' order by provider")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'youtube' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'youtube' order by provider,day")).rows}),before=await otherRows();
+    globalThis.fetch=async(input,init)=>{
+      const u=new URL(input);if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);
+      assert.ok(['oauth2.googleapis.com','www.googleapis.com','youtubeanalytics.googleapis.com'].includes(u.hostname),'A locked provider was invoked');
+      if(u.hostname==='oauth2.googleapis.com') return denied?json({error:'invalid_grant',error_description:'private-youtube-refresh-fixture'},400):json({access_token:'private-youtube-owner-fixture'});
+      if(u.pathname.endsWith('/channels')) return json({items:[{id:'UC'+'a'.repeat(22),statistics:{subscriberCount:'31'}}]});
+      const dimension=u.searchParams.get('dimensions'),metrics=['views','estimatedMinutesWatched','subscribersGained','subscribersLost'];
+      return json({columnHeaders:[...(dimension?[{name:dimension}]:[]),...metrics.map(name=>({name}))],rows:dimension==='day'?days({start:u.searchParams.get('startDate'),end:u.searchParams.get('endDate')}).map(day=>[day,1,0.5,0,0]):dimension==='video'?[]:[[30,15,0,0]]});
+    };
+    const result=await service.synchronize('30',randomUUID(),'youtube');assert.equal(youtubeTestResult(result,200).stored,true);assert.equal(result.youtubeDiagnostic.analyticsVerified,true);assert.equal(result.websiteRequests,undefined);assert.equal(result.instagramDiagnostic,undefined);assert.equal(result.facebookDiagnostic,undefined);assert.equal(await otherRows(),before);
+    const r=result.dashboard.reports.find(r=>r.provider==='youtube'),range=r.range;
+    const stored=async()=>(await db.query("select report from medresa_analytics_reports where provider='youtube' and start_date=$1 and end_date=$2",[range.start,range.end])).rows[0].report;
+    const saved=await stored();assert.equal(saved.current.subscribers,31);assert.equal(saved.totals.views,30);assert.ok(!JSON.stringify(saved).includes('youtubeDiagnostic'));assert.equal((await service.dashboard('30')).reports.find(r=>r.provider==='youtube').totals.views,30);
+    assert.ok((await db.query("select * from medresa_analytics_daily where provider='youtube'")).rows.length>0);await releaseCooldown(db);denied=true;
+    const failed=await service.synchronize('30',randomUUID(),'youtube');assert.equal(youtubeTestResult(failed,200).stored,false);assert.equal(failed.youtubeDiagnostic.requests[0].googleReason,'invalid_grant');assert.deepEqual(await stored(),saved);assert.equal(await otherRows(),before);
+    for(const secret of ['private-youtube-client-fixture','private-youtube-refresh-fixture','private-youtube-owner-fixture']) assert.ok(!JSON.stringify([result,failed,saved]).includes(secret));
+  }finally{await db.close();}
 });
 test('bounded retries, provider failure isolation and explicit sanitized projection', async () => {
   credentials(); process.env.INSTAGRAM_ACCESS_TOKEN='private-fixture'; let calls=0;
