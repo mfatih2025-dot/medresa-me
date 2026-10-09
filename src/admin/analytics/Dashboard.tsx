@@ -5,7 +5,9 @@ import styles from "./analytics.module.css";
 import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type ProviderReport, type Ranked } from "./model";
 import { websiteTestResult, type WebsiteTestResult } from "./websiteTest";
-import { websiteRequestDimensions, websiteRequestLabels } from "./websiteRequests";
+import { websiteRequestDimensions, websiteRequestLabels, type WebsiteRequestResult } from "./websiteRequests";
+
+const unavailablePrevious = (r: WebsiteRequestResult) => r.request === "previous" && (r.reason === "no_data" || r.reason === "retention_limit");
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
@@ -58,6 +60,7 @@ function Source({ report, children }: { report: ProviderReport; children?: React
     {report.reason && <p className={styles.sourceNotice}>{reasonLabels[report.reason]}{report.lastSuccessAt ? " · prikazani su sačuvani podaci" : ""}</p>}
     <div className={styles.metrics}>{keys.map(k => <div key={k}><span>{metricLabels[k]}</span><strong>{format(report.totals[k])}</strong><Change current={report.totals[k]} previous={report.previousTotals[k]} complete={report.range.end < report.todayDate} /></div>)}</div>
     <p className={styles.context}>Prethodni period: {report.previousRange.start} — {report.previousRange.end} · Dani prema izvoru: {report.timezone}. Višednevni periodi obuhvataju završene dane.</p>
+    {report.provider === "website" && report.state === "connected" && !Object.values(report.previousTotals).some(v => typeof v === "number") && <p className={styles.context}>Nema dostupnih podataka za prethodni period.</p>}
     {report.provider === "website" ? <div className={styles.total}><p className={shared.eyebrow}>UKUPNO POSJETA</p><strong>{format(report.cumulative.visits)}</strong><p>Vercel ne mjeri sesije / posjete. Posjetioci i pregledi stranica su zasebne metrike.</p><p>Ukupno od početka praćenja: {report.trackingStart ?? "datum nije potvrđen"}</p><span>Pregledi stranica: {format(report.cumulative.pageviews)} · Historijski baseline: —</span><p className={styles.context}>Website obuhvata Preview projekta; Admin putanje su isključene. Javni tracker nije dodan niti promijenjen.</p></div> : <div className={styles.current}><span>{report.provider === "youtube" ? "Pretplatnici · trenutno" : "Pratioci · trenutno"}</span><strong>{format(report.provider === "youtube" ? report.current.subscribers : report.current.followers)}</strong></div>}
     <Trend key={`${report.provider}-${report.range.start}-${report.range.end}`} report={report} metric={chartKey} />
     {report.provider === "website" && <div className={styles.breakdowns}><div className={styles.tabs} aria-label="Website raspodjela">{(["pages", "referrers", "devices", "countries"] as const).map((d, i) => <button key={d} type="button" aria-pressed={dimension === d} onClick={() => setDimension(d)}>{["Stranice", "Izvori posjeta", "Uređaji", "Zemlje"][i]}</button>)}</div><Ranking rows={report.breakdowns[dimension]} /></div>}
@@ -115,13 +118,15 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
           <p>{websiteResult.stored ? "Rezultat sačuvan u Preview Supabase." : "Novi Website podaci nijesu potvrđeni."}</p>
           {websiteResult.warnings.length > 0 && <p>{websiteResult.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
           {websiteResult.requests.filter(r => ["current", "daily", "previous"].includes(r.request) || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <div key={r.request}>
+            {unavailablePrevious(r) ? <p>Prethodni period{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}: Nema dostupnih podataka za prethodni period.</p> : <>
             <p>Vercel: {websiteRequestLabels[r.request]}{websiteRequestDimensions[r.request] ? ` · by=${websiteRequestDimensions[r.request]}` : ""} · HTTP {r.httpStatus ?? "—"}{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}</p>
             {r.reason === "no_data" && <p>{r.httpStatus === null ? "Period prethodi uključenju praćenja; Vercel potvrđuje da historija još nema podataka. Zahtjev nije poslan." : "Nema podataka za ovaj period. Vrijednosti ostaju —."}</p>}
             {r.reason === "retention_limit" && <p>Dio perioda je izvan dostupne Vercel historije. Poređenje ili dnevni tok ostaje —.</p>}
             {r.rejection && <p>Validacija Vercela: kod {r.rejection.code ?? "nije prepoznat"} · parametri navedeni u odgovoru: {r.rejection.parameters.join(", ") || "nijesu navedeni"}{r.rejection.reportingWindowMentioned ? " · odgovor navodi ograničenje dostupne historije" : ""}. {r.rejection.detailsPresent ? "Detalji odgovora su provjereni bez prikazivanja izvornog teksta." : "Odgovor nema prepoznate detalje validacije."}</p>}
             {r.rejection && <p>Oblik odgovora: {r.rejection.responseShape} · teme navedene u odgovoru: {r.rejection.hints.join(", ") || "nijesu prepoznate"}.</p>}
+            </>}
           </div>)}
-          {websiteResult.requests.some(r => r.httpStatus === 400) && <p>Vercel je odbio parametre označenog zahtjeva (HTTP 400). To samo po sebi ne potvrđuje da metrika nije podržana.</p>}
+          {websiteResult.requests.some(r => r.httpStatus === 400 && !unavailablePrevious(r)) && <p>Vercel je odbio parametre označenog zahtjeva (HTTP 400). To samo po sebi ne potvrđuje da metrika nije podržana.</p>}
         </div>}
       </>}</Source>)}
       <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} /></div>)}</div></section>

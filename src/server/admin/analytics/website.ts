@@ -76,12 +76,14 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   // query (including a plan's reporting-window restriction) cannot discard totals.
   const current = await aggregate("current", report.range);
   // Documented project metadata, not an inferred date or a hard-coded plan window.
-  // enabledAt alone can refer to a re-enable; require hasData=false as well so
-  // prior real history is never hidden merely because tracking was restarted.
+  // A recorded disable/cancellation may indicate older history on re-enable.
   const webAnalytics = project.webAnalytics && typeof project.webAnalytics === "object" && !Array.isArray(project.webAnalytics) ? project.webAnalytics as Record<string, unknown> : {};
   const enabledAt = typeof webAnalytics.enabledAt === "number" && Number.isSafeInteger(webAnalytics.enabledAt) && webAnalytics.enabledAt > 0 && webAnalytics.enabledAt <= now.getTime() ? dayAt(new Date(webAnalytics.enabledAt), "UTC") : null;
+  // hasData describes all history, including today's new traffic. It must not
+  // gate comparisons before first enablement. Preserve history on re-enable.
+  const firstEnabledAt = enabledAt && ![webAnalytics.disabledAt, webAnalytics.canceledAt].some(value => typeof value === "number" && value > 0) ? enabledAt : null;
   async function optional(name: Exclude<WebsiteRequest, "project" | "current">, range: Range, limit = 10) {
-    if ((name === "daily" || name === "previous") && webAnalytics.hasData === false && enabledAt && range.end < enabledAt && !current.some(row => (number(row.pageviews) ?? 0) > 0 || (number(row.visitors) ?? 0) > 0)) {
+    if ((name === "previous" && firstEnabledAt && range.end < firstEnabledAt) || ((name === "daily" || name === "previous") && webAnalytics.hasData === false && enabledAt && range.end < enabledAt && !current.some(row => (number(row.pageviews) ?? 0) > 0 || (number(row.visitors) ?? 0) > 0))) {
       observe?.({ request: name, range, httpStatus: null, reason: "no_data" });
       return [];
     }

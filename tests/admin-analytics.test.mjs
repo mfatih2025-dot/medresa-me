@@ -105,7 +105,7 @@ test('Website daily query stays in each selected period and the successful selec
     assert.equal(r.state,'connected');assert.deepEqual(r.totals,{});assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);
   }
 });
-test('Website skips only proven empty pre-tracking optional history, not re-enabled or contradictory real data', async () => {
+test('Website skips pre-enablement comparisons independently of hasData, preserving daily queries and re-enabled history', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-tracking-fixture';
   for(const [metadata,realTotals,skip] of [
     [{enabledAt:now.getTime(),hasData:false},false,true],
@@ -114,16 +114,35 @@ test('Website skips only proven empty pre-tracking optional history, not re-enab
     [{enabledAt:now.getTime()+1,hasData:false},false,false],
     [{enabledAt:'not-a-timestamp',hasData:false},false,false],
     [{enabledAt:now.getTime()},false,false],
+    [{enabledAt:now.getTime(),disabledAt:now.getTime()-86400000,hasData:true},true,false],
+    [{enabledAt:now.getTime(),canceledAt:now.getTime()-86400000,hasData:true},true,false],
   ]) {
     const requests=[],observations=[];
     globalThis.fetch=async(input)=>{const u=new URL(input);requests.push(u);return u.pathname.startsWith('/v9/')?json({name:'medresa-me',id:'prj_fixture',webAnalytics:metadata}):json({data:realTotals&&u.searchParams.get('by')==='environment'?[{environment:'preview',pageviews:2,visitors:1}]:[]});};
     const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
     assert.equal(r.state,'connected');assert.equal(requests.some(u=>u.searchParams.get('by')==='day'),!skip);
-    for(const name of ['daily','previous']) {const request=observations.find(r=>r.request===name);assert.equal(request.httpStatus,skip?null:200);assert.equal(request.reason,realTotals&&name==='previous'?null:'no_data');}
+    const previousSkipped=skip||(typeof metadata.enabledAt==='number'&&metadata.enabledAt>0&&metadata.enabledAt<=now.getTime()&&!metadata.disabledAt&&!metadata.canceledAt);
+    for(const name of ['daily','previous']) {const request=observations.find(r=>r.request===name),skipped=name==='daily'?skip:previousSkipped;assert.equal(request.httpStatus,skipped?null:200);assert.equal(request.reason,realTotals&&name==='previous'&&!skipped?null:'no_data');}
     assert.equal(observations.find(r=>r.request==='current').httpStatus,200);
     assert.deepEqual(r.totals,realTotals?{pageviews:2,visitors:1}:{});assert.equal(r.trackingStart,null);assert.deepEqual(r.cumulative,{});
     if(skip){assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);assert.ok(!r.warnings.includes('invalid_response'));}
   }
+});
+test('New real selected-period traffic never triggers impossible pre-enablement comparisons or changes working daily traffic', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-comparison-fixture';
+  const period=ranges('30',now,'UTC'),observations=[],calls=[];
+  globalThis.fetch=async(input)=>{
+    const u=new URL(input);calls.push(u);if(u.pathname.startsWith('/v9/')) return json({name:'medresa-me',id:'prj_fixture',webAnalytics:{enabledAt:Date.parse('2026-10-06T09:00:00Z'),hasData:true}});
+    assert.ok(u.searchParams.get('until').slice(0,10)>=period.current.start,'Pre-tracking previous period must never be sent or retried');
+    return json({data:u.searchParams.get('by')==='environment'?[{environment:'preview',pageviews:8,visitors:2}]:u.searchParams.get('by')==='day'?[{timestamp:'2026-10-07T00:00:00Z',pageviews:8,visitors:2}]:[]});
+  };
+  const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
+  assert.equal(r.state,'connected');assert.deepEqual(r.totals,{pageviews:8,visitors:2});assert.deepEqual(r.previousTotals,{});assert.equal(r.daily[0].metrics.pageviews,8);
+  assert.equal(observations.find(r=>r.request==='current').httpStatus,200);assert.equal(observations.find(r=>r.request==='daily').httpStatus,200);
+  assert.deepEqual(observations.find(r=>r.request==='previous'),{request:'previous',range:period.previous,httpStatus:null,reason:'no_data'});
+  assert.ok(!r.warnings.includes('invalid_response'));assert.ok(!r.warnings.includes('no_data'));assert.equal(comparison(r.totals.pageviews,r.previousTotals.pageviews).percent,null);
+  await collectProvider('website','30',now,new AbortController().signal);
+  assert.equal(calls.some(u=>u.searchParams.has('until')&&u.searchParams.get('until').slice(0,10)<period.current.start),false);
 });
 test('Website explicit optional reporting-window rejection stays unavailable, never zero or an invented comparison', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-retention-fixture';const observations=[];
