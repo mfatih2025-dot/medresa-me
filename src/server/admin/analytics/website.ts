@@ -1,15 +1,30 @@
 import { dayAt, shiftDay, validDay } from "@/admin/analytics/period";
 import type { Metrics, Period, Range } from "@/admin/analytics/model";
-import { websiteRequestDimensions, type WebsiteRequest, type WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
+import { websiteRequestDimensions, vercelQueryParameters, vercelRejectionCodes, type VercelRejection, type WebsiteRequest, type WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
 import { blank, number, providerJson, safeText, success, ProviderFailure } from "./common";
 export function websiteConfigured() { return !!process.env.VERCEL_ANALYTICS_TOKEN?.trim(); }
+/** Project validation evidence to fixed enums/booleans. Never return raw messages or values. */
+export function vercelRejection(body: Record<string, unknown>): VercelRejection {
+  const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const error = record(body.error);
+  const details = [error, ...[error.errors, error.issues, body.errors].flatMap(value => Array.isArray(value) ? value.slice(0, 16).map(record) : [])];
+  const message = details.flatMap(row => typeof row.message === "string" ? [row.message.slice(0, 1000)] : []).join(" ").slice(0, 4000);
+  return {
+    code: vercelRejectionCodes.find(code => code === error.code) ?? null,
+    parameters: vercelQueryParameters.filter(parameter => details.some(row => row.parameter === parameter || row.param === parameter || row.field === parameter || (Array.isArray(row.path) && row.path.includes(parameter)))
+      || error.code === `invalid_${parameter.toLowerCase()}` || new RegExp("['\"`]" + parameter + "['\"`]|\\b(?:parameter|property|field)\\s+" + parameter + "\\b", "i").test(message)),
+    reportingWindowMentioned: /\bretention\b|\breporting window\b|\b(?:date range|since|timestamp)\b.{0,80}\b(?:too old|outside|earlier than|before the|last \d+ days)\b/i.test(message),
+    detailsPresent: Object.keys(error).length > 0 || details.length > 1,
+  };
+}
 export async function website(period: Period, now: Date, signal: AbortSignal, observe?: (result: WebsiteRequestResult) => void) {
   const report = blank("website", period, now, "UTC", websiteConfigured());
   if (!websiteConfigured()) return report;
   const token = process.env.VERCEL_ANALYTICS_TOKEN!;
   async function request(request: WebsiteRequest, url: URL | string, range: Range | null = null) {
     let httpStatus: number | null = null, reason: WebsiteRequestResult["reason"] = null;
-    try { return await providerJson(url, { headers: { Authorization: `Bearer ${token}` } }, signal, status => { httpStatus = status; }); }
+    let rejection: VercelRejection | undefined;
+    try { return await providerJson(url, { headers: { Authorization: `Bearer ${token}` } }, signal, (status, body) => { httpStatus = status; if (status === 400 && body) rejection = vercelRejection(body); }); }
     catch (error) {
       // Vercel documents HTTP 400 as an invalid query value, not an unsupported
       // metric. The shared Meta-style mapping must not make that claim here.
@@ -18,7 +33,7 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
       }
       reason = error instanceof ProviderFailure ? error.reason : "invalid_response"; throw error;
     }
-    finally { observe?.({ request, range, httpStatus, reason }); }
+    finally { observe?.({ request, range, httpStatus, reason, ...(rejection ? { rejection } : {}) }); }
   }
   // Name and team are the existing verified Vercel project, never supplied by a browser.
   const project = await request("project", "https://api.vercel.com/v9/projects/medresa-me?slug=mmf16");

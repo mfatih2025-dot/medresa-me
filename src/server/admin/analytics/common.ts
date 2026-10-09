@@ -50,7 +50,7 @@ export function success(report: ProviderReport, now: Date) {
   return report;
 }
 /** Fixed hosts only; no redirects, bounded reads/retry, no bodies or URLs in errors. */
-export async function providerJson(url: URL | string, init: RequestInit = {}, signal?: AbortSignal, onStatus?: (status: number) => void): Promise<Record<string, unknown>> {
+export async function providerJson(url: URL | string, init: RequestInit = {}, signal?: AbortSignal, onStatus?: (status: number, body?: Record<string, unknown>) => void): Promise<Record<string, unknown>> {
   const u = new URL(url);
   if (u.protocol !== "https:" || !["api.vercel.com", "graph.instagram.com", "graph.facebook.com", "oauth2.googleapis.com", "youtubeanalytics.googleapis.com", "www.googleapis.com"].includes(u.hostname)) throw new ProviderFailure("error", "invalid_response");
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -62,6 +62,7 @@ export async function providerJson(url: URL | string, init: RequestInit = {}, si
       let body: Record<string, unknown>;
       try { body = JSON.parse(text); } catch { throw new ProviderFailure("temporarily_unavailable", "invalid_response"); }
       if (!body || typeof body !== "object" || Array.isArray(body)) throw new ProviderFailure("error", "invalid_response");
+      onStatus?.(res.status, body);
       const e = body.error as { code?: number } | undefined;
       if (res.ok && !e) return body;
       if ((res.status === 429 || res.status >= 500 || [4, 17, 32, 613].includes(e?.code ?? -1)) && attempt === 0) { await new Promise(r => setTimeout(r, 200)); continue; }

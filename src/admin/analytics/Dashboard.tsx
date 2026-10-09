@@ -114,9 +114,10 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
           <p>Pregledi stranica: {format(websiteResult.pageviews)} · Posjetioci: {format(websiteResult.visitors)}</p>
           <p>{websiteResult.stored ? "Rezultat sačuvan u Preview Supabase." : "Novi Website podaci nijesu potvrđeni."}</p>
           {websiteResult.warnings.length > 0 && <p>{websiteResult.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
-          {websiteResult.requests.filter(r => r.request === "current" || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <p key={r.request}>
-            Vercel: {websiteRequestLabels[r.request]}{websiteRequestDimensions[r.request] ? ` · by=${websiteRequestDimensions[r.request]}` : ""} · HTTP {r.httpStatus ?? "—"}{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}
-          </p>)}
+          {websiteResult.requests.filter(r => r.request === "current" || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <div key={r.request}>
+            <p>Vercel: {websiteRequestLabels[r.request]}{websiteRequestDimensions[r.request] ? ` · by=${websiteRequestDimensions[r.request]}` : ""} · HTTP {r.httpStatus ?? "—"}{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}</p>
+            {r.rejection && <p>Validacija Vercela: kod {r.rejection.code ?? "nije prepoznat"} · parametri navedeni u odgovoru: {r.rejection.parameters.join(", ") || "nijesu navedeni"}{r.rejection.reportingWindowMentioned ? " · odgovor navodi ograničenje dostupne historije" : ""}. {r.rejection.detailsPresent ? "Detalji odgovora su provjereni bez prikazivanja izvornog teksta." : "Odgovor nema prepoznate detalje validacije."}</p>}
+          </div>)}
           {websiteResult.requests.some(r => r.httpStatus === 400) && <p>Vercel je odbio parametre označenog zahtjeva (HTTP 400). To samo po sebi ne potvrđuje da metrika nije podržana.</p>}
         </div>}
       </>}</Source>)}

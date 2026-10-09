@@ -120,6 +120,21 @@ test('Website required totals rejection is attributed to that request, makes no 
   assert.equal(testResult.requests.length,3);assert.equal(testResult.requests[2].httpStatus,null);assert.equal(testResult.requests[2].range,null);
   assert.ok(!JSON.stringify(testResult).includes('private-vercel-diagnostic-fixture'));
 });
+test('Vercel query validation preserves only named parameters/known codes and reporting-window evidence, never raw response values', async () => {
+  const {vercelRejection}=load('src/server/admin/analytics/website');
+  const secret='private-vercel-validation-fixture';
+  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`Invalid query parameter 'filter': ${secret}`,errors:[{path:['query','filter'],value:secret}]}}),{code:'bad_request',parameters:['filter'],reportingWindowMentioned:false,detailsPresent:true});
+  assert.deepEqual(vercelRejection({error:{code:'bad_request',message:`The 'since' timestamp is outside the reporting window. ${secret}`}}),{code:'bad_request',parameters:['since'],reportingWindowMentioned:true,detailsPresent:true});
+  const unknown=vercelRejection({error:{code:secret,message:secret,field:secret}});assert.equal(unknown.code,null);assert.deepEqual(unknown.parameters,[]);assert.ok(!JSON.stringify(unknown).includes(secret));
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN=secret;
+  const requests=[];
+  globalThis.fetch=async(input)=>new URL(input).pathname.startsWith('/v9/projects/')?json({name:'medresa-me',id:'prj_fixture'}):json({error:{code:'bad_request',message:`Invalid query parameter 'filter': ${secret}`}},400);
+  await collectProvider('website','30',now,new AbortController().signal,row=>requests.push(row));
+  assert.equal(requests.length,2);assert.equal(requests[1].rejection.code,'bad_request');assert.deepEqual(requests[1].rejection.parameters,['filter']);assert.ok(!JSON.stringify(requests).includes(secret));
+  const {websiteTestResult}=load('src/admin/analytics/websiteTest');
+  const summary=websiteTestResult({acquired:true,websiteRequests:[...requests,{request:'daily',httpStatus:400,rejection:{code:secret,parameters:['since',secret],reportingWindowMentioned:secret,detailsPresent:secret,message:secret}}]},200);
+  assert.deepEqual(summary.requests[2].rejection,{code:null,parameters:['since'],reportingWindowMentioned:false,detailsPresent:false});assert.ok(!JSON.stringify(summary).includes(secret));
+});
 test('Website exposes only returned totals; missing visitors and malformed optional rows never become fabricated zeroes', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-fixture';
   globalThis.fetch=async(input)=>{
