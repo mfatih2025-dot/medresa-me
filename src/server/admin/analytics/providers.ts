@@ -1,12 +1,13 @@
 import type { Period, Provider, ProviderReport } from "@/admin/analytics/model";
+import type { WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
 import { blank, ProviderFailure } from "./common";
 import { website, websiteConfigured } from "./website";
 import { instagram, instagramConfigured, facebook, facebookConfigured } from "./meta";
 import { youtube, youtubeConfigured } from "./youtube";
 export const configurations = { website: websiteConfigured, instagram: instagramConfigured, facebook: facebookConfigured, youtube: youtubeConfigured };
 export const timezones = { website: "UTC", instagram: "UTC", facebook: "America/Los_Angeles", youtube: "America/Los_Angeles" };
-export async function collectProvider(provider: Provider, period: Period, now: Date, signal: AbortSignal): Promise<ProviderReport> {
-  try { return await ({ website, instagram, facebook, youtube }[provider])(period, now, signal); }
+export async function collectProvider(provider: Provider, period: Period, now: Date, signal: AbortSignal, websiteObserver?: (result: WebsiteRequestResult) => void): Promise<ProviderReport> {
+  try { return provider === "website" ? await website(period, now, signal, websiteObserver) : await ({ instagram, facebook, youtube }[provider])(period, now, signal); }
   catch (error) {
     const r = blank(provider, period, now, timezones[provider], configurations[provider]());
     const e = error instanceof ProviderFailure ? error : new ProviderFailure("error", "invalid_response");

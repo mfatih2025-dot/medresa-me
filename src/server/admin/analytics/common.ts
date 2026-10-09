@@ -50,12 +50,13 @@ export function success(report: ProviderReport, now: Date) {
   return report;
 }
 /** Fixed hosts only; no redirects, bounded reads/retry, no bodies or URLs in errors. */
-export async function providerJson(url: URL | string, init: RequestInit = {}, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function providerJson(url: URL | string, init: RequestInit = {}, signal?: AbortSignal, onStatus?: (status: number) => void): Promise<Record<string, unknown>> {
   const u = new URL(url);
   if (u.protocol !== "https:" || !["api.vercel.com", "graph.instagram.com", "graph.facebook.com", "oauth2.googleapis.com", "youtubeanalytics.googleapis.com", "www.googleapis.com"].includes(u.hostname)) throw new ProviderFailure("error", "invalid_response");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(u.href, { ...init, redirect: "error", cache: "no-store", signal: AbortSignal.any([AbortSignal.timeout(10000), ...(signal ? [signal] : [])]) });
+      onStatus?.(res.status);
       const text = await res.text();
       if (text.length > 1500000) throw new ProviderFailure("error", "invalid_response");
       let body: Record<string, unknown>;

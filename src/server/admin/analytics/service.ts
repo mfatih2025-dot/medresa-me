@@ -4,6 +4,7 @@ import { AdminError } from "@/admin/contracts";
 import { supabaseRequest } from "../supabase";
 import { blank, metrics, previewConfiguration, safeText, safeUrl } from "./common";
 import { collectProvider, configurations, timezones } from "./providers";
+import type { WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
 const validStates = ["connected", "not_configured", "permission_required", "temporarily_unavailable", "error"];
 /** Explicit schema projection, never passthrough of raw provider or stored JSON. */
 export function sanitizedReport(raw: ProviderReport, base: ProviderReport): ProviderReport {
@@ -98,8 +99,9 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   catch { throw new AdminError(503, provider ? "Osvježavanje pojedinačnog izvora nije spremno. Provjerite Preview migraciju analitike za pojedinačne izvore." : "Historija analitike nije spremna. Provjerite Preview analitičku migraciju."); }
   if (!claim.acquired) return { ...claim, dashboard: await dashboard(period) };
   const now = new Date(), signal = AbortSignal.timeout(75000);
+  const websiteRequests: WebsiteRequestResult[] = [];
   const reports = await Promise.all((provider ? [provider] : providers).map(async p => {
-    const r = await collectProvider(p, period, now, signal);
+    const r = await collectProvider(p, period, now, signal, provider === "website" ? result => { websiteRequests.push(result); } : undefined);
     // Include daily overview in history; duplicate dates are merged deterministically.
     const daily = new Map(r.daily.map(d => [d.date, d]));
     for (const d of [r.today, r.yesterday]) if (d && Object.values(d.metrics).some(v => typeof v === "number")) daily.set(d.date, { ...d, metrics: { ...daily.get(d.date)?.metrics, ...d.metrics } });
@@ -108,5 +110,6 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   }));
   try { await call("medresa_analytics_complete_sync", { p_id: id, p_reports: reports }); }
   catch { throw new AdminError(503, "Osvježavanje nije sačuvano. Prethodni podaci ostaju dostupni; pokušajte ponovo nakon isteka aktivnog osvježavanja."); }
-  return { ...claim, outcome: "completed", dashboard: await dashboard(period) };
+  // Request statuses are ephemeral and Website-test-only; never part of stored reports.
+  return { ...claim, outcome: "completed", dashboard: await dashboard(period), ...(provider === "website" ? { websiteRequests } : {}) };
 }

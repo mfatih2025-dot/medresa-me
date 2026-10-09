@@ -83,6 +83,55 @@ test('Vercel uses official Preview aggregates, direct unique totals, no Producti
   globalThis.fetch=async(input)=>new URL(input).pathname.startsWith('/v9/')?json({id:'prj_verified_fixture',name:'medresa-me'}):json({data:[]});
   const empty=await collectProvider('website','7',now,new AbortController().signal); assert.deepEqual(empty.totals,{}); assert.ok(empty.warnings.includes('no_data'));
 });
+test('Website optional HTTP 400 queries keep direct current totals and report the exact rejected requests without raw errors', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-diagnostic-fixture';
+  const range=ranges('30',now,'UTC').current,observations=[];
+  globalThis.fetch=async(input)=>{
+    const u=new URL(input);assert.equal(u.hostname,'api.vercel.com');
+    if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_fixture'});
+    assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+    const by=u.searchParams.get('by');
+    if(by==='day'||by==='referrerHostname'||u.searchParams.get('until').slice(0,10)<range.start) return json({error:{code:'bad_request',message:'private-vercel-diagnostic-fixture raw response'}},400);
+    if(by==='environment') return json({data:[{environment:'preview',pageviews:0,visitors:7}]});
+    return json({data:[]});
+  };
+  const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
+  assert.equal(r.state,'connected');assert.deepEqual(r.totals,{pageviews:0,visitors:7});
+  assert.deepEqual(r.previousTotals,{});assert.deepEqual(r.daily,[]);assert.deepEqual(r.breakdowns.referrers,[]);
+  assert.equal(r.totals.visits,undefined);assert.ok(r.warnings.includes('invalid_response'));assert.ok(!r.warnings.includes('unsupported_metric'));
+  assert.deepEqual(observations.filter(r=>r.httpStatus===400).map(r=>r.request).sort(),['daily','previous','referrers']);
+  assert.deepEqual(observations.find(r=>r.request==='current'),{request:'current',range,httpStatus:200,reason:null});
+  assert.ok(!JSON.stringify([r,observations]).includes('private-vercel-diagnostic-fixture'));
+  assert.ok(!JSON.stringify(observations).includes('raw response'));
+});
+test('Website required totals rejection is attributed to that request, makes no optional calls and fabricates no metrics', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-diagnostic-fixture';const observations=[],requests=[];
+  globalThis.fetch=async(input)=>{
+    const u=new URL(input);requests.push(u);
+    return u.pathname.startsWith('/v9/projects/')?json({name:'medresa-me',id:'prj_fixture'}):json({error:{message:'private-vercel-diagnostic-fixture raw response'}},400);
+  };
+  const r=await collectProvider('website','30',now,new AbortController().signal,row=>observations.push(row));
+  assert.equal(r.state,'error');assert.equal(r.reason,'invalid_response');assert.deepEqual(r.totals,{});
+  assert.equal(r.fetchedAt,null);assert.equal(requests.length,2);
+  assert.deepEqual(observations.map(r=>[r.request,r.httpStatus]),[['project',200],['current',400]]);
+  assert.ok(!JSON.stringify([r,observations]).includes('private-vercel-diagnostic-fixture'));
+  const {websiteTestResult}=load('src/admin/analytics/websiteTest');
+  const testResult=websiteTestResult({acquired:true,websiteRequests:[...observations,{request:'private-vercel-diagnostic-fixture',httpStatus:400},{request:'daily',httpStatus:'private-vercel-diagnostic-fixture',reason:'private-vercel-diagnostic-fixture',range:{start:'private-vercel-diagnostic-fixture',end:'2026-10-08'}}]},200);
+  assert.equal(testResult.requests.length,3);assert.equal(testResult.requests[2].httpStatus,null);assert.equal(testResult.requests[2].range,null);
+  assert.ok(!JSON.stringify(testResult).includes('private-vercel-diagnostic-fixture'));
+});
+test('Website exposes only returned totals; missing visitors and malformed optional rows never become fabricated zeroes', async () => {
+  credentials();process.env.VERCEL_ANALYTICS_TOKEN='private-vercel-fixture';
+  globalThis.fetch=async(input)=>{
+    const u=new URL(input);
+    if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_fixture'});
+    return u.searchParams.get('by')==='environment'?json({data:[{environment:'preview',pageviews:12}]}):json({data:[null]});
+  };
+  const r=await collectProvider('website','7',now,new AbortController().signal);
+  assert.equal(r.state,'connected');assert.deepEqual(r.totals,{pageviews:12,visitors:null});
+  assert.equal(r.totals.visits,undefined);assert.deepEqual(r.daily,[]);assert.deepEqual(r.breakdowns.pages,[]);
+  assert.ok(r.warnings.includes('invalid_response'));assert.equal(r.cumulative.visits,undefined);
+});
 test('Meta reuses feed tokens, discovers account/page and detects individual missing capabilities', async () => {
   credentials(); process.env.INSTAGRAM_ACCESS_TOKEN='fixture-instagram-private'; process.env.FACEBOOK_PAGE_ACCESS_TOKEN='fixture-facebook-private';
   globalThis.fetch=async(input,init)=>{
@@ -279,7 +328,7 @@ test('Website-only service sync calls only Vercel, persists and reloads real-sha
       assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
       const by=u.searchParams.get('by');
       if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
-      if(by==='day') return json({data:[]});
+      if(by==='day') return json({error:{message:'local-vercel-fixture raw error'}},400);
       return json({data:[{[by]:by==='requestPath'?'/vijesti/fixture':'mobile',pageviews:42}]});
     };
     const service=load('src/server/admin/analytics/service'),id=randomUUID();
@@ -287,6 +336,10 @@ test('Website-only service sync calls only Vercel, persists and reloads real-sha
     assert.equal(result.dashboard.storage,'ready');
     const web=result.dashboard.reports.find(r=>r.provider==='website');
     assert.equal(web.state,'connected');assert.deepEqual(web.totals,{pageviews:42,visitors:9});
+    assert.ok(web.warnings.includes('invalid_response'));
+    assert.equal(result.websiteRequests.find(r=>r.request==='daily').httpStatus,400);
+    assert.ok(!JSON.stringify(result.websiteRequests).includes('local-vercel-fixture'));
+    assert.ok(!JSON.stringify((await db.query("select report from medresa_analytics_reports where provider='website'")).rows).includes('websiteRequests'));
     assert.ok(external.length>=10);assert.equal(await unrelated(),before);
     const states=(await db.query("select provider,last_attempt_at from medresa_analytics_provider_state where provider<>'website' order by provider")).rows;
     const daily=(await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows;

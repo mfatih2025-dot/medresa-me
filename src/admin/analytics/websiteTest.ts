@@ -1,10 +1,11 @@
 import { reasonNames, type ProviderState, type Reason, type Range } from "./model";
 import { validDay } from "./period";
+import { websiteRequestDimensions, type WebsiteRequest, type WebsiteRequestResult } from "./websiteRequests";
 
 export type WebsiteTestResult = {
   message: string; httpStatus: number; state: ProviderState | null; reason: Reason | null;
   range: Range | null; pageviews: number | null; visitors: number | null;
-  warnings: Reason[]; stored: boolean;
+  warnings: Reason[]; stored: boolean; requests: WebsiteRequestResult[];
 };
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const metric = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value : null;
@@ -13,7 +14,7 @@ const metric = (value: unknown) => typeof value === "number" && Number.isFinite(
 export function websiteTestResult(value: unknown, httpStatus: number): WebsiteTestResult {
   const result: WebsiteTestResult = {
     message: httpStatus === 401 ? "Sesija je istekla. Prijavite se ponovo." : httpStatus === 403 ? "Website test nije dozvoljen iz ovog administratorskog prostora." : "Website test nije završen. Sačuvani podaci ostaju dostupni.",
-    httpStatus, state: null, reason: null, range: null, pageviews: null, visitors: null, warnings: [], stored: false,
+    httpStatus, state: null, reason: null, range: null, pageviews: null, visitors: null, warnings: [], stored: false, requests: [],
   };
   if (httpStatus < 200 || httpStatus >= 300) return result;
   const body = record(value);
@@ -22,6 +23,14 @@ export function websiteTestResult(value: unknown, httpStatus: number): WebsiteTe
     return result;
   }
   const dashboard = record(body.dashboard);
+  if (Array.isArray(body.websiteRequests)) result.requests = body.websiteRequests.slice(0, 11).flatMap(value => {
+    const row = record(value), range = record(row.range);
+    const request = (Object.keys(websiteRequestDimensions) as WebsiteRequest[]).find(k => k === row.request);
+    if (!request) return [];
+    return [{ request, range: validDay(range.start) && validDay(range.end) && range.start <= range.end ? { start: range.start, end: range.end } : null,
+      httpStatus: typeof row.httpStatus === "number" && Number.isInteger(row.httpStatus) && row.httpStatus >= 100 && row.httpStatus <= 599 ? row.httpStatus : null,
+      reason: reasonNames.find(r => r === row.reason) ?? null }];
+  });
   const report = Array.isArray(dashboard.reports) ? record(dashboard.reports.find(r => record(r).provider === "website")) : {};
   const states: ProviderState[] = ["connected", "not_configured", "permission_required", "temporarily_unavailable", "error"];
   result.state = states.find(s => s === report.state) ?? null;

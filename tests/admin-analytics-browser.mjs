@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -46,6 +46,7 @@ const origin='http://localhost:3213';
         if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
         assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
         const by=u.searchParams.get('by');
+        if(websiteOptionalRejected&&(by==='day'||by==='referrerHostname')) return json({error:{message:'local-vercel-browser-fixture raw-error-must-stay-hidden'}},400);
         if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
         if(by==='day') return json({data:[]});
         return json({data:[{[by]:by==='requestPath'?'/vijesti/local-fixture':'mobile',pageviews:42}]});
@@ -134,6 +135,16 @@ const origin='http://localhost:3213';
   await page.getByRole('button',{name:'Test Website',exact:true}).tap();await cooldownResponse;
   await visibleResult.getByText('Sačekajte dvije minute između osvježavanja. Website test nije pokrenut.',{exact:true}).waitFor();assert.equal(providerCalls.length,count);
   assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));
+  await releaseCooldown(db);websiteOptionalRejected=true;
+  const optionalResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Website',exact:true}).tap();const optionalBody=await (await optionalResponse).json();
+  assert.equal(optionalBody.dashboard.reports.find(r=>r.provider==='website').state,'connected');
+  assert.deepEqual(optionalBody.websiteRequests.filter(r=>r.httpStatus===400).map(r=>r.request).sort(),['daily','referrers']);
+  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
+  assert.match(await visibleResult.innerText(),/Dnevni tok · by=day · HTTP 400/);
+  assert.ok(!(await page.content()).includes('raw-error-must-stay-hidden'));assert.equal(await unrelated(),unchanged);
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  await page.reload();assert.ok((await storedWebsite.innerText()).includes('42'));
   const privateError='never-display-cookie-token-or-credential-fixture';
   await page.route('**/api/admin/analytics/sync',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:privateError})}));
   await page.getByRole('button',{name:'Test Website',exact:true}).tap();

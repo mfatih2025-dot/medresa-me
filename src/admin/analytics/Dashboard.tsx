@@ -5,6 +5,7 @@ import styles from "./analytics.module.css";
 import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type ProviderReport, type Ranked } from "./model";
 import { websiteTestResult, type WebsiteTestResult } from "./websiteTest";
+import { websiteRequestDimensions, websiteRequestLabels } from "./websiteRequests";
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
@@ -113,6 +114,10 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
           <p>Pregledi stranica: {format(websiteResult.pageviews)} · Posjetioci: {format(websiteResult.visitors)}</p>
           <p>{websiteResult.stored ? "Rezultat sačuvan u Preview Supabase." : "Novi Website podaci nijesu potvrđeni."}</p>
           {websiteResult.warnings.length > 0 && <p>{websiteResult.warnings.map(w => reasonLabels[w]).join(" · ")}</p>}
+          {websiteResult.requests.filter(r => r.request === "current" || r.reason || (r.httpStatus !== null && r.httpStatus >= 400)).map(r => <p key={r.request}>
+            Vercel: {websiteRequestLabels[r.request]}{websiteRequestDimensions[r.request] ? ` · by=${websiteRequestDimensions[r.request]}` : ""} · HTTP {r.httpStatus ?? "—"}{r.range ? ` · ${r.range.start} — ${r.range.end} UTC` : ""}
+          </p>)}
+          {websiteResult.requests.some(r => r.httpStatus === 400) && <p>Vercel je odbio parametre označenog zahtjeva (HTTP 400). To samo po sebi ne potvrđuje da metrika nije podržana.</p>}
         </div>}
       </>}</Source>)}
       <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} /></div>)}</div></section>
