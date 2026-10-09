@@ -3,12 +3,17 @@ import { validDay } from "./period";
 
 export const instagramRequests = ["pages", "page_link", "permissions", "account_type", "followers", "insights", "media", "media_insights"] as const;
 export const instagramMetrics = ["views", "total_interactions", "reach", "profile_links_taps", "follows_and_unfollows"] as const;
-export const instagramHints = ["token", "permission", "professional_account", "account", "fields", "metric", "metric_type", "period", "breakdown", "date_range", "account_threshold", "api_version", "rate_limit"] as const;
+export const instagramHints = ["token", "permission", "professional_account", "account", "fields", "metric", "metric_type", "period", "breakdown", "date_range", "account_threshold", "api_version", "rate_limit", "instagram_basic", "instagram_manage_insights", "pages_show_list", "pages_read_engagement", "business_management", "ads_read", "ads_management"] as const;
 export const instagramAccountTypes = ["BUSINESS", "MEDIA_CREATOR", "CREATOR", "PERSONAL"] as const;
 export const instagramAccessStates = ["verified", "denied", "partially_verified", "unverified"] as const;
 export const instagramPermissionStates = ["granted", "declined", "expired", "not_returned", "unverified"] as const;
+export const instagramPermissionNames = ["instagram_basic", "instagram_manage_insights", "pages_show_list", "pages_read_engagement", "business_management", "ads_read", "ads_management"] as const;
+export const instagramPageTasks = ["ANALYZE", "ADVERTISE", "MESSAGING", "MODERATE", "CREATE_CONTENT", "MANAGE", "MANAGE_LEADS", "PROFILE_PLUS_ANALYZE", "PROFILE_PLUS_FULL_CONTROL"] as const;
+export const instagramLookupStates = ["not_checked", "success", "empty", "failed"] as const;
+export type InstagramPermissionStatus = typeof instagramPermissionStates[number];
 export type InstagramRequestResult = {
   request: typeof instagramRequests[number]; metric: typeof instagramMetrics[number] | null;
+  credential: "user" | "page";
   metricType: "total_value" | "time_series" | null; period: "day" | null; range: Range | null;
   httpStatus: number | null; reason: Reason | null; code: number | null; subcode: number | null;
   errorType: "OAuthException" | "GraphMethodException" | "IGApiException" | "InstagramApiException" | "Exception" | null;
@@ -16,8 +21,14 @@ export type InstagramRequestResult = {
 };
 export type InstagramDiagnostic = {
   tokenPresent: boolean; pageDiscovered: boolean; pageId: string | null;
-  pageLinkStatus: "not_checked" | "missing" | "linked";
+  pageTokenObtained: boolean; pageTasks: typeof instagramPageTasks[number][] | null;
+  userTokenLookup: typeof instagramLookupStates[number]; pageTokenLookup: typeof instagramLookupStates[number];
+  userTokenAccountId: string | null; pageTokenAccountId: string | null;
+  selectedCredential: "user" | "page" | null;
+  permissions: Record<typeof instagramPermissionNames[number], InstagramPermissionStatus>;
+  pageLinkStatus: "not_checked" | "not_exposed" | "linked";
   accountDiscovered: boolean; accountId: string | null; differsFromOldLoginId: boolean | null;
+  username: string | null;
   expectedAccountMatches: boolean | null;
   accountIdSource: "instagram_business_account" | null; accountType: typeof instagramAccountTypes[number] | null;
   insightsPermission: typeof instagramPermissionStates[number]; basicPermission: typeof instagramPermissionStates[number];
@@ -42,19 +53,28 @@ export function instagramTestResult(value: unknown, httpStatus: number): Instagr
     tokenPresent: d.tokenPresent === true, accountDiscovered: d.accountDiscovered === true,
     pageDiscovered: d.pageDiscovered === true,
     pageId: d.pageDiscovered === true && typeof d.pageId === "string" && /^\d{1,32}$/.test(d.pageId) ? d.pageId : null,
-    pageLinkStatus: d.pageLinkStatus === "linked" || d.pageLinkStatus === "missing" ? d.pageLinkStatus : "not_checked",
+    pageTokenObtained: d.pageTokenObtained === true,
+    pageTasks: Array.isArray(d.pageTasks) ? instagramPageTasks.filter(t => (d.pageTasks as unknown[]).includes(t)) : null,
+    userTokenLookup: instagramLookupStates.find(s => s === d.userTokenLookup) ?? "not_checked",
+    pageTokenLookup: instagramLookupStates.find(s => s === d.pageTokenLookup) ?? "not_checked",
+    userTokenAccountId: typeof d.userTokenAccountId === "string" && /^\d{1,32}$/.test(d.userTokenAccountId) ? d.userTokenAccountId : null,
+    pageTokenAccountId: typeof d.pageTokenAccountId === "string" && /^\d{1,32}$/.test(d.pageTokenAccountId) ? d.pageTokenAccountId : null,
+    selectedCredential: d.selectedCredential === "user" || d.selectedCredential === "page" ? d.selectedCredential : null,
+    permissions: Object.fromEntries(instagramPermissionNames.map(p => [p, instagramPermissionStates.find(s => s === record(d.permissions)[p]) ?? "unverified"])) as InstagramDiagnostic["permissions"],
+    pageLinkStatus: d.pageLinkStatus === "linked" || d.pageLinkStatus === "not_exposed" ? d.pageLinkStatus : "not_checked",
     differsFromOldLoginId: typeof d.differsFromOldLoginId === "boolean" ? d.differsFromOldLoginId : null,
     expectedAccountMatches: typeof d.expectedAccountMatches === "boolean" ? d.expectedAccountMatches : null,
     accountId: d.accountDiscovered === true && typeof d.accountId === "string" && /^\d{1,32}$/.test(d.accountId) ? d.accountId : null,
     accountIdSource: d.accountIdSource === "instagram_business_account" ? d.accountIdSource : null,
     accountType: instagramAccountTypes.find(t => t === d.accountType) ?? null,
+    username: typeof d.username === "string" && /^[a-zA-Z0-9._]{1,30}$/.test(d.username) ? d.username : null,
     insightsPermission: instagramPermissionStates.find(t => t === d.insightsPermission) ?? "unverified",
     basicPermission: instagramPermissionStates.find(t => t === d.basicPermission) ?? "unverified",
     insightsAccess: instagramAccessStates.find(s => s === d.insightsAccess) ?? "unverified",
     requests: Array.isArray(d.requests) ? d.requests.slice(0, 160).flatMap(v => {
       const r = record(v), request = instagramRequests.find(n => n === r.request);
       if (!request) return [];
-      return [{ request, metric: instagramMetrics.find(m => m === r.metric) ?? null, metricType: r.metricType === "total_value" || r.metricType === "time_series" ? r.metricType : null, period: r.period === "day" ? "day" : null, range: rangeOf(r.range), httpStatus: typeof r.httpStatus === "number" && Number.isInteger(r.httpStatus) && r.httpStatus >= 100 && r.httpStatus <= 599 ? r.httpStatus : null, reason: reasonNames.find(s => s === r.reason) ?? null, code: numericCode(r.code), subcode: numericCode(r.subcode), errorType: (["OAuthException", "GraphMethodException", "IGApiException", "InstagramApiException", "Exception"] as const).find(t => t === r.errorType) ?? null, hints: instagramHints.filter(h => Array.isArray(r.hints) && r.hints.includes(h)) }];
+      return [{ request, credential: r.credential === "page" ? "page" : "user", metric: instagramMetrics.find(m => m === r.metric) ?? null, metricType: r.metricType === "total_value" || r.metricType === "time_series" ? r.metricType : null, period: r.period === "day" ? "day" : null, range: rangeOf(r.range), httpStatus: typeof r.httpStatus === "number" && Number.isInteger(r.httpStatus) && r.httpStatus >= 100 && r.httpStatus <= 599 ? r.httpStatus : null, reason: reasonNames.find(s => s === r.reason) ?? null, code: numericCode(r.code), subcode: numericCode(r.subcode), errorType: (["OAuthException", "GraphMethodException", "IGApiException", "InstagramApiException", "Exception"] as const).find(t => t === r.errorType) ?? null, hints: instagramHints.filter(h => Array.isArray(r.hints) && r.hints.includes(h)) }];
     }) : [],
   };
   const report = Array.isArray(dashboard.reports) ? record(dashboard.reports.find(r => record(r).provider === "instagram")) : {};

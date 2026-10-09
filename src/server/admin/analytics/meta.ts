@@ -43,9 +43,9 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
   const report = blank("instagram", period, now, "UTC", instagramConfigured());
   if (diagnostic) diagnostic.tokenPresent = instagramConfigured();
   if (!instagramConfigured()) return report;
-  const token = process.env.INSTAGRAM_ACCESS_TOKEN!;
-  const query = (path: string, params: Record<string, string>) => instagramGraph(token, path, params, signal, diagnostic);
-  const id = await discoverInstagramFacebook(token, FACEBOOK_PAGE_ID, signal, diagnostic);
+  const original = process.env.INSTAGRAM_ACCESS_TOKEN!;
+  const { id, token, credential, redactions } = await discoverInstagramFacebook(original, FACEBOOK_PAGE_ID, signal, diagnostic);
+  const query = (path: string, params: Record<string, string>) => instagramGraph(token, path, params, signal, diagnostic, credential);
   const failedOptional = (error: unknown) => { report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response"); };
   try { const counts = await query(id, { fields: "followers_count" }); report.current.followers = number(counts.followers_count); } catch (error) { failedOptional(error); }
   async function metricTotal(range: Range, metric: string, additive: boolean) {
@@ -100,7 +100,7 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
       if (typeof item.id !== "string" || !/^\d+$/.test(item.id)) continue;
       const row = await optional(report, () => query(`${item.id}/insights`, { metric: "views" }));
       const value = number(row?.values?.[0]?.value) ?? number(row?.total_value?.value);
-      if (value !== null) report.topContent.push({ label: safeText(item.caption, [token]) || "Instagram objava", url: safeUrl(item.permalink, "instagram"), value, basis: "lifetime" });
+      if (value !== null) report.topContent.push({ label: safeText(item.caption, redactions) || "Instagram objava", url: safeText(item.permalink, redactions) === item.permalink ? safeUrl(item.permalink, "instagram") : null, value, basis: "lifetime" });
     }
   } catch (error) { failedOptional(error); }
   report.topContent.sort((a, b) => b.value - a.value);
