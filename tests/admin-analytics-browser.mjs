@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false,facebookFixture=false,facebookDenied=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -36,6 +36,23 @@ const origin='http://localhost:3213';
     }
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
+    if(facebookFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
+      const u=new URL(address),auth=new Headers(init.headers).get('Authorization');providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com');assert.ok(!u.searchParams.has('access_token'));
+      const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+      if(u.pathname.includes('/me/') || u.searchParams.get('fields')==='id,access_token') assert.equal(auth,'Bearer local-facebook-browser-fixture');
+      else assert.equal(auth,'Bearer local-facebook-page-browser-fixture','Unselected provider invoked during Facebook-only sync');
+      if(u.searchParams.get('fields')==='id,access_token') return json({id:'578640758657974',access_token:'local-facebook-page-browser-fixture'});
+      if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'read_insights',status:'granted'},{permission:'pages_read_engagement',status:'granted'},{permission:'pages_show_list',status:'granted'}]});
+      if(u.pathname.endsWith('/me/accounts')) return json({data:[{id:'578640758657974',tasks:['ANALYZE','MANAGE']}]});
+      if(u.searchParams.get('fields')==='followers_count') return json({followers_count:23});
+      if(u.pathname.endsWith('/published_posts')) return json({data:[]});
+      assert.ok(u.pathname.endsWith('/578640758657974/insights'));assert.equal(u.searchParams.get('period'),'day');
+      if(facebookDenied) return json({error:{code:200,error_subcode:33,type:'OAuthException',message:'Requires read_insights permission. local-facebook-page-browser-fixture raw-private-facebook-response',fbtrace_id:'private-facebook-trace-fixture'}},403);
+      // Local official-shaped daily aggregates only; no live provider calls/data.
+      const start=Number(u.searchParams.get('since'))*1000,end=Number(u.searchParams.get('until'))*1000,values=[];
+      for(let day=start;day<end;day+=86400000) values.push({end_time:new Date(day+86400000).toISOString(),value:0});
+      return json({data:[{name:u.searchParams.get('metric'),values}]});
+    }
     if(instagramFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
       const u=new URL(address);providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com','Unselected provider called during Instagram-only sync');
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
@@ -93,7 +110,7 @@ const origin='http://localhost:3213';
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics page overflow '+width);
-    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website']) {
+    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website','Test Instagram','Test Facebook']) {
       const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44 && box.width>=44,name+' touch target '+width);
     }
     assert.equal(await page.locator('svg[role="img"]').count(),4);
@@ -199,18 +216,31 @@ const origin='http://localhost:3213';
   assert.equal((await instagramPost).postDataJSON().provider,'instagram');assert.equal(await page.getByRole('button',{name:'Testiram Instagram…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
   const igBody=await (await instagramResponse).json();assert.equal(igBody.websiteRequests,undefined);assert.equal(igBody.instagramDiagnostic.tokenPresent,true);assert.equal(igBody.instagramDiagnostic.accountId,'1001');assert.equal(igBody.instagramDiagnostic.pageDiscovered,true);assert.equal(igBody.instagramDiagnostic.pageTokenObtained,true);assert.equal(igBody.instagramDiagnostic.userTokenLookup,'empty');assert.equal(igBody.instagramDiagnostic.pageTokenLookup,'success');assert.equal(igBody.instagramDiagnostic.username,'medresacg');assert.equal(igBody.instagramDiagnostic.selectedCredential,'page');assert.equal(igBody.instagramDiagnostic.insightsPermission,'granted');assert.equal(igBody.instagramDiagnostic.differsFromOldLoginId,true);assert.equal(igBody.instagramDiagnostic.insightsAccess,'verified');
   const igResult=page.getByRole('status',{name:'Rezultat Instagram testa',exact:true});await igResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.match(await igResult.innerText(),/Token na serveru: da · račun otkriven: da/);assert.match(await igResult.innerText(),/tip: BUSINESS/);assert.match(await igResult.innerText(),/User token lookup: empty/);assert.match(await igResult.innerText(),/Page token lookup: success/);assert.match(await igResult.innerText(),/Page token dobijen: da/);assert.match(await igResult.innerText(),/graph\.facebook\.com\/v26\.0/);assert.match(await igResult.innerText(),/Potvrđen stvarnim Insights odgovorom/);assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.facebook.com'));
+  assert.match(await igResult.innerText(),/CONNECTED · VERIFIED/);for(const text of ['User token lookup','Page token lookup','Graph host','Page token dobijen','instagram_manage_insights:']) assert.ok(!(await igResult.innerText()).includes(text),'Temporary Instagram dump remains in normal UI');assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.facebook.com'));
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   await page.reload();assert.equal((await (await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='instagram').current.followers,17);assert.equal(await nonInstagram(),locked);
   await releaseCooldown(db);instagramDenied=true;
   const igDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();const deniedInstagram=await (await igDeniedResponse).json();
-  assert.equal(deniedInstagram.instagramDiagnostic.insightsAccess,'denied');await igResult.getByText('Insights pristup: Odbijen od Meta API-ja.',{exact:true}).waitFor();assert.match(await igResult.innerText(),/Meta kod: 100 · podkod: 33/);assert.equal(await nonInstagram(),locked);
+  assert.equal(deniedInstagram.instagramDiagnostic.insightsAccess,'denied');await igResult.getByText('Pristup analitici nije odobren',{exact:true}).waitFor();await igResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await igResult.innerText(),/Meta kod 100 · podkod 33/);assert.equal(await nonInstagram(),locked);
   for(const marker of ['local-instagram-browser-fixture','local-instagram-page-browser-fixture','raw-private-instagram-response','private-instagram-trace-fixture']) assert.ok(!JSON.stringify(deniedInstagram).includes(marker)&&!(await page.content()).includes(marker));
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  await releaseCooldown(db);facebookFixture=true;process.env.FACEBOOK_PAGE_ACCESS_TOKEN='local-facebook-browser-fixture';providerCalls.length=0;
+  const nonFacebook=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'facebook' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'facebook' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'facebook' order by provider,day")).rows}),protectedBefore=await nonFacebook();
+  const fbPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),fbResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+  await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();assert.equal((await fbPost).postDataJSON().provider,'facebook');assert.equal(await page.getByRole('button',{name:'Testiram Facebook…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
+  const fbBody=await(await fbResponse).json();assert.equal(fbBody.instagramDiagnostic,undefined);assert.equal(fbBody.websiteRequests,undefined);assert.equal(fbBody.facebookDiagnostic.tokenPresent,true);assert.equal(fbBody.facebookDiagnostic.pageId,'578640758657974');assert.equal(fbBody.facebookDiagnostic.permissions.read_insights,'granted');assert.equal(fbBody.facebookDiagnostic.insightsAccess,'verified');
+  const fbResult=page.getByRole('status',{name:'Rezultat Facebook testa',exact:true});await fbResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await fbResult.innerText(),/CONNECTED · VERIFIED/);assert.match(await fbResult.innerText(),/Token na serveru: YES/);assert.match(await fbResult.innerText(),/Medresa Page potvrđena: YES/);assert.match(await fbResult.innerText(),/ANALYZE/);assert.equal(await nonFacebook(),protectedBefore);
+  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  await page.reload();assert.equal((await(await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='facebook').current.followers,23);assert.equal(await nonFacebook(),protectedBefore);
+  await releaseCooldown(db);facebookDenied=true;const fbDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();const fbDenied=await(await fbDeniedResponse).json();assert.equal(fbDenied.facebookDiagnostic.insightsAccess,'denied');await fbResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await fbResult.innerText(),/Meta kod 200 · podkod 33/);assert.equal(await nonFacebook(),protectedBefore);
+  const savedFacebook=(await db.query("select report from medresa_analytics_reports where provider='facebook' and start_date=$1 and end_date=$2",[fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.start,fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.end])).rows[0].report;assert.equal(savedFacebook.current.followers,23);
+  for(const marker of ['local-facebook-browser-fixture','local-facebook-page-browser-fixture','raw-private-facebook-response','private-facebook-trace-fixture']) assert.ok(!JSON.stringify(fbDenied).includes(marker)&&!(await page.content()).includes(marker));
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
   assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Test Facebook',exact:true}).isDisabled(),true);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
   const html=await page.content();
   for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN]) assert.ok(!html.includes(secret));
@@ -218,8 +248,8 @@ const origin='http://localhost:3213';
   for(const script of scripts) {
     const code=await (await context.request.get(script)).text();
     // The public Graph hostname is deliberately displayed; helpers, headers and both tokens stay server-only.
-    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync','discoverInstagramFacebook','Authorization',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN,'local-instagram-page-browser-fixture']) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
+    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync','discoverInstagramFacebook','Authorization',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN,'local-instagram-page-browser-fixture','local-facebook-browser-fixture','local-facebook-page-browser-fixture','facebookGraph']) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
   }
-  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; optional Website-only sync invokes only Vercel despite configured other providers; scoped idempotency; unchanged other provider records; PostgreSQL persistence and Website dashboard after reload; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; 44px actions; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
+  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; isolated Website, Instagram and Facebook test actions; concise Instagram status and optional sanitized failures; scoped idempotency; unchanged unselected provider records; PostgreSQL persistence and dashboard after reload; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; all test actions >=44px; 360/390/412/430px populated and unavailable states without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
   await browser.close();await db.close();server.close();await app.close();process.exit(0);
 })().catch(e=>{console.error((e.stack||e.message).split('Call log:')[0]);process.exit(1);});

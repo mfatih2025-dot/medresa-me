@@ -1,17 +1,14 @@
 import { dayAt, days, shiftDay, startInstant } from "@/admin/analytics/period";
 import type { Daily, Metric, Metrics, Period, ProviderReport, Range } from "@/admin/analytics/model";
-import { blank, number, providerJson, ProviderFailure, safeText, safeUrl, success } from "./common";
+import { blank, number, ProviderFailure, safeText, safeUrl, success } from "./common";
 import { discoverInstagramFacebook, instagramGraph } from "./instagramDiagnostic";
 import type { InstagramDiagnostic } from "@/admin/analytics/instagramTest";
+import type { FacebookDiagnostic } from "@/admin/analytics/facebookTest";
+import { facebookAccessDiagnostic, facebookGraph } from "./facebookDiagnostic";
 // Existing feed credentials and official account: no second login or token store.
 const FACEBOOK_PAGE_ID = "578640758657974";
 export const instagramConfigured = () => !!process.env.INSTAGRAM_ACCESS_TOKEN?.trim();
 export const facebookConfigured = () => !!process.env.FACEBOOK_PAGE_ACCESS_TOKEN?.trim();
-function graph(host: "instagram" | "facebook", token: string, path: string, params: Record<string, string>, signal: AbortSignal) {
-  const url = new URL(`https://graph.${host}.com/v26.0/${path}`);
-  url.search = new URLSearchParams(params).toString();
-  return providerJson(url, { headers: { Authorization: `Bearer ${token}` } }, signal);
-}
 type Insight = { name?: string; values?: { value?: unknown; end_time?: string }[]; total_value?: { value?: unknown; breakdowns?: { results?: { dimension_values?: string[]; value?: unknown }[] }[] } };
 function insight(body: Record<string, unknown>): Insight | null { return Array.isArray(body.data) && body.data[0] && typeof body.data[0] === "object" ? body.data[0] : null; }
 async function optional(report: ProviderReport, fn: () => Promise<Record<string, unknown>>): Promise<Insight | null> {
@@ -107,20 +104,23 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
   if (report.state === "permission_required") report.requiredPermissions = ["instagram_manage_insights"];
   return finish(report, now);
 }
-export async function facebook(period: Period, now: Date, signal: AbortSignal) {
+export async function facebook(period: Period, now: Date, signal: AbortSignal, diagnostic?: FacebookDiagnostic) {
   const report = blank("facebook", period, now, "America/Los_Angeles", facebookConfigured());
+  if (diagnostic) diagnostic.tokenPresent = facebookConfigured();
   if (!facebookConfigured()) return report;
   const original = process.env.FACEBOOK_PAGE_ACCESS_TOKEN!;
-  const page = await graph("facebook", original, FACEBOOK_PAGE_ID, { fields: "id,access_token" }, signal);
+  const page = await facebookGraph(original, FACEBOOK_PAGE_ID, { fields: "id,access_token" }, signal, diagnostic);
   if (page.id !== FACEBOOK_PAGE_ID) throw new ProviderFailure("error", "project_mismatch");
   const token = typeof page.access_token === "string" ? page.access_token : original;
-  try { const count = await graph("facebook", token, FACEBOOK_PAGE_ID, { fields: "followers_count" }, signal); report.current.followers = number(count.followers_count); } catch { report.warnings.push("unsupported_metric"); }
+  if (diagnostic) { diagnostic.pageDiscovered = true; diagnostic.pageId = FACEBOOK_PAGE_ID; diagnostic.derivedPageTokenObtained = typeof page.access_token === "string"; await facebookAccessDiagnostic(original, FACEBOOK_PAGE_ID, signal, diagnostic); }
+  const query = (path: string, params: Record<string, string>) => facebookGraph(token, path, params, signal, diagnostic);
+  try { const count = await query(FACEBOOK_PAGE_ID, { fields: "followers_count" }); report.current.followers = number(count.followers_count); } catch (error) { report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response"); }
   const daily = new Map<string, Daily>(); const gains = new Map<string, number>(); const losses = new Map<string, number>();
   const window = { start: report.previousRange.start, end: report.todayDate };
   const candidates: [Metric | "gains" | "losses", string][] = [["views", "page_media_view"], ["interactions", "page_post_engagements"], ["reach", "page_total_media_view_unique"], ["gains", "page_daily_follows"], ["losses", "page_daily_unfollows"]];
   for (const [key, name] of candidates) {
     for (const slice of chunks(window)) {
-      const row = await optional(report, () => graph("facebook", token, `${FACEBOOK_PAGE_ID}/insights`, { metric: name, period: "day", ...rangeParams(slice, report.timezone) }, signal));
+      const row = await optional(report, () => query(`${FACEBOOK_PAGE_ID}/insights`, { metric: name, period: "day", ...rangeParams(slice, report.timezone) }));
       if (!row) break; // Deprecated/unauthorized metrics do not poison other metrics.
       for (const v of row.values ?? []) if (v.end_time && Number.isFinite(Date.parse(v.end_time))) {
         const date = dayAt(new Date(Date.parse(v.end_time) - 1), report.timezone), value = number(v.value);
@@ -139,15 +139,15 @@ export async function facebook(period: Period, now: Date, signal: AbortSignal) {
   for (const key of ["views", "interactions", "followerChange"] as const) { report.totals[key] = sum(report.range, key); report.previousTotals[key] = sum(report.previousRange, key); }
   report.today = daily.get(report.todayDate) ?? null; report.yesterday = daily.get(shiftDay(report.todayDate, -1)) ?? null;
   try {
-    const posts = await graph("facebook", token, `${FACEBOOK_PAGE_ID}/published_posts`, { fields: "id,message,created_time,permalink_url", limit: "20" }, signal);
+    const posts = await query(`${FACEBOOK_PAGE_ID}/published_posts`, { fields: "id,message,created_time,permalink_url", limit: "20" });
     const list = Array.isArray(posts.data) ? posts.data as Record<string, unknown>[] : [];
     for (const p of list.filter(x => typeof x.created_time === "string" && dayAt(new Date(x.created_time), report.timezone) >= report.range.start && dayAt(new Date(x.created_time), report.timezone) <= report.range.end).slice(0, 5)) {
       if (typeof p.id !== "string" || !/^\d+_\d+$/.test(p.id)) continue;
-      const row = await optional(report, () => graph("facebook", token, `${p.id}/insights`, { metric: "post_media_view" }, signal));
+      const row = await optional(report, () => query(`${p.id}/insights`, { metric: "post_media_view" }));
       const value = number(row?.values?.[0]?.value);
-      if (value !== null) report.topContent.push({ label: safeText(p.message, [original, token]) || "Facebook objava", value, url: safeUrl(p.permalink_url, "facebook"), basis: "lifetime" });
+      if (value !== null) report.topContent.push({ label: safeText(p.message, [original, token]) || "Facebook objava", value, url: safeText(p.permalink_url, [original, token]) === p.permalink_url ? safeUrl(p.permalink_url, "facebook") : null, basis: "lifetime" });
     }
-  } catch { report.warnings.push("unsupported_metric"); }
+  } catch (error) { report.warnings.push(error instanceof ProviderFailure ? error.reason : "invalid_response"); }
   report.topContent.sort((a, b) => b.value - a.value);
   if (report.state === "permission_required") report.requiredPermissions = ["read_insights", "pages_read_engagement"];
   return finish(report, now);

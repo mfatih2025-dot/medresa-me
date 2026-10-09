@@ -1,6 +1,8 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, scryptSync } from 'node:crypto';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { moduleLoader } from '../scripts/lib/load-typescript.mjs';
 import { database, load, now, reports, begin, finish, releaseCooldown, fixtureEnvironment, restFixture } from './fixtures/analytics.mjs';
 const initialEnv = { ...process.env }, initialFetch = globalThis.fetch;
@@ -435,6 +437,89 @@ test('Instagram-only sync stores measured analytics but never its diagnostic and
     const count=calls.length;await service.synchronize('30',id,'instagram');assert.equal(calls.length,count);
     assert.equal((await service.dashboard('30')).reports.find(r=>r.provider==='instagram').current.followers,12);assert.equal(await other(),before);
   }finally{await db.close();}
+});
+test('Facebook verification reuses its own token, validates Medresa Page, records actual Insights and sanitized permission/task evidence', async () => {
+  credentials();process.env.FACEBOOK_PAGE_ACCESS_TOKEN='private-facebook-test-user-fixture';
+  const {newFacebookDiagnostic}=load('src/server/admin/analytics/facebookDiagnostic'),d=newFacebookDiagnostic(),calls=[];
+  globalThis.fetch=async(input,init)=>{
+    const u=new URL(input),auth=new Headers(init.headers).get('Authorization');calls.push(u);assert.equal(u.hostname,'graph.facebook.com');assert.ok(!u.searchParams.has('access_token'));
+    if(u.searchParams.get('fields')==='id,access_token') {assert.equal(auth,'Bearer private-facebook-test-user-fixture');return json({id:'578640758657974',access_token:'private-facebook-test-page-fixture'});}
+    if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'read_insights',status:'granted'},{permission:'pages_read_engagement',status:'granted'},{permission:'private-scope-fixture',status:'granted'}]});
+    if(u.pathname.endsWith('/me/accounts')) {assert.equal(auth,'Bearer private-facebook-test-user-fixture');return json({data:[{id:'578640758657974',tasks:['ANALYZE','MANAGE','private-task-fixture']}]});}
+    assert.equal(auth,'Bearer private-facebook-test-page-fixture');
+    if(u.searchParams.get('fields')==='followers_count') return json({followers_count:20});
+    if(u.pathname.endsWith('/published_posts')) return json({data:[]});
+    const metric=u.searchParams.get('metric');assert.equal(u.searchParams.get('period'),'day');
+    if(metric==='page_total_media_view_unique') return json({error:{code:100,error_subcode:33,type:'OAuthException',message:'Unsupported metric page_total_media_view_unique. private-facebook-test-page-fixture',fbtrace_id:'private-facebook-trace-fixture'}},400);
+    const start=Number(u.searchParams.get('since'))*1000,end=Number(u.searchParams.get('until'))*1000,values=[];
+    for(let day=start;day<end;day+=86400000) values.push({end_time:new Date(day+86400000).toISOString(),value:metric==='page_daily_follows'?2:metric==='page_daily_unfollows'?1:0});
+    return json({data:[{name:metric,values}]});
+  };
+  const r=await collectProvider('facebook','7',now,new AbortController().signal,undefined,undefined,d);
+  assert.equal(d.tokenPresent,true);assert.equal(d.pageDiscovered,true);assert.equal(d.pageId,'578640758657974');assert.equal(d.derivedPageTokenObtained,true);assert.deepEqual(d.pageTasks,['ANALYZE','MANAGE']);assert.equal(d.permissions.read_insights,'granted');assert.equal(d.permissions.pages_show_list,'not_returned');assert.equal(d.insightsAccess,'verified');assert.equal(r.state,'connected');assert.equal(r.current.followers,20);assert.equal(r.totals.views,0);assert.equal(r.totals.interactions,0);assert.equal(r.totals.followerChange,7);assert.equal(r.totals.reach,undefined,'Unique daily reach must not be summed');
+  const rejected=d.requests.find(r=>r.metric==='page_total_media_view_unique');assert.equal(rejected.httpStatus,400);assert.equal(rejected.code,100);assert.equal(rejected.reason,'unsupported_metric');
+  for(const secret of ['private-facebook-test-user-fixture','private-facebook-test-page-fixture','private-scope-fixture','private-task-fixture','private-facebook-trace-fixture']) assert.ok(!JSON.stringify([r,d]).includes(secret));
+  const extras=calls.filter(u=>u.pathname.includes('/me/')).length;await collectProvider('facebook','7',now,new AbortController().signal);assert.equal(calls.filter(u=>u.pathname.includes('/me/')).length,extras,'Introspection is test-only');
+  delete process.env.FACEBOOK_PAGE_ACCESS_TOKEN;const missing=newFacebookDiagnostic(),before=calls.length;assert.equal((await collectProvider('facebook','7',now,new AbortController().signal,undefined,undefined,missing)).state,'not_configured');assert.equal(missing.tokenPresent,false);assert.equal(calls.length,before);
+});
+test('Facebook Page-token introspection may be unavailable; real Insights denial and request errors stay distinct and safe', async () => {
+  credentials();process.env.FACEBOOK_PAGE_ACCESS_TOKEN='private-facebook-error-fixture';
+  const {newFacebookDiagnostic}=load('src/server/admin/analytics/facebookDiagnostic');
+  for(const mode of ['success','denied','invalid']) {
+    const d=newFacebookDiagnostic();globalThis.fetch=async(input)=>{
+      const u=new URL(input);
+      if(u.searchParams.get('fields')==='id,access_token') return json({id:'578640758657974'});
+      if(u.pathname.includes('/me/')) return json({error:{code:100,type:'GraphMethodException',message:'Unsupported field on Page token. private-facebook-error-fixture'}},400);
+      if(u.searchParams.get('fields')==='followers_count') return json({followers_count:5});
+      if(u.pathname.endsWith('/published_posts')) return json({data:[]});
+      if(mode==='denied') return json({error:{code:200,error_subcode:33,type:'OAuthException',message:'Requires read_insights permission private-facebook-error-fixture',fbtrace_id:'private-facebook-response-fixture'}},403);
+      if(mode==='invalid') return json({error:{code:100,type:'OAuthException',message:'Invalid period parameter private-facebook-error-fixture'}},400);
+      return json({data:[]});
+    };
+    const r=await collectProvider('facebook','7',now,new AbortController().signal,undefined,undefined,d);
+    assert.equal(d.pageTasks,null);assert.equal(d.permissions.read_insights,'unverified');assert.equal(d.derivedPageTokenObtained,false);assert.equal(d.insightsAccess,mode==='success'?'verified':mode==='denied'?'denied':'unverified');assert.equal(r.totals.views,null);
+    if(mode==='denied'){assert.equal(r.state,'permission_required');const failed=d.requests.find(r=>r.request==='insights');assert.equal(failed.httpStatus,403);assert.equal(failed.code,200);assert.equal(failed.subcode,33);assert.ok(failed.hints.includes('read_insights'));}
+    else {assert.equal(r.state,'connected');if(mode==='invalid') assert.ok(r.warnings.includes('invalid_response')&&!r.warnings.includes('unsupported_metric'));}
+    assert.ok(!JSON.stringify([r,d]).includes('private-facebook-error-fixture'));
+  }
+  const wrong=newFacebookDiagnostic();let requests=0;globalThis.fetch=async()=>{requests++;return json({id:'9999',access_token:'private-other-page-fixture'});};
+  const r=await collectProvider('facebook','7',now,new AbortController().signal,undefined,undefined,wrong);assert.equal(r.reason,'project_mismatch');assert.equal(requests,1);assert.equal(wrong.pageDiscovered,false);assert.equal(wrong.pageId,null);assert.ok(!JSON.stringify([r,wrong]).includes('private-other-page-fixture'));
+});
+test('Facebook-only sync persists aggregates, preserves failed history and never invokes or changes verified providers', async () => {
+  credentials();Object.assign(process.env,{FACEBOOK_PAGE_ACCESS_TOKEN:'private-facebook-scope-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-scope-fixture',VERCEL_ANALYTICS_TOKEN:'unused-website-scope-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-youtube-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'unused-youtube-fixture'});
+  const {facebookTestResult}=load('src/admin/analytics/facebookTest'),db=await database();try {
+    const seed=randomUUID();await begin(db,seed,'30');await finish(db,seed,reports('30'));await releaseCooldown(db);const adapter=restFixture(db);let denied=false,pageDenied=false;
+    const protectedData=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'facebook' order by provider")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'facebook' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'facebook' order by provider,day")).rows}),before=await protectedData();
+    globalThis.fetch=async(input,init)=>{
+      const u=new URL(input);if(u.hostname.endsWith('.supabase.co')) return adapter(input,init);assert.equal(u.hostname,'graph.facebook.com');assert.equal(new Headers(init.headers).get('Authorization'),'Bearer private-facebook-scope-fixture');
+      if(u.searchParams.get('fields')==='id,access_token') return pageDenied?json({error:{code:200,type:'OAuthException'}},403):json({id:'578640758657974'});
+      if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'read_insights',status:'granted'}]});
+      if(u.pathname.endsWith('/me/accounts')) return json({data:[{id:'578640758657974',tasks:['ANALYZE']}]});
+      if(u.searchParams.get('fields')==='followers_count') return json({followers_count:12});
+      if(u.pathname.endsWith('/published_posts')) return json({data:[]});
+      return denied?json({error:{code:200,type:'OAuthException',message:'read_insights required private-facebook-scope-fixture'}},403):json({data:[]});
+    };
+    const service=load('src/server/admin/analytics/service'),id=randomUUID(),result=await service.synchronize('30',id,'facebook');
+    assert.equal(result.websiteRequests,undefined);assert.equal(result.instagramDiagnostic,undefined);assert.equal(result.facebookDiagnostic.insightsAccess,'verified');assert.equal(result.facebookDiagnostic.pageId,'578640758657974');assert.equal(facebookTestResult(result,200).stored,true);assert.equal(await protectedData(),before);
+    const range=result.dashboard.reports.find(r=>r.provider==='facebook').range;
+    const stored=async()=>(await db.query("select report from medresa_analytics_reports where provider='facebook' and start_date=$1 and end_date=$2",[range.start,range.end])).rows[0].report;
+    const saved=await stored();assert.equal(saved.current.followers,12);assert.ok(!JSON.stringify(saved).includes('facebookDiagnostic'));assert.ok(!JSON.stringify(result).includes('private-facebook-scope-fixture'));
+    assert.equal((await service.dashboard('30')).reports.find(r=>r.provider==='facebook').current.followers,12);
+    await releaseCooldown(db);denied=true;const partial=await service.synchronize('30',randomUUID(),'facebook');assert.equal(facebookTestResult(partial,200).stored,false);assert.equal(partial.facebookDiagnostic.insightsAccess,'denied');
+    const retained=await stored();for(const key of ['totals','previousTotals','current','daily']) assert.deepEqual(retained[key],saved[key]);assert.equal(await protectedData(),before);
+    await releaseCooldown(db);pageDenied=true;const failed=await service.synchronize('30',randomUUID(),'facebook');assert.equal(facebookTestResult(failed,200).stored,false);assert.deepEqual(await stored(),retained);assert.equal(await protectedData(),before);
+  }finally{await db.close();}
+});
+test('Facebook UI projection rejects secrets/raw metadata and Instagram status no longer displays its diagnostic dump', () => {
+  const {facebookTestResult}=load('src/admin/analytics/facebookTest'),secret='private-facebook-ui-fixture',id=randomUUID(),fb=reports()[2];
+  const body={acquired:true,runId:id,facebookDiagnostic:{tokenPresent:true,pageDiscovered:true,pageId:'578640758657974',derivedPageTokenObtained:true,permissions:{read_insights:'granted',pages_read_engagement:secret},pageTasks:['ANALYZE',secret],insightsAccess:'verified',access_token:secret,requests:[{request:'insights',metric:'page_media_view',httpStatus:200,code:200,subcode:33,errorType:'OAuthException',hints:['read_insights',secret],message:secret,headers:secret}]},dashboard:{storage:'ready',reports:[fb],history:[{id,outcome:'success'}]}};
+  const parsed=facebookTestResult(body,200);assert.equal(parsed.stored,true);assert.equal(parsed.diagnostic.tokenPresent,true);assert.deepEqual(parsed.diagnostic.pageTasks,['ANALYZE']);assert.equal(parsed.diagnostic.permissions.pages_read_engagement,'unverified');assert.ok(!JSON.stringify(parsed).includes(secret));
+  for(const status of [401,403,503]) {const r=facebookTestResult(body,status);assert.equal(r.stored,false);assert.equal(r.diagnostic,null);}
+  assert.equal(facebookTestResult({...body,acquired:false,outcome:'cooldown'},200).stored,false);
+  const {InstagramTestResult}=load('src/admin/analytics/InstagramTestResult');
+  const result={message:'Instagram test je završen.',httpStatus:200,state:'connected',reason:null,stored:true,diagnostic:{insightsAccess:'verified',requests:[]}};
+  const html=renderToStaticMarkup(React.createElement(InstagramTestResult,{result}));assert.match(html,/CONNECTED · VERIFIED/);
+  for(const removed of ['User token lookup','Page token lookup','instagram_manage_insights','Graph host','Page token dobijen']) assert.ok(!html.includes(removed));
 });
 test('YouTube uses owner OAuth/channel discovery, handles delayed days and preserves hidden subscriber counts', async () => {
   credentials(); Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'private-refresh-fixture'});
