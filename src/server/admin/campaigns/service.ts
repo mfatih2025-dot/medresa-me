@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AdminError } from "@/admin/contracts";
 import { validateCampaign } from "@/admin/campaigns/contracts";
-import { eligible, uuid, type CampaignContent, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
+import { campaignLocales, campaignRejection, completeContent, scheduleEligible, eligible, uuid, type CampaignDiagnostic, type CampaignContent, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
 import { supabaseConfiguration, supabaseRequest } from "../supabase";
 const BUCKET = "medresa-campaigns-preview";
 const PREVIEW_REF = "safsijrhxbefgcahvsvm";
@@ -20,7 +20,7 @@ const campaignColumns = "id,revision,name,poster_id,cta_text,cta_link,cta_locali
 async function request(path: string, init: RequestInit = {}, write = false) { campaignConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }
 function poster(row: Pick<AssetRow, "id" | "width" | "height">): Poster { return { id: row.id, width: row.width, height: row.height, src: `/api/admin/campaigns/assets/${row.id}` }; }
 function project(row: CampaignRow, asset?: Pick<AssetRow, "id" | "width" | "height">): Campaign {
-  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, content: row.cta_localizations, active: row.active, startsAt: row.starts_at, endsAt: row.ends_at, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
+  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, content: row.cta_localizations, active: row.active, startsAt: row.starts_at ? new Date(row.starts_at).toISOString() : null, endsAt: row.ends_at ? new Date(row.ends_at).toISOString() : null, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
 }
 async function rows(activeOnly = false): Promise<Campaign[]> {
   const campaigns = new Map<string, Campaign>();
@@ -91,7 +91,7 @@ export function selectCampaign(campaigns: Campaign[], now = Date.now()) {
   return { campaign, nextChangeAt: times[0] ?? null };
 }
 export async function currentCampaign(now = Date.now()) {
-  try { campaignConfiguration(); return selectCampaign(await rows(true), now); } catch { return { campaign: null, nextChangeAt: null }; }
+  try { campaignConfiguration(); return selectCampaign(await rows(true), now); } catch { console.warn("medresa.campaign.read.failed", { reason: "campaign_backend_unavailable" }); return { campaign: null, nextChangeAt: null }; }
 }
 export async function publicPoster(id: string, version: string) {
   if (!uuid(id) || !/^[1-9]\d{0,15}$/.test(version)) throw new AdminError(404, "Slika nije dostupna.");
@@ -116,4 +116,26 @@ export async function deleteCampaign(value: unknown) {
     } catch { cleanup = false; } // Retain the reserved private asset on cleanup failure; never reuse it.
   }
   return { id: input.id, cleanup };
+}
+
+/** Explicit authenticated read-only probe. No raw provider errors, credentials,
+ * private Storage paths or poster bytes leave this projection. */
+export async function diagnoseCampaign(id: string): Promise<CampaignDiagnostic> {
+  campaignConfiguration();
+  if (!uuid(id)) throw new AdminError(422, "Akcija nije ispravna.");
+  const campaigns = await rows(), now = Date.now(), target = campaigns.find(c => c.id === id);
+  const selected = selectCampaign(campaigns, now).campaign;
+  let posterAccessible: boolean | null = null;
+  if (target?.poster) { try { await readPoster(target.poster.id); posterAccessible = true; } catch { posterAccessible = false; } }
+  const reason = target ? campaignRejection(target, now) : "campaign_missing";
+  return {
+    campaignFound: !!target, id: target?.id ?? null, revision: target?.revision ?? null,
+    active: target?.active ?? false, scheduleEligible: !!target && scheduleEligible(target, now),
+    localizationComplete: !!target && completeContent(target.content),
+    missingLocales: target ? campaignLocales.filter(locale => !completeContent({ bs: target.content[locale], sq: target.content[locale], en: target.content[locale] })) : [...campaignLocales],
+    serverTime: new Date(now).toISOString(), startsAt: target?.startsAt ?? null, endsAt: target?.endsAt ?? null,
+    selectedForPublic: !!target && selected?.id === target.id,
+    posterAccessible,
+    rejectionReason: reason ?? (selected?.id !== target?.id ? "another_campaign_selected" : posterAccessible === false ? "poster_unavailable" : null),
+  };
 }

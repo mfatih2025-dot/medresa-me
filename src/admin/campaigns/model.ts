@@ -26,7 +26,35 @@ export function validDestination(value: unknown): value is string {
   }
   try { const parsed = new URL(value); return parsed.protocol === "https:" && !parsed.username && !parsed.password && !!parsed.hostname; } catch { return false; }
 }
-export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()) {
-  return campaign.active && completeContent(campaign.content) && !!campaign.poster && (!campaign.startsAt || Date.parse(campaign.startsAt) <= now) && (!campaign.endsAt || now < Date.parse(campaign.endsAt));
+export type CampaignRejection = "inactive" | "localization_incomplete" | "poster_missing" | "invalid_schedule" | "not_started" | "expired" | null;
+export function scheduleEligible(c: Pick<Campaign, "startsAt" | "endsAt">, now = Date.now()) {
+  return (!c.startsAt || Number.isFinite(Date.parse(c.startsAt)) && Date.parse(c.startsAt) <= now) && (!c.endsAt || Number.isFinite(Date.parse(c.endsAt)) && now < Date.parse(c.endsAt));
 }
+export function campaignRejection(c: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()): CampaignRejection {
+  if (!c.active) return "inactive";
+  if (!completeContent(c.content)) return "localization_incomplete";
+  if (!c.poster) return "poster_missing";
+  if ([c.startsAt, c.endsAt].some(t => t !== null && !Number.isFinite(Date.parse(t)))) return "invalid_schedule";
+  if (c.startsAt && now < Date.parse(c.startsAt)) return "not_started";
+  if (c.endsAt && now >= Date.parse(c.endsAt)) return "expired";
+  return null;
+}
+export const campaignRejectionText: Record<Exclude<CampaignRejection, null>, string> = {
+  inactive: "Neaktivna — nije objavljena.",
+  localization_incomplete: "Nije javna — dopunite BS, SQ i EN tekstove i linkove.",
+  poster_missing: "Nije javna — nedostaje poster.",
+  invalid_schedule: "Nije javna — vrijeme prikazivanja nije ispravno.",
+  not_started: "Zakazana — početak prikazivanja još nije nastupio.",
+  expired: "Istekla — završeno prikazivanje.",
+};
+export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()) {
+  return campaignRejection(campaign, now) === null;
+}
+export type CampaignDiagnostic = {
+  campaignFound: boolean; id: string | null; revision: number | null;
+  active: boolean; scheduleEligible: boolean; localizationComplete: boolean;
+  missingLocales: CampaignLocale[]; serverTime: string; startsAt: string | null; endsAt: string | null;
+  selectedForPublic: boolean; posterAccessible: boolean | null;
+  rejectionReason: CampaignRejection | "campaign_missing" | "another_campaign_selected" | "poster_unavailable";
+};
 export function dismissalKey(campaign: Pick<PublicCampaign, "id" | "version">) { return `medresa.campaign.dismissed.${campaign.id}.v${campaign.version}`; }

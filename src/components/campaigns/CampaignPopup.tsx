@@ -55,5 +55,5 @@ export function CampaignPopup() {
     }
     setCampaign(null);
   };
-  return !gateway && !privatePage && campaign ? <PosterDialog key={dismissalKey(campaign)} campaign={{ ...campaign, ctaText: campaign.content![locale].text, ctaLink: campaign.content![locale].link }} onClose={close} onUnavailable={() => setCampaign(null)} /> : null;
+  return !gateway && !privatePage && campaign ? <PosterDialog key={dismissalKey(campaign)} campaign={{ ...campaign, ctaText: campaign.content![locale].text, ctaLink: campaign.content![locale].link }} onClose={close} onUnavailable={() => { console.warn("medresa.campaign.poster.failed", { reason: "image_load_failed" }); setCampaign(null); }} /> : null;
 }

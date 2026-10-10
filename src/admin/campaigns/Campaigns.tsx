@@ -1,11 +1,12 @@
 /* eslint-disable @next/next/no-img-element -- Original campaign artwork must not be transcoded. */
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { Shell } from "../Shell";
 import { adminRequest } from "../client";
 import shared from "../admin.module.css";
 import styles from "./campaigns.module.css";
-import { campaignLocales, completeContent, emptyContent, eligible, validDestination, type CampaignLocale, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster } from "./model";
+import { campaignRejection, campaignRejectionText, campaignLocales, completeContent, emptyContent, dismissalKey, validDestination, type CampaignDiagnostic, type CampaignLocale, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster } from "./model";
+import { isLocale, LOCALE_COOKIE } from "@/i18n/config";
 import { pathFor } from "@/i18n/routes";
 import { PosterDialog } from "@/components/campaigns/PosterDialog";
 const date = (value: string | null) => value ? new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Podgorica" }).format(new Date(value)) : "—";
@@ -16,6 +17,32 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
   const [library, setLibrary] = useState(initial), [draft, setDraft] = useState<CampaignDraft | null>(null), [poster, setPoster] = useState<Poster | null>(null);
   const [busy, setBusy] = useState(false), [uploading, setUploading] = useState(false), [preview, setPreview] = useState(false), [message, setMessage] = useState("");
   const [locale, setLocale] = useState<CampaignLocale>("bs"), [deleting, setDeleting] = useState<Campaign | null>(null);
+  const [now, setNow] = useState(() => Date.parse(initial.generatedAt));
+  const [diagnostic, setDiagnostic] = useState<(CampaignDiagnostic & { locale: CampaignLocale; publicApiReturnedCampaign: boolean; publicPosterAccessible: boolean | null; dismissed: boolean | null; finalPopupEligible: boolean | null; browserTimezone: string }) | null>(null);
+  useEffect(() => { const tick = () => setNow(Date.now()); tick(); const timer = setInterval(tick, 30000); return () => clearInterval(timer); }, []);
+  const diagnose = async (c: Campaign) => {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setMessage(""); setDiagnostic(null);
+    try {
+      const result = await adminRequest<CampaignDiagnostic>(`/api/admin/campaigns/diagnostic?id=${c.id}`);
+      const response = await fetch("/api/campaigns/current", { cache: "no-store" });
+      if (!response.ok) throw new Error("Javni API trenutno nije dostupan.");
+      const publicCampaign = (await response.json()).campaign;
+      const returned = !!publicCampaign && publicCampaign.id === result.id && publicCampaign.version === result.revision;
+      let accessible: boolean | null = null;
+      // Construct only our own public URL; never fetch arbitrary returned destinations.
+      if (returned) {
+        const image = await fetch(`/api/campaigns/poster/${c.id}?version=${result.revision}`, { cache: "no-store" });
+        accessible = image.ok && ["image/jpeg", "image/png", "image/webp"].includes(image.headers.get("Content-Type") ?? "") && (await image.blob()).size > 0;
+      }
+      let dismissed: boolean | null = null;
+      try { dismissed = result.revision !== null && localStorage.getItem(dismissalKey({ id: c.id, version: result.revision })) === "1"; } catch { /* unknown, never assume a measured false */ }
+      const choice = document.cookie.split("; ").find(v => v.startsWith(`${LOCALE_COOKIE}=`))?.split("=")[1];
+      setDiagnostic({ ...result, locale: isLocale(choice) ? choice : "bs", publicApiReturnedCampaign: returned, publicPosterAccessible: accessible, dismissed, finalPopupEligible: dismissed === null ? null : returned && accessible === true && !dismissed, browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      setNow(Date.now());
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Provjera trenutno nije dostupna."); }
+    finally { busyRef.current = false; setBusy(false); }
+  };
   const file = useRef<HTMLInputElement>(null), busyRef = useRef(false), name = useRef<HTMLInputElement>(null);
   const edit = (campaign?: Campaign) => {
     setDraft(campaign ? toDraft(campaign) : { id: crypto.randomUUID(), revision: 0, name: "", posterId: null, ctaText: "SAZNAJ VIŠE", ctaLink: "", content: emptyContent(), active: false, startsAt: null, endsAt: null });
@@ -57,6 +84,7 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
   return <Shell active="/admin/akcije" title="Akcije" intro="Kampanje i obavijesti, u pravo vrijeme." action={<button className={shared.primary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => edit()}>Nova akcija</button>}>
     {library.message && <p className={shared.notice} role="status">{library.message}</p>}
     {message && <p className={styles.message} role="status">{message}</p>}
+    {diagnostic && <div className={styles.message} role="status"><strong>Provjera prikaza · {diagnostic.locale.toUpperCase()}</strong><p>Akcija: {diagnostic.campaignFound ? "pronađena" : "nije pronađena"} · verzija {diagnostic.revision ?? "—"}</p><p>Aktivna: {diagnostic.active ? "da" : "ne"} · vrijeme: {diagnostic.scheduleEligible ? "spremno" : "nije spremno"} · jezici: {diagnostic.localizationComplete ? "spremni" : `dopuniti ${diagnostic.missingLocales.join(", ").toUpperCase()}`}</p><p>Javni API: {diagnostic.publicApiReturnedCampaign ? "vratio akciju" : "nije vratio ovu akciju"} · poster: {diagnostic.publicPosterAccessible === null ? "—" : diagnostic.publicPosterAccessible ? "dostupan" : "nije dostupan"}</p><p>Zatvorena ova verzija u ovom browseru: {diagnostic.dismissed === null ? "—" : diagnostic.dismissed ? "da" : "ne"}</p><p>{diagnostic.rejectionReason ? diagnostic.rejectionReason in campaignRejectionText ? campaignRejectionText[diagnostic.rejectionReason as keyof typeof campaignRejectionText] : diagnostic.rejectionReason === "another_campaign_selected" ? "Druga akcija ima prednost." : diagnostic.rejectionReason === "poster_unavailable" ? "Poster nije dostupan." : "Akcija nije pronađena." : diagnostic.dismissed ? "Ova verzija je već zatvorena u ovom browseru." : diagnostic.finalPopupEligible ? "Akcija je spremna za prikaz nakon izbora jezika." : "Javni API ili poster trenutno ne potvrđuju prikaz."}</p><p>Početak UTC: {diagnostic.startsAt ?? "—"} · kraj UTC: {diagnostic.endsAt ?? "—"}</p><p>Server UTC: {diagnostic.serverTime} · uređaj: {diagnostic.browserTimezone}</p></div>}
     {draft && <form className={styles.editor} onSubmit={save} aria-label="Uređivanje akcije">
       <header><h2>{draft.revision ? "Uredi akciju" : "Nova akcija"}</h2><span>Originalni poster · jedna javna obavijest</span></header>
       <fieldset disabled={busy || uploading}>
@@ -87,8 +115,8 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
     {!library.campaigns.length && !draft && library.ready && <div className={styles.empty}><h2>Trenutno nema akcija.</h2><p>Kreirajte akciju i dodajte njen originalni poster. Ranije akcije ostaju dostupne ovdje.</p></div>}
     <ul className={styles.library} aria-label="Akcije">{library.campaigns.map(c => <li key={c.id}>
       <div className={styles.thumbnail}>{c.poster ? <><img src={c.poster.src} alt="" width={c.poster.width} height={c.poster.height} /></> : <span>Bez postera</span>}</div>
-      <div className={styles.details}><h2>{c.name}</h2><span className={styles.status}>{!c.active ? "Neaktivna" : eligible(c, Date.parse(library.generatedAt)) ? "Aktivna" : c.endsAt && Date.parse(c.endsAt) <= Date.parse(library.generatedAt) ? "Istekla" : "Zakazana"}</span><p>{c.startsAt || c.endsAt ? `${date(c.startsAt)} — ${date(c.endsAt)}` : "Bez vremenskog ograničenja"}</p><p className={styles.link}>{c.content.bs.text} → {c.content.bs.link}</p><p>{campaignLocales.map(l => `${l.toUpperCase()}: ${c.content[l].text.trim() && validDestination(c.content[l].link) ? "Spremno" : "Nepotpuno"}`).join(" · ")}</p></div>
-      <div className={styles.listActions}><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => edit(c)}>Uredi</button><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => setDeleting(c)}>Obriši</button></div>
+      <div className={styles.details}><h2>{c.name}</h2><span className={styles.status}>{campaignRejection(c, now) ? campaignRejectionText[campaignRejection(c, now)!] : "Aktivna — spremna za javni prikaz."}</span><p>{c.startsAt || c.endsAt ? `${date(c.startsAt)} — ${date(c.endsAt)}` : "Bez vremenskog ograničenja"}</p><p className={styles.link}>{c.content.bs.text} → {c.content.bs.link}</p><p>{campaignLocales.map(l => `${l.toUpperCase()}: ${c.content[l].text.trim() && validDestination(c.content[l].link) ? "Spremno" : "Nepotpuno"}`).join(" · ")}</p></div>
+      <div className={styles.listActions}><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => edit(c)}>Uredi</button><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => setDeleting(c)}>Obriši</button><button className={shared.secondary} disabled={busy || uploading || !!draft} onClick={() => void diagnose(c)}>Provjeri prikaz</button></div>
     </li>)}</ul>
     {preview && poster && draft && validDestination(draft.content[locale].link) && <PosterDialog campaign={{ id: draft.id, version: draft.revision || 1, poster, ctaText: draft.content[locale].text, ctaLink: draft.content[locale].link, endsAt: null }} onClose={() => setPreview(false)} />}
     {deleting && <ConfirmDialog title="Obriši akciju" description={`Trajno obrisati akciju „${deleting.name}“? Poster se uklanja samo ako nije korišćen u drugoj akciji.`} confirm="Obriši" busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void remove()} />}

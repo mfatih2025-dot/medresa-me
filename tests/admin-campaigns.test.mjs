@@ -133,3 +133,41 @@ test('cleanup outage never loses another campaign or falsely reports image remov
     assert.equal((await db.query('select cleanup_pending from medresa_campaign_assets where id=$1',[p.id])).rows[0].cleanup_pending,true);
   }finally{await db.close();}
 });
+
+test('runtime eligibility gives identical Admin/public rejection reasons and skips incomplete higher-priority campaigns',()=>{
+  const {campaignRejection,scheduleEligible}=load('src/admin/campaigns/model'),now=Date.parse('2026-10-10T12:00:00Z');
+  const c={...draft(),poster:{id:randomUUID(),width:600,height:900,src:'/private'},revision:1,active:true,activatedAt:'2026-10-10T10:00:00Z'};
+  assert.equal(campaignRejection(c,now),null);assert.equal(eligible(c,now),true);
+  const cases=[{active:false},{content:{...content(),sq:{text:'',link:''}}},{poster:null},{startsAt:'2026-10-10T12:00:01Z'},{endsAt:'2026-10-10T12:00:00Z'},{startsAt:'invalid'}];
+  for(const [i,reason]of ['inactive','localization_incomplete','poster_missing','not_started','expired','invalid_schedule'].entries())assert.equal(campaignRejection({...c,...cases[i]},now),reason);
+  assert.equal(scheduleEligible({...c,startsAt:'2026-10-10T08:00:00-04:00'},now),true,'UTC instant includes exact start despite offset');
+  assert.equal(scheduleEligible({...c,endsAt:'2026-10-10T14:00:00+02:00'},now),false,'End is exclusive at identical UTC instant');
+  const invalid={...c,id:randomUUID(),content:{...content(),en:{text:'',link:''}},activatedAt:'2026-10-10T11:00:00Z'};
+  assert.equal(service.selectCampaign([invalid,c],now).campaign.id,c.id,'Invalid newest campaign cannot block another eligible campaign');
+});
+test('authenticated Preview runtime probe reads actual stored selection and poster, makes no writes and exposes no paths/secrets',async()=>{
+  const db=await campaignDatabase();try {
+    Object.assign(process.env,fixtureEnvironment);const objects=new Map(),rest=campaignRest(db,objects);globalThis.fetch=rest;
+    const p=await service.uploadPoster(await image(),'image/png','fixture'),c=await service.saveCampaign(draft({posterId:p.id,active:true}),'fixture');
+    let writes=0;globalThis.fetch=(url,init)=>{if(init?.method&&init.method!=='GET')writes++;return rest(url,init);};
+    const result=await service.diagnoseCampaign(c.id);assert.equal(result.active,true);assert.equal(result.selectedForPublic,true);assert.equal(result.localizationComplete,true);assert.equal(result.posterAccessible,true);assert.equal(result.rejectionReason,null);assert.equal(writes,0);
+    const serialized=JSON.stringify(result);for(const privateValue of [process.env.SUPABASE_SERVICE_ROLE_KEY,'object_path','posters/','medresa-campaigns-preview','updated_by'])assert.ok(!serialized.includes(privateValue));
+    objects.clear();const failed=await service.diagnoseCampaign(c.id);assert.equal(failed.posterAccessible,false);assert.equal(failed.rejectionReason,'poster_unavailable');
+    process.env.VERCEL_ENV='production';await assert.rejects(service.diagnoseCampaign(c.id));assert.equal(writes,0);
+    const fake={diagnoseCampaign(){throw new Error('Must not be called without authentication');}};
+    const {default:handler}=moduleLoader({'@/server/admin/campaigns/service':fake})('src/pages/api/admin/campaigns/diagnostic');
+    const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};await handler({method:'GET',cookies:{},headers:{},query:{id:c.id}},res);assert.equal(res.code,401);
+  }finally{await db.close();}
+});
+test('PostgREST timezone-offset schedule readback can be reactivated without touching dates and preserves UTC instants',async()=>{
+  const db=await campaignDatabase();try {
+    Object.assign(process.env,fixtureEnvironment);globalThis.fetch=campaignRest(db);
+    const p=await service.uploadPoster(await image(),'image/png','fixture');
+    const c=await service.saveCampaign(draft({posterId:p.id,startsAt:'2000-01-01T15:00:00.000Z',endsAt:'2099-01-01T15:00:00.000Z'}),'fixture');
+    const raw=(await db.query('select to_jsonb(c) data from medresa_campaigns c where id=$1',[c.id])).rows[0].data;
+    assert.ok(raw.starts_at.endsWith('+00:00'),'Fixture reproduces the actual PostgreSQL/PostgREST offset format');
+    const readback=(await service.listCampaigns()).campaigns[0];assert.equal(readback.startsAt,'2000-01-01T15:00:00.000Z');assert.equal(readback.endsAt,'2099-01-01T15:00:00.000Z');
+    const activated=await service.saveCampaign({...readback,posterId:readback.poster.id,active:true},'fixture');
+    assert.equal(activated.active,true);assert.equal((await service.currentCampaign()).campaign.id,c.id);assert.equal(activated.startsAt,c.startsAt);assert.equal(activated.endsAt,c.endsAt);
+  }finally{await db.close();}
+});
