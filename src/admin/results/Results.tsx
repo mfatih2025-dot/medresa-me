@@ -6,7 +6,15 @@ import { MAX_PDF_BYTES, resultLocales, resultAssetPreview, type ResultsLibrary, 
 import type { Locale } from "@/i18n/config";
 import shared from "../admin.module.css";
 import styles from "./results.module.css";
-export function Results({initial}:{initial:ResultsLibrary}){
+import type { AdmissionStatus, AdmissionsControl, AdmissionsState } from "./admissions";
+export function Results({initial,admissions}:{initial:ResultsLibrary;admissions?:AdmissionsControl}){
+ const [admission,setAdmission]=useState(admissions?.state ?? null),[statusBusy,setStatusBusy]=useState(false),statusLock=useRef(false);
+ const updateStatus=async(status:AdmissionStatus)=>{
+  if(!admission||statusLock.current||lock.current)return;statusLock.current=true;setStatusBusy(true);setMessage("");
+  try{const response=await adminRequest<{state:AdmissionsState}>("/api/admin/results/admissions",{status,revision:admission.revision});setAdmission(response.state);setMessage("Status upisa je sačuvan.");}
+  catch(error){setMessage(error instanceof Error?error.message:"Status upisa nije sačuvan.");}
+  finally{statusLock.current=false;setStatusBusy(false);}
+ };
  const [state,setState]=useState(initial.state),[locale,setLocale]=useState<Locale>("bs"),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[confirm,setConfirm]=useState(false),[progress,setProgress]=useState("");
  const file=useRef<HTMLInputElement>(null),lock=useRef(false);
  const upload=async(selected:File|undefined)=>{
@@ -35,6 +43,7 @@ export function Results({initial}:{initial:ResultsLibrary}){
  return <Shell active="/admin/rezultati" title="Rezultati ispita" intro="Jedni rezultati · nezavisne jezičke objave.">
   {initial.message&&<p className={shared.notice} role="status">{initial.message}</p>}
   {message&&<p className={styles.notice} role="status">{message}</p>}
+  <section className={styles.admissions} aria-label="Status upisa"><h2>STATUS UPISA</h2><div className={styles.actions} role="group" aria-label="OPEN / CLOSED">{(["open","closed"] as const).map(status=><button key={status} aria-pressed={admission?.status===status} className={admission?.status===status?shared.primary:shared.secondary} disabled={!admissions?.writable||!admission||statusBusy||busy} onClick={()=>void updateStatus(status)}>{status.toUpperCase()}</button>)}</div>{admissions?.message&&<p className={styles.context} role="status">{admissions.message}</p>}</section>
   <div className={styles.tabs} role="tablist" aria-label="Jezik PDF-a">{resultLocales.map(l=><button role="tab" aria-label={l.toUpperCase()} key={l} aria-selected={locale===l} disabled={busy} className={locale===l?shared.primary:shared.secondary} onClick={()=>setLocale(l)}>{l.toUpperCase()}{state?.drafts[l] && <span className={styles.complete} aria-label="PDF spreman"> ✓</span>}</button>)}</div>
   <section className={styles.document} role="tabpanel" aria-label={locale.toUpperCase()}>
    <h2>{locale==="bs"?"Bosanski PDF":locale==="sq"?"Shqip PDF":"English PDF"}</h2>

@@ -17,3 +17,6 @@
 @media(max-width:639px) { .actions { gap:8px; } .file { display:block; } .file span { display:block; margin-top:8px; } }
 
 .complete { color:#25734b; }
+
+.admissions { padding-bottom:24px; margin-bottom:24px; border-bottom:1px solid var(--admin-line); }
+.admissions h2 { color:var(--admin-muted); font-size:12px; letter-spacing:.1em; margin-bottom:14px; }

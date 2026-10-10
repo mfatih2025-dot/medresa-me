@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { upisContent } from "@/content/upis";
+import { publicAdmissionStatus } from "@/server/admin/results/admissions";
 import { publishedHref } from "@/server/admin/results/service";
 import { Upis } from "@/components/upis/Upis";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
@@ -21,5 +22,6 @@ export default async function Page({ params }: Props) {
   // Resolve published documents at request time even if the migration was absent at build.
   if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel") await connection();
   const locale = asLocale((await params).locale);
-  return <Upis locale={locale} documentHref={await publishedHref(locale)} />;
+  const [documentHref,admissionStatus] = await Promise.all([publishedHref(locale),publicAdmissionStatus()]);
+  return <Upis locale={locale} documentHref={documentHref} admissionStatus={admissionStatus} />;
 }

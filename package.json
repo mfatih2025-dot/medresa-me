@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:admin": "node --test --test-isolation=none tests/admin-foundation.test.mjs tests/admin-phase2.test.mjs tests/admin-database.test.mjs tests/admin-publication-integrity.test.mjs tests/admin-locale-publication.test.mjs tests/public-news.test.mjs tests/admin-translation.test.mjs tests/admin-analytics.test.mjs tests/admin-campaigns.test.mjs tests/admin-results.test.mjs tests/admin-independent-locales.test.mjs",
+    "test:admin": "node --test --test-isolation=none tests/admin-foundation.test.mjs tests/admin-phase2.test.mjs tests/admin-database.test.mjs tests/admin-publication-integrity.test.mjs tests/admin-locale-publication.test.mjs tests/public-news.test.mjs tests/admin-translation.test.mjs tests/admin-analytics.test.mjs tests/admin-campaigns.test.mjs tests/admin-results.test.mjs tests/admin-independent-locales.test.mjs tests/admin-admissions-status.test.mjs",
     "test:admin:browser": "node tests/admin-browser.mjs",
     "test:analytics:browser": "node tests/admin-analytics-browser.mjs",
     "test:campaigns:browser": "node tests/admin-campaigns-browser.mjs",
