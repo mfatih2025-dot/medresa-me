@@ -1,3 +1,5 @@
+> Current locale behavior: see [Independent Admin locale channels](admin-independent-locales.md). Migration 202610100004 supersedes the earlier all-three-locale activation/publication rules documented below. Existing history and assets are preserved.
+
 # Admission Results — Preview data integration
 
 Branch `codex/admin-panel`, project `medresa-me-preview` (`safsijrhxbefgcahvsvm`). Runtime guards require the exact Preview branch/project and existing write flag for mutations. No new credentials/environment variables. No Production changes. No real PDFs or result publications are seeded.

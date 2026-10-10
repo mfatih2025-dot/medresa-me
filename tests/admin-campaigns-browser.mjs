@@ -33,11 +33,11 @@ const origin='http://localhost:3214';
   const png=await sharp({create:{width:600,height:900,channels:3,background:'#123c31'}}).png().toBuffer();
   const dialog=page.getByRole('dialog',{name:'Obavijest Medrese'});
   const save=async()=>{await page.getByRole('button',{name:'Sačuvaj akciju',exact:true}).click();await page.getByText('Akcija je sačuvana.',{exact:true}).waitFor();};
-  const current=async()=> (await (await context.request.get(origin+'/api/campaigns/current')).json()).campaign;
+  const current=async()=> (await (await context.request.get(origin+'/api/campaigns/current?locale=bs')).json()).campaign;
   const fillTranslations=async()=>{for(const [locale,text,link]of [['SQ','SQ fixture','/sq/regjistrimi'],['EN','EN fixture','/en/admissions']]){await page.getByRole('tab',{name:new RegExp('^'+locale)}).click();await page.getByLabel('Tekst dugmeta').fill(text);await page.getByLabel('Link',{exact:true}).fill(link);}await page.getByRole('tab',{name:/^BS/}).click();};
   const adminRows=async()=> (await(await context.request.get(origin+'/api/admin/campaigns')).json()).campaigns;
   const directSave=async(c,change)=>{
-    const body={id:c.id,revision:c.revision,name:c.name,posterId:c.poster?.id??null,ctaText:c.ctaText,ctaLink:c.ctaLink,content:c.content,active:c.active,startsAt:c.startsAt,endsAt:c.endsAt,...change};
+    const body={id:c.id,revision:c.revision,name:c.name,posterId:c.poster?.id??null,ctaText:c.ctaText,ctaLink:c.ctaLink,content:c.content,active:c.active,startsAt:c.startsAt,endsAt:c.endsAt,...change,localeActive:change.localeActive??(change.active===false?{bs:false,sq:false,en:false}:c.localeActive)};
     if(change.ctaText)body.content={...body.content,bs:{...body.content.bs,text:change.ctaText}};
     const res=await context.request.post(origin+'/api/admin/campaigns',{headers:{Origin:origin},data:body});assert.ok(res.ok(),await res.text());return (await res.json()).campaign;
   };
@@ -60,7 +60,7 @@ const origin='http://localhost:3214';
     await page.getByAltText('Odabrani poster').waitFor();await save();assert.equal(await current(),null);
     let first=(await adminRows())[0];const originalAsset=first.poster.id;assert.equal(Date.parse(first.startsAt),Date.parse('2000-01-01T15:00:00Z'),'Browser-local input persists as the correct UTC instant');
     assert.equal(createHash('sha256').update(await(await context.request.get(origin+first.poster.src)).body()).digest('hex'),createHash('sha256').update(png).digest('hex'));
-    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
+    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);for(const l of ['sq','en'])assert.equal((await(await context.request.get(origin+'/api/campaigns/current?locale='+l)).json()).campaign,null);await page.goto(origin+'/sq/historiku');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on SQ');await page.goto(origin+'/en/history');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on EN');await page.goto(origin+'/admin/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
     await page.getByRole('button',{name:'Provjeri prikaz',exact:true}).first().click();await page.getByText('Akcija je spremna za prikaz nakon izbora jezika.',{exact:true}).waitFor();
     await page.goto(origin+'/historijat');await dialog.waitFor();await page.waitForFunction(()=>document.fonts.status==='loaded');
     assert.ok(!(await dialog.innerText()).includes(first.name));assert.equal(await dialog.locator('a').getAttribute('href'),'/upis?fixture=exact#destination');
@@ -109,7 +109,7 @@ const origin='http://localhost:3214';
     // Failed DB/Storage readiness is fail-safe, never an empty public modal.
     missing=true;await page.reload();assert.equal(await dialog.count(),0);missing=false;
     const fresh=await browser.newContext({viewport:{width:390,height:844}}),freshPage=await fresh.newPage();
-    second=await directSave(second,{startsAt:null,endsAt:null});await freshPage.goto(origin+'/');await freshPage.getByRole('dialog',{name:/Medresa/}).waitFor();assert.equal(await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).count(),0,'Campaign waits for existing language gateway');
+    second=await directSave(second,{startsAt:null,endsAt:null,localeActive:{bs:true,sq:true,en:true}});await freshPage.goto(origin+'/');await freshPage.getByRole('dialog',{name:/Medresa/}).waitFor();assert.equal(await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).count(),0,'Campaign waits for existing language gateway');
     await freshPage.getByRole('button',{name:'Bosanski'}).click();await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).waitFor();await freshPage.getByRole('button',{name:'Zatvori obavijest'}).click();await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).waitFor({state:'detached'});await fresh.close();
     assert.equal((await db.query('select count(*)::int n from medresa_campaigns')).rows[0].n,2,'Both historical campaigns retained');
     // The same identity/version uses website language without duplicating artwork or dismissal.

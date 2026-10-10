@@ -5,13 +5,18 @@ export const emptyContent = (): CampaignContent => ({ bs: { text: "SAZNAJ VIŠE"
 export function completeContent(content: CampaignContent | undefined): boolean {
   return !!content && campaignLocales.every(locale => typeof content[locale]?.text === "string" && !!content[locale].text.trim() && content[locale].text.length <= 80 && validDestination(content[locale].link));
 }
+export type CampaignChannels = Record<CampaignLocale, boolean>;
+export const emptyChannels = (): CampaignChannels => ({ bs: false, sq: false, en: false });
+export function localeComplete(content: CampaignContent | undefined, locale: CampaignLocale) {
+ const pair = content?.[locale]; return !!pair && typeof pair.text === "string" && !!pair.text.trim() && pair.text.length <= 80 && validDestination(pair.link);
+}
 export type Poster = { id: string; width: number; height: number; src: string };
 export type Campaign = {
   id: string; revision: number; name: string; poster: Poster | null;
-  ctaText: string; ctaLink: string; content: CampaignContent; active: boolean; startsAt: string | null; endsAt: string | null;
+  ctaText: string; ctaLink: string; content: CampaignContent; localeActive: CampaignChannels; active: boolean; startsAt: string | null; endsAt: string | null;
   createdAt: string; updatedAt: string; activatedAt: string | null;
 };
-export type CampaignDraft = Pick<Campaign, "id" | "revision" | "name" | "ctaText" | "ctaLink" | "content" | "active" | "startsAt" | "endsAt"> & { posterId: string | null };
+export type CampaignDraft = Pick<Campaign, "id" | "revision" | "name" | "ctaText" | "ctaLink" | "content" | "localeActive" | "active" | "startsAt" | "endsAt"> & { posterId: string | null };
 export type CampaignLibrary = { generatedAt: string; campaigns: Campaign[]; ready: boolean; writable: boolean; message: string | null };
 // Internal campaign names are never included in the public projection or overlaid on artwork.
 export type PublicCampaign = { id: string; version: number; poster: Poster; ctaText: string; ctaLink: string; endsAt: string | null; content?: CampaignContent };
@@ -30,9 +35,9 @@ export type CampaignRejection = "inactive" | "localization_incomplete" | "poster
 export function scheduleEligible(c: Pick<Campaign, "startsAt" | "endsAt">, now = Date.now()) {
   return (!c.startsAt || Number.isFinite(Date.parse(c.startsAt)) && Date.parse(c.startsAt) <= now) && (!c.endsAt || Number.isFinite(Date.parse(c.endsAt)) && now < Date.parse(c.endsAt));
 }
-export function campaignRejection(c: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()): CampaignRejection {
-  if (!c.active) return "inactive";
-  if (!completeContent(c.content)) return "localization_incomplete";
+export function campaignRejection(c: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent; localeActive?: CampaignChannels }, now = Date.now(), locale: CampaignLocale = "bs"): CampaignRejection {
+  if (!c.active || c.localeActive && !c.localeActive[locale]) return "inactive";
+  if (!localeComplete(c.content, locale)) return "localization_incomplete";
   if (!c.poster) return "poster_missing";
   if ([c.startsAt, c.endsAt].some(t => t !== null && !Number.isFinite(Date.parse(t)))) return "invalid_schedule";
   if (c.startsAt && now < Date.parse(c.startsAt)) return "not_started";
@@ -41,14 +46,14 @@ export function campaignRejection(c: Pick<Campaign, "active" | "startsAt" | "end
 }
 export const campaignRejectionText: Record<Exclude<CampaignRejection, null>, string> = {
   inactive: "Neaktivna — nije objavljena.",
-  localization_incomplete: "Nije javna — dopunite BS, SQ i EN tekstove i linkove.",
+  localization_incomplete: "Nije javna za ovaj jezik — dopunite tekst dugmeta i link.",
   poster_missing: "Nije javna — nedostaje poster.",
   invalid_schedule: "Nije javna — vrijeme prikazivanja nije ispravno.",
   not_started: "Zakazana — početak prikazivanja još nije nastupio.",
   expired: "Istekla — završeno prikazivanje.",
 };
-export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()) {
-  return campaignRejection(campaign, now) === null;
+export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent; localeActive?: CampaignChannels }, now = Date.now(), locale: CampaignLocale = "bs") {
+  return campaignRejection(campaign, now, locale) === null;
 }
 export type CampaignDiagnostic = {
   campaignFound: boolean; id: string | null; revision: number | null;

@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session=authorize(req,res,["GET","POST"]);resultsConfiguration();
     if(req.method==="GET")return res.json(await listResults());
     if(req.body?.action==="remove")return res.json({state:await removeDraft(req.body.locale,req.body.revision)});
-    if(req.body?.action==="publish")return res.json({state:await publishResults(req.body.revision,session.user,req.body.id)});
+    if(req.body?.action==="publish")return res.json({state:await publishResults(req.body.revision,session.user,req.body.id,req.body.locale)});
     throw new AdminError(422,"Radnja nije ispravna.");
   }catch(error){return apiFailure(res,error);}
 }

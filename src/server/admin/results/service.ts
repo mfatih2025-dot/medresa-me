@@ -18,7 +18,7 @@ async function rpc(name: string, body: unknown) {
 }
 type AssetRow = { id: string; locale: Locale; filename: string; bytes: number; pages: number; sha256: string; object_path: string; created_at: string };
 type StateRow = { revision: number; bs_id: string | null; sq_id: string | null; en_id: string | null; publication_id: string | null };
-type PublicationRow = { id: string; version: number; bs_id: string; sq_id: string; en_id: string; published_at: string };
+type PublicationRow = { id: string; locale: Locale; version: number; asset_id: string; published_at: string };
 type UploadRow = { id: string; locale: Locale; filename: string; bytes: number; base_revision: number; created_by: string; expires_at: string; asset_id: string | null };
 const project = (a: AssetRow): ResultAsset => ({ id: a.id, locale: a.locale, filename: a.filename, bytes: a.bytes, pages: a.pages, createdAt: new Date(a.created_at).toISOString() });
 async function stateRow(): Promise<StateRow> { const rows = await (await request("/rest/v1/medresa_results_state?select=revision,bs_id,sq_id,en_id,publication_id&singleton=eq.true&limit=1")).json(); if (!rows[0]) throw new AdminError(503, "Migracija za rezultate nije spremna."); return rows[0]; }
@@ -27,16 +27,32 @@ async function asset(id: string): Promise<AssetRow> {
   const rows = await (await request(`/rest/v1/medresa_results_assets?id=eq.${id}&select=id,locale,filename,bytes,pages,sha256,object_path,created_at&limit=1`)).json();
   if (!rows[0] || rows[0].object_path !== `documents/${id}.pdf`) throw new AdminError(404, "PDF nije pronađen."); return rows[0];
 }
-async function publication(id: string): Promise<PublicationRow> { const rows = await (await request(`/rest/v1/medresa_results_publications?id=eq.${id}&select=id,version,bs_id,sq_id,en_id,published_at&limit=1`)).json(); if (!rows[0]) throw new AdminError(503, "Objavljeni rezultati nijesu dostupni."); return rows[0]; }
+async function publication(locale: Locale): Promise<PublicationRow | null> {
+ let heads;
+ try { heads = await (await request(`/rest/v1/medresa_results_locale_heads?locale=eq.${locale}&select=publication_id&limit=1`)).json(); }
+ catch {
+  // Read-only legacy release fallback while the additive migration awaits manual application.
+  // No mutation uses this path; current complete publications remain downloadable.
+  const state = await stateRow(); if (!state.publication_id) return null;
+  const old = await (await request(`/rest/v1/medresa_results_publications?id=eq.${state.publication_id}&select=id,version,bs_id,sq_id,en_id,published_at&limit=1`)).json();
+  const p = old[0]; if (!p) throw new AdminError(503,"Objavljeni rezultati nijesu dostupni.");
+  return {id:p.id,locale,version:p.version,asset_id:p[`${locale}_id`],published_at:p.published_at};
+ }
+ if (!heads[0]) return null;
+ const rows = await (await request(`/rest/v1/medresa_results_locale_publications?id=eq.${heads[0].publication_id}&locale=eq.${locale}&select=id,locale,version,asset_id,published_at&limit=1`)).json();
+ if (!rows[0]) throw new AdminError(503,"Objavljeni rezultati nijesu dostupni."); return rows[0];
+}
 export async function readResults(): Promise<ResultState> {
-  const s = await stateRow(); const drafts = {} as ResultState["drafts"];
-  for (const locale of resultLocales) drafts[locale] = s[`${locale}_id`] ? project(await asset(s[`${locale}_id`]!)) : null;
-  let published: ResultState["published"] = null;
-  if (s.publication_id) { const p = await publication(s.publication_id), files = {} as NonNullable<ResultState["published"]>["files"]; for (const locale of resultLocales) files[locale] = project(await asset(p[`${locale}_id`])); published = { id: p.id, version: p.version, publishedAt: new Date(p.published_at).toISOString(), files }; }
-  return { revision: s.revision, drafts, published };
+ const s = await stateRow(), drafts = {} as ResultState["drafts"], published = {} as ResultState["published"];
+ for (const locale of resultLocales) {
+  drafts[locale] = s[`${locale}_id`] ? project(await asset(s[`${locale}_id`]!)) : null;
+  const p = await publication(locale);
+  published[locale] = p ? { id:p.id, version:p.version, publishedAt:new Date(p.published_at).toISOString(), file:project(await asset(p.asset_id)) } : null;
+ }
+ return {revision:s.revision,drafts,published};
 }
 export async function listResults(): Promise<ResultsLibrary> {
-  try { const c = resultsConfiguration(); return { ready: true, writable: c.writable, message: c.writable ? null : "Rezultati su dostupni samo za čitanje.", state: await readResults() }; }
+  try { const c = resultsConfiguration(); let channelsReady = true; try { await request("/rest/v1/medresa_results_locale_heads?select=locale&limit=1"); } catch { channelsReady = false; } return { ready: true, writable: c.writable && channelsReady, message: !channelsReady ? "Za nezavisnu objavu PDF-a primijenite Preview migraciju 202610100004_independent_locale_channels.sql." : c.writable ? null : "Rezultati su dostupni samo za čitanje.", state: await readResults() }; }
   catch { return { ready: false, writable: false, message: "Rezultati još nijesu povezani. Provjerite Preview migraciju za rezultate.", state: null }; }
 }
 function revision(value: unknown): asserts value is number { if (!Number.isSafeInteger(value) || (value as number) < 0 || (value as number) > 9007199254740990) throw new AdminError(422, "Verzija rezultata nije ispravna."); }
@@ -79,17 +95,18 @@ export async function readPdf(id: string) {
   return { bytes, asset: project(a) };
 }
 export async function removeDraft(locale: unknown, expected: unknown) { resultsConfiguration(true); revision(expected); if (!isLocale(locale as string)) throw new AdminError(422, "Jezik nije ispravan."); await rpc("medresa_results_remove_draft", { p_locale: locale, p_expected: expected }); return readResults(); }
-export async function publishResults(expected: unknown, actor: string, id: string) {
-  resultsConfiguration(true); revision(expected); if (!uuid(id)) throw new AdminError(422, "Objava nije ispravna.");
-  const s = await stateRow();
-  if (s.publication_id === id) return readResults();
-  if (s.revision !== expected) throw new AdminError(409, "Rezultati su promijenjeni. Osvježite stranicu.");
-  for (const locale of resultLocales) { const assetId = s[`${locale}_id`]; if (!assetId) throw new AdminError(422, "Za objavu su potrebni BS, SQ i EN PDF."); const pdf = await readPdf(assetId); if (pdf.asset.locale !== locale) throw new AdminError(422, "PDF nije za izabrani jezik."); await validatePdf(pdf.bytes); }
-  await rpc("medresa_results_publish", { p_id: id, p_expected: expected, p_actor: actor }); return readResults();
+export async function publishResults(expected: unknown, actor: string, id: string, locale: unknown) {
+ resultsConfiguration(true); revision(expected);
+ if (!uuid(id) || !isLocale(locale as string)) throw new AdminError(422,"Objava ili jezik nijesu ispravni.");
+ const selected = locale as Locale, head = await publication(selected);
+ if (head?.id === id) return readResults();
+ const s = await stateRow(); if (s.revision !== expected) throw new AdminError(409,"Rezultati su promijenjeni. Osvježite stranicu.");
+ const assetId = s[`${selected}_id`]; if (!assetId) throw new AdminError(422,`Za objavu je potreban ${selected.toUpperCase()} PDF.`);
+ const pdf = await readPdf(assetId); if (pdf.asset.locale !== selected) throw new AdminError(422,"PDF nije za izabrani jezik."); await validatePdf(pdf.bytes);
+ await rpc("medresa_results_publish_locale",{p_id:id,p_expected:expected,p_locale:selected,p_actor:actor}); return readResults();
 }
-export async function publishedHref(locale: Locale) { try { resultsConfiguration(); const s = await stateRow(); if (!s.publication_id) return null; const p = await publication(s.publication_id); return p[`${locale}_id`] ? resultDownload(locale) : null; } catch { return null; } }
+export async function publishedHref(locale: Locale) { try { resultsConfiguration(); return await publication(locale) ? resultDownload(locale) : null; } catch { return null; } }
 export async function publicPdf(locale: unknown) {
-  resultsConfiguration(); if (!isLocale(locale as string)) throw new AdminError(404, "PDF nije pronađen.");
-  const s = await stateRow(); if (!s.publication_id) throw new AdminError(404, "Rezultati još nijesu objavljeni.");
-  const p = await publication(s.publication_id); return readPdf(p[`${locale as Locale}_id`]);
+ resultsConfiguration(); if (!isLocale(locale as string)) throw new AdminError(404,"PDF nije pronađen.");
+ const p = await publication(locale as Locale); if (!p) throw new AdminError(404,"Rezultati za ovaj jezik još nijesu objavljeni."); return readPdf(p.asset_id);
 }

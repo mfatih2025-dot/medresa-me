@@ -5,14 +5,14 @@ import { Shell } from "../Shell";
 import { adminRequest } from "../client";
 import shared from "../admin.module.css";
 import styles from "./campaigns.module.css";
-import { campaignRejection, campaignRejectionText, campaignLocales, completeContent, emptyContent, dismissalKey, validDestination, type CampaignDiagnostic, type CampaignLocale, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster } from "./model";
+import { campaignRejection, campaignRejectionText, campaignLocales, localeComplete, emptyContent, emptyChannels, dismissalKey, validDestination, type CampaignDiagnostic, type CampaignLocale, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster } from "./model";
 import { isLocale, LOCALE_COOKIE } from "@/i18n/config";
 import { pathFor } from "@/i18n/routes";
 import { PosterDialog } from "@/components/campaigns/PosterDialog";
 const date = (value: string | null) => value ? new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Podgorica" }).format(new Date(value)) : "—";
 function inputDate(value: string | null) { if (!value) return ""; const d = new Date(value); const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return local.toISOString().slice(0,16); }
 function utcDate(value: string) { return value ? new Date(value).toISOString() : null; }
-const toDraft = (c: Campaign): CampaignDraft => ({ id: c.id, revision: c.revision, name: c.name, posterId: c.poster?.id ?? null, ctaText: c.ctaText, ctaLink: c.ctaLink, content: c.content, active: c.active, startsAt: c.startsAt, endsAt: c.endsAt });
+const toDraft = (c: Campaign): CampaignDraft => ({ id: c.id, revision: c.revision, name: c.name, posterId: c.poster?.id ?? null, ctaText: c.ctaText, ctaLink: c.ctaLink, content: c.content, localeActive: c.localeActive, active: c.active, startsAt: c.startsAt, endsAt: c.endsAt });
 export function Campaigns({ initial }: { initial: CampaignLibrary }) {
   const [library, setLibrary] = useState(initial), [draft, setDraft] = useState<CampaignDraft | null>(null), [poster, setPoster] = useState<Poster | null>(null);
   const [busy, setBusy] = useState(false), [uploading, setUploading] = useState(false), [preview, setPreview] = useState(false), [message, setMessage] = useState("");
@@ -24,8 +24,8 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true); setMessage(""); setDiagnostic(null);
     try {
-      const result = await adminRequest<CampaignDiagnostic>(`/api/admin/campaigns/diagnostic?id=${c.id}`);
-      const response = await fetch("/api/campaigns/current", { cache: "no-store" });
+      const result = await adminRequest<CampaignDiagnostic>(`/api/admin/campaigns/diagnostic?id=${c.id}&locale=${locale}`);
+      const response = await fetch(`/api/campaigns/current?locale=${locale}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Javni API trenutno nije dostupan.");
       const publicCampaign = (await response.json()).campaign;
       const returned = !!publicCampaign && publicCampaign.id === result.id && publicCampaign.version === result.revision;
@@ -45,7 +45,7 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
   };
   const file = useRef<HTMLInputElement>(null), busyRef = useRef(false), name = useRef<HTMLInputElement>(null);
   const edit = (campaign?: Campaign) => {
-    setDraft(campaign ? toDraft(campaign) : { id: crypto.randomUUID(), revision: 0, name: "", posterId: null, ctaText: "SAZNAJ VIŠE", ctaLink: "", content: emptyContent(), active: false, startsAt: null, endsAt: null });
+    setDraft(campaign ? toDraft(campaign) : { id: crypto.randomUUID(), revision: 0, name: "", posterId: null, ctaText: "SAZNAJ VIŠE", ctaLink: "", content: emptyContent(), localeActive: emptyChannels(), active: false, startsAt: null, endsAt: null });
     setLocale("bs"); setPoster(campaign?.poster ?? null); setMessage(""); setTimeout(() => name.current?.focus(), 0);
   };
   const change = (update: Partial<CampaignDraft>) => setDraft(old => old ? { ...old, ...update } : old);
@@ -96,26 +96,27 @@ export function Campaigns({ initial }: { initial: CampaignLibrary }) {
             <div className={styles.actions}><button type="button" className={shared.secondary} onClick={() => file.current?.click()}>{uploading ? "Prenosim sliku…" : poster ? "Zamijeni" : "Odaberi sliku"}</button>{poster && <button type="button" className={shared.textLink} onClick={() => { setPoster(null); change({ posterId: null }); }}>Ukloni</button>}{poster && validDestination(draft.content[locale].link) && draft.content[locale].text.trim() && <button type="button" className={shared.textLink} onClick={() => setPreview(true)}>Pregled popupa</button>}</div>
             <small>JPG, PNG ili WebP · do 4 MB. Prikazuje se originalna slika bez izrezivanja.</small>
           </div>
-          <label>Status<select aria-label="Status" value={draft.active ? "active" : "inactive"} onChange={e => change({ active: e.target.value === "active" })}><option value="inactive">Neaktivna</option><option value="active">Aktivna</option></select></label>
-          <p className={styles.help}>Aktivna akcija se prikazuje u svom vremenskom periodu. Ako ih je više, prednost ima posljednja aktivirana akcija.</p>
+
+          <p className={styles.help}>Aktivni jezik se prikazuje u svom vremenskom periodu. Ako ih je više, prednost ima posljednja aktivirana akcija.</p>
           <label>Početak prikazivanja<input type="datetime-local" value={inputDate(draft.startsAt)} onChange={e => change({ startsAt: utcDate(e.target.value) })} /></label>
           <label>Kraj prikazivanja<input type="datetime-local" value={inputDate(draft.endsAt)} onChange={e => change({ endsAt: utcDate(e.target.value) })} /></label>
           <p className={`${styles.help} ${styles.wide}`}>Datumi nijesu obavezni. Vrijeme unosite prema vremenskoj zoni svog uređaja.</p>
         </div>
         <h3 className={styles.groupTitle}>CONTENT</h3>
-        <div className={styles.actions} role="tablist" aria-label="Jezik akcije">{campaignLocales.map(l => <button key={l} type="button" role="tab" aria-selected={locale === l} className={locale === l ? shared.primary : shared.secondary} onClick={() => setLocale(l)}>{l.toUpperCase()}{!draft.content[l].text.trim() || !validDestination(draft.content[l].link) ? " · Nepotpuno" : ""}</button>)}</div>
+        <div className={styles.actions} role="tablist" aria-label="Jezik akcije">{campaignLocales.map(l => <button key={l} type="button" role="tab" aria-label={l.toUpperCase()} aria-selected={locale === l} className={locale === l ? shared.primary : shared.secondary} onClick={() => setLocale(l)}>{l.toUpperCase()}{localeComplete(draft.content,l) && <span className={styles.complete} aria-label="Sadržaj kompletan"> ✓</span>}</button>)}</div>
         <div className={styles.fields} role="tabpanel" aria-label={locale.toUpperCase()}>
+          <label>Status<select aria-label="Status" value={draft.localeActive[locale] ? "active" : "inactive"} onChange={e => { const localeActive = {...draft.localeActive,[locale]:e.target.value === "active"}; change({localeActive,active:campaignLocales.some(l=>localeActive[l])}); }}><option value="inactive">Neaktivna</option><option value="active">Aktivna</option></select></label>
           <label>Tekst dugmeta<input value={draft.content[locale].text} maxLength={80} onChange={e => change({ content: { ...draft.content, [locale]: { ...draft.content[locale], text: e.target.value } } })} /></label>
           <label>Link<input aria-label="Link" value={draft.content[locale].link} maxLength={2048} placeholder={`${pathFor("upis", locale)} ili https://…`} onChange={e => change({ content: { ...draft.content, [locale]: { ...draft.content[locale], link: e.target.value } } })} /><small>Unesite postojeću putanju za ovaj jezik (npr. /sq/… ili /en/…) ili vanjski HTTPS URL.</small></label>
         </div>
-        {!completeContent(draft.content) && <p className={styles.help}>Nepotpuna akcija može se sačuvati kao neaktivna. Za aktivaciju su potrebni ispravni tekstovi i linkovi za sva tri jezika.</p>}
+        {!localeComplete(draft.content,locale) && <p className={styles.help}>Ovaj jezik je nepotpun. Može se sačuvati kao neaktivan; ostali jezici ostaju nezavisni.</p>}
       </fieldset>
       <div className={styles.actions}><button className={shared.primary} disabled={busy || uploading}>{busy ? "Spremam…" : "Sačuvaj akciju"}</button><button type="button" className={shared.secondary} disabled={busy || uploading} onClick={() => { setDraft(null); setPoster(null); }}>Odustani</button></div>
     </form>}
     {!library.campaigns.length && !draft && library.ready && <div className={styles.empty}><h2>Trenutno nema akcija.</h2><p>Kreirajte akciju i dodajte njen originalni poster. Ranije akcije ostaju dostupne ovdje.</p></div>}
     <ul className={styles.library} aria-label="Akcije">{library.campaigns.map(c => <li key={c.id}>
       <div className={styles.thumbnail}>{c.poster ? <><img src={c.poster.src} alt="" width={c.poster.width} height={c.poster.height} /></> : <span>Bez postera</span>}</div>
-      <div className={styles.details}><h2>{c.name}</h2><span className={styles.status}>{campaignRejection(c, now) ? campaignRejectionText[campaignRejection(c, now)!] : "Aktivna — spremna za javni prikaz."}</span><p>{c.startsAt || c.endsAt ? `${date(c.startsAt)} — ${date(c.endsAt)}` : "Bez vremenskog ograničenja"}</p><p className={styles.link}>{c.content.bs.text} → {c.content.bs.link}</p><p>{campaignLocales.map(l => `${l.toUpperCase()}: ${c.content[l].text.trim() && validDestination(c.content[l].link) ? "Spremno" : "Nepotpuno"}`).join(" · ")}</p></div>
+      <div className={styles.details}><h2>{c.name}</h2><span className={styles.status}>{campaignRejection(c, now, locale) ? campaignRejectionText[campaignRejection(c, now, locale)!] : "Aktivna — spremna za javni prikaz."}</span><p>{c.startsAt || c.endsAt ? `${date(c.startsAt)} — ${date(c.endsAt)}` : "Bez vremenskog ograničenja"}</p><p className={styles.link}>{c.content.bs.text} → {c.content.bs.link}</p><p>{campaignLocales.map(l => `${l.toUpperCase()}: ${c.localeActive[l] && localeComplete(c.content,l) ? "Aktivna" : localeComplete(c.content,l) ? "Spremno" : "Nepotpuno"}`).join(" · ")}</p></div>
       <div className={styles.listActions}><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => edit(c)}>Uredi</button><button className={shared.secondary} disabled={!library.writable || busy || uploading || !!draft} onClick={() => setDeleting(c)}>Obriši</button><button className={shared.secondary} disabled={busy || uploading || !!draft} onClick={() => void diagnose(c)}>Provjeri prikaz</button></div>
     </li>)}</ul>
     {preview && poster && draft && validDestination(draft.content[locale].link) && <PosterDialog campaign={{ id: draft.id, version: draft.revision || 1, poster, ctaText: draft.content[locale].text, ctaLink: draft.content[locale].link, endsAt: null }} onClose={() => setPreview(false)} />}

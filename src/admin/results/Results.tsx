@@ -27,15 +27,15 @@ export function Results({initial}:{initial:ResultsLibrary}){
  };
  const mutate=async(action:"remove"|"publish")=>{
   if(!state||lock.current)return;lock.current=true;setBusy(true);setMessage("");
-  try{const result=await adminRequest<{state:ResultState}>("/api/admin/results",{action,revision:state.revision,locale,id:action==="publish"?crypto.randomUUID():undefined});setState(result.state);setConfirm(false);setMessage(action==="publish"?"BS, SQ i EN rezultati su objavljeni.":"PDF je uklonjen iz pripreme. Objavljeni rezultati ostaju dostupni.");}
+  try{const result=await adminRequest<{state:ResultState}>("/api/admin/results",{action,revision:state.revision,locale,id:action==="publish"?crypto.randomUUID():undefined});setState(result.state);setConfirm(false);setMessage(action==="publish"?"Rezultati za izabrani jezik su objavljeni.":"PDF je uklonjen iz pripreme. Objavljeni rezultati ostaju dostupni.");}
   catch(error){setMessage(error instanceof Error?error.message:"Radnja nije završena.");setConfirm(false);}
   finally{lock.current=false;setBusy(false);}
  };
- const draft=state?.drafts[locale],published=state?.published?.files[locale],ready=!!state&&resultLocales.every(l=>!!state.drafts[l]);
- return <Shell active="/admin/rezultati" title="Rezultati ispita" intro="Jedna službena objava · tri jezička dokumenta.">
+ const draft=state?.drafts[locale],published=state?.published[locale]?.file,ready=!!state?.drafts[locale];
+ return <Shell active="/admin/rezultati" title="Rezultati ispita" intro="Jedni rezultati · nezavisne jezičke objave.">
   {initial.message&&<p className={shared.notice} role="status">{initial.message}</p>}
   {message&&<p className={styles.notice} role="status">{message}</p>}
-  <div className={styles.tabs} role="tablist" aria-label="Jezik PDF-a">{resultLocales.map(l=><button role="tab" key={l} aria-selected={locale===l} disabled={busy} className={locale===l?shared.primary:shared.secondary} onClick={()=>setLocale(l)}>{l.toUpperCase()}</button>)}</div>
+  <div className={styles.tabs} role="tablist" aria-label="Jezik PDF-a">{resultLocales.map(l=><button role="tab" aria-label={l.toUpperCase()} key={l} aria-selected={locale===l} disabled={busy} className={locale===l?shared.primary:shared.secondary} onClick={()=>setLocale(l)}>{l.toUpperCase()}{state?.drafts[l] && <span className={styles.complete} aria-label="PDF spreman"> ✓</span>}</button>)}</div>
   <section className={styles.document} role="tabpanel" aria-label={locale.toUpperCase()}>
    <h2>{locale==="bs"?"Bosanski PDF":locale==="sq"?"Shqip PDF":"English PDF"}</h2>
    <p className={styles.context}>Priprema nove objave</p>
@@ -43,9 +43,9 @@ export function Results({initial}:{initial:ResultsLibrary}){
    <input ref={file} type="file" accept="application/pdf,.pdf" aria-label="Odaberi PDF" className={styles.picker} tabIndex={-1} onChange={e=>void upload(e.target.files?.[0])}/>
    <div className={styles.actions}><button className={shared.primary} disabled={busy||!initial.writable||!state} onClick={()=>file.current?.click()}>{busy&&progress?progress:"Odaberi PDF"}</button>{draft&&<><button className={shared.secondary} disabled={busy||!initial.writable} onClick={()=>file.current?.click()}>Zamijeni PDF</button><button className={shared.secondary} disabled={busy||!initial.writable} onClick={()=>void mutate("remove")}>Ukloni PDF</button></>}</div>
    <p className={styles.context}>PDF · najviše 5 MB. Zamjena i uklanjanje mijenjaju samo pripremu.</p>
-   <div className={styles.published}><h3>Trenutno objavljeno</h3>{published?<><a href={resultAssetPreview(published.id)} target="_blank" rel="noopener noreferrer">{published.filename}</a><p>{(published.bytes/1048576).toFixed(2)} MB · verzija {state?.published?.version}</p></>:<p>Rezultati još nijesu objavljeni.</p>}</div>
+   <div className={styles.published}><h3>Trenutno objavljeno</h3>{published?<><a href={resultAssetPreview(published.id)} target="_blank" rel="noopener noreferrer">{published.filename}</a><p>{(published.bytes/1048576).toFixed(2)} MB · verzija {state?.published[locale]?.version}</p></>:<p>Rezultati još nijesu objavljeni.</p>}</div>
   </section>
-  <section className={styles.publish}><h2>Objavljivanje rezultata</h2><ul>{resultLocales.map(l=><li key={l}>{state?.drafts[l]?"✓":"—"} {l.toUpperCase()} PDF {state?.drafts[l]?"spreman":"nedostaje"}</li>)}</ul><p>Prije objave pregledajte sva tri PDF-a. Objavljuju se zajedno; prethodna objava ostaje dostupna dok nova nije uspješno završena.</p><button className={shared.primary} disabled={busy||!initial.writable||!ready} onClick={()=>setConfirm(true)}>OBJAVI REZULTATE</button></section>
-  {confirm&&<ConfirmDialog title="Objavi rezultate" description="Objaviti pripremljene BS, SQ i EN dokumente kao novu službenu objavu? Prethodni dokumenti ostaju sačuvani u istoriji." confirm="OBJAVI REZULTATE" busy={busy} onCancel={()=>setConfirm(false)} onConfirm={()=>void mutate("publish")}/>}
+  <section className={styles.publish}><h2>Objavljivanje rezultata</h2><ul>{resultLocales.map(l=><li key={l}>{state?.drafts[l]?"✓":"—"} {l.toUpperCase()} · {state?.published[l]?"Objavljeno":state?.drafts[l]?"Spremno":"Nepotpuno"}</li>)}</ul><p>Prije objave pregledajte PDF za ovaj jezik. Ostali objavljeni dokumenti ostaju nepromijenjeni.</p><button className={shared.primary} disabled={busy||!initial.writable||!ready} onClick={()=>setConfirm(true)}>OBJAVI {locale.toUpperCase()} REZULTATE</button></section>
+  {confirm&&<ConfirmDialog title="Objavi rezultate" description={`Objaviti pripremljeni ${locale.toUpperCase()} PDF? Ostali jezici ostaju nepromijenjeni; prethodni dokument ostaje sačuvan u istoriji.`} confirm={`OBJAVI ${locale.toUpperCase()} REZULTATE`} busy={busy} onCancel={()=>setConfirm(false)} onConfirm={()=>void mutate("publish")}/>}
  </Shell>;
 }

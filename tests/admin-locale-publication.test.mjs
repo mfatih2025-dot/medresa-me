@@ -221,3 +221,13 @@ test('actual server service selects only requested locales, validates readiness 
     assert.equal((await server.listNews()).backend.localePublishingReady, false);
   } finally { await db.close(); }
 });
+
+test('SQ and EN may publish before BS exists; completing BS later preserves both published snapshots',async()=>{
+ const db=await database();try{
+  let d=await addLocale(db,await initial(db,'sq-first-independent'),'sq');let row=await publish(db,d,['sq']);
+  const sq=(await db.query("select * from medresa_admin_public_locale_feed where locale='sq'")).rows[0];assert.equal((await db.query("select * from medresa_admin_public_locale_feed where locale='bs'")).rows.length,0);
+  d=await addLocale(db,row.document,'en');row=await publish(db,d,['en']);const en=(await db.query("select * from medresa_admin_public_locale_feed where locale='en'")).rows[0];
+  d=await addLocale(db,row.document,'bs');await publish(db,d,['bs']);
+  assert.deepEqual((await db.query("select * from medresa_admin_public_locale_feed where locale='sq'")).rows[0],sq);assert.deepEqual((await db.query("select * from medresa_admin_public_locale_feed where locale='en'")).rows[0],en);
+ }finally{await db.close();}
+});

@@ -31,3 +31,5 @@
 .listActions button, .actions button { min-height: 44px; }
 [role="tabpanel"].fields { margin-top: 20px; }
 @media (max-width: 639px) { .listActions { grid-column: 2; } }
+
+.complete { color:#25734b; }

@@ -30,19 +30,27 @@ test('one additive migration provides private storage, RLS, invoker RPCs, locale
   assert.equal((await db.query('select count(*)::int n from medresa_admin_articles')).rows[0].n,0);
  }finally{await db.close();}
 });
-test('three drafts publish atomically, replacements remain private until complete release, removal never deletes published PDFs',async()=>{
+test('BS, SQ and EN publish independently; updates, draft removals and retries preserve other heads',async()=>{
  const db=await resultsDatabase();try{
   Object.assign(process.env,fixtureEnvironment);const objects=new Map();globalThis.fetch=resultsRest(db,objects);await db.exec('set role service_role');
-  let state=await service.readResults();assert.equal(state.revision,0);assert.equal(await service.publishedHref('bs'),null);await assert.rejects(service.publicPdf('bs'));
-  const pdfs={};for(const locale of ['bs','sq','en']){pdfs[locale]=await pdfFixture(locale+' first');state=await upload(locale,pdfs[locale],state.revision);}
-  const id=randomUUID();state=await service.publishResults(state.revision,'fixture',id);assert.equal(state.published.id,id);
-  for(const locale of ['bs','sq','en']){assert.equal(await service.publishedHref(locale),`/api/results/${locale}`);assert.deepEqual((await service.publicPdf(locale)).bytes,pdfs[locale]);}
-  assert.equal(objects.size,3,'Transport chunks cleaned; original PDFs retained');
-  const replacement=await pdfFixture('BS replacement');state=await upload('bs',replacement,state.revision);assert.deepEqual((await service.publicPdf('bs')).bytes,pdfs.bs);
-  state=await service.removeDraft('sq',state.revision);await assert.rejects(service.publishResults(state.revision,'fixture',randomUUID()),e=>e.status===422);assert.deepEqual((await service.publicPdf('sq')).bytes,pdfs.sq);
-  state=await upload('sq',await pdfFixture('SQ replacement'),state.revision);const next=randomUUID();state=await service.publishResults(state.revision,'fixture',next);assert.equal(state.published.id,next);assert.deepEqual((await service.publicPdf('bs')).bytes,replacement);
-  assert.equal((await db.query('select count(*)::int n from medresa_results_publications')).rows[0].n,2);await assert.rejects(db.query('delete from medresa_results_publications'),e=>e.code==='42501');await db.exec('reset role');await assert.rejects(db.query('update medresa_results_publications set version=version+100'),e=>e.code==='55000');
-  const same=await service.publishResults(state.revision,'fixture',next);assert.equal(same.revision,state.revision,'Publication retry idempotent');
+  let state=await service.readResults();assert.equal(state.revision,0);assert.equal(await service.publishedHref('bs'),null);
+  const pdfs={},heads={};
+  for(const locale of ['bs','sq','en']){
+   pdfs[locale]=await pdfFixture(locale+' first');state=await upload(locale,pdfs[locale],state.revision);
+   const id=randomUUID();state=await service.publishResults(state.revision,'fixture',id,locale);heads[locale]=id;assert.equal(state.published[locale].id,id);
+   assert.deepEqual((await service.publicPdf(locale)).bytes,pdfs[locale]);
+   for(const prior of Object.keys(heads)){assert.equal(state.published[prior].id,heads[prior]);assert.deepEqual((await service.publicPdf(prior)).bytes,pdfs[prior]);}
+   if(locale==='bs'){assert.equal(await service.publishedHref('sq'),null);await assert.rejects(service.publicPdf('en'));}
+  }
+  assert.equal(objects.size,3);
+  const replacement=await pdfFixture('SQ replacement');state=await upload('sq',replacement,state.revision);assert.deepEqual((await service.publicPdf('sq')).bytes,pdfs.sq);
+  state=await service.removeDraft('en',state.revision);await assert.rejects(service.publishResults(state.revision,'fixture',randomUUID(),'en'),e=>e.status===422);
+  const next=randomUUID();state=await service.publishResults(state.revision,'fixture',next,'sq');assert.deepEqual((await service.publicPdf('sq')).bytes,replacement);
+  for(const locale of ['bs','en']){assert.equal(state.published[locale].id,heads[locale]);assert.deepEqual((await service.publicPdf(locale)).bytes,pdfs[locale]);}
+  assert.equal((await db.query('select count(*)::int n from medresa_results_locale_publications')).rows[0].n,4);
+  await assert.rejects(db.query('delete from medresa_results_locale_publications'),e=>e.code==='42501');await db.exec('reset role');await assert.rejects(db.query('update medresa_results_locale_publications set version=version+100'),e=>e.code==='55000');
+  assert.equal((await service.publishResults(state.revision,'fixture',next,'sq')).revision,state.revision);
+  await assert.rejects(service.publishResults(0,'fixture',randomUUID(),'bs'),e=>e.status===409);
  }finally{await db.close();}
 });
 test('failed/incomplete uploads, corrupted originals, stale revisions and wrong project cannot partially publish',async()=>{
@@ -52,8 +60,8 @@ test('failed/incomplete uploads, corrupted originals, stale revisions and wrong 
   await assert.rejects(service.uploadChunk(u.id,0,bytes.subarray(1),'fixture'));await assert.rejects(service.uploadChunk(u.id,0,bytes,'other-user'));
   await service.uploadChunk(u.id,0,Buffer.alloc(bytes.length),'fixture');await assert.rejects(service.finishUpload(u.id,0,'fixture'),e=>e.status===422);assert.equal((await service.readResults()).revision,0);
   for(const l of ['bs','sq','en'])s=await upload(l,await pdfFixture(l),s.revision);
-  const initial=randomUUID();s=await service.publishResults(s.revision,'fixture',initial);await assert.rejects(service.removeDraft('bs',0),e=>e.status===409);
-  const a=s.drafts.en;objects.set('medresa-results-preview/documents/'+a.id+'.pdf',{bytes:Buffer.from('corrupt'),mime:'application/pdf'});await assert.rejects(service.publishResults(s.revision,'fixture',randomUUID()));assert.equal((await service.readResults()).published.id,initial);
+  const initial=randomUUID();s=await service.publishResults(s.revision,'fixture',initial,'en');await assert.rejects(service.removeDraft('bs',0),e=>e.status===409);
+  const a=s.drafts.en;objects.set('medresa-results-preview/documents/'+a.id+'.pdf',{bytes:Buffer.from('corrupt'),mime:'application/pdf'});await assert.rejects(service.publishResults(s.revision,'fixture',randomUUID(),'en'));assert.equal((await service.readResults()).published.en.id,initial);
   for(const patch of [{VERCEL_ENV:'production'},{VERCEL_GIT_COMMIT_REF:'main'},{MEDRESA_SUPABASE_PROJECT_REF:'wrong'},{MEDRESA_SUPABASE_WRITE_ENABLED:'false'}]){Object.assign(process.env,fixtureEnvironment,patch);await assert.rejects(service.beginUpload({locale:'bs',filename:'f.pdf',bytes:10,revision:s.revision},'fixture'));}
  }finally{await db.close();}
 });

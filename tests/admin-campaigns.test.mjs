@@ -13,7 +13,7 @@ const {validateCampaign}=load('src/admin/campaigns/contracts');
 const {validDestination,eligible,dismissalKey}=load('src/admin/campaigns/model');
 const service=load('src/server/admin/campaigns/service');
 const content=()=>({bs:{text:'SAZNAJ VIŠE',link:'/upis'},sq:{text:'SQ fixture',link:'/sq/upis'},en:{text:'EN fixture',link:'/en/upis'}});
-const draft=(overrides={})=>({id:randomUUID(),revision:0,name:'Explicit local campaign fixture',posterId:null,ctaText:'SAZNAJ VIŠE',ctaLink:'/upis',content:content(),active:false,startsAt:null,endsAt:null,...overrides});
+const draft=(overrides={})=>({id:randomUUID(),revision:0,name:'Explicit local campaign fixture',posterId:null,ctaText:'SAZNAJ VIŠE',ctaLink:'/upis',content:content(),localeActive:{bs:!!overrides.active,sq:!!overrides.active,en:!!overrides.active},active:false,startsAt:null,endsAt:null,...overrides});
 const image=()=>sharp({create:{width:600,height:900,channels:3,background:'#123c31'}}).png().toBuffer();
 test('campaign contract rejects executable destinations, unsafe assets, malformed schedules and active missing posters',()=>{
   validateCampaign(draft());
@@ -23,7 +23,7 @@ test('campaign contract rejects executable destinations, unsafe assets, malforme
 });
 test('manual status and schedule boundaries select just one campaign; no name in public projection',()=>{
   const id=randomUUID(),p={id:randomUUID(),src:'/private',width:600,height:900};
-  const c={...draft({id}),revision:1,poster:p,createdAt:'2026-10-01T00:00:00Z',updatedAt:'2026-10-01T00:00:00Z',activatedAt:'2026-10-01T00:00:00Z',active:true};
+  const c={...draft({id}),revision:1,poster:p,createdAt:'2026-10-01T00:00:00Z',updatedAt:'2026-10-01T00:00:00Z',activatedAt:'2026-10-01T00:00:00Z',localeActive:{bs:true,sq:true,en:true},active:true};
   const n=Date.parse('2026-10-10T12:00:00Z');
   assert.equal(eligible(c,n),true);assert.equal(eligible({...c,active:false},n),false);
   assert.equal(eligible({...c,startsAt:'2026-10-10T12:00:01Z'},n),false);assert.equal(eligible({...c,endsAt:'2026-10-10T12:00:00Z'},n),false);
@@ -98,6 +98,7 @@ test('localized migration preserves original BS data, gates activation, and reta
     await db.exec(readFileSync('supabase/migrations/202610100002_campaign_localization_delete.sql','utf8'));
     const row=(await db.query('select * from medresa_campaigns where id=$1',[id])).rows[0];
     assert.equal(row.name,'Original retained');assert.deepEqual(row.cta_localizations,{bs:{text:'Original BS CTA',link:'/upis'},sq:{text:'',link:''},en:{text:'',link:''}});
+    await db.exec(readFileSync("supabase/migrations/202610100003_admission_results.sql","utf8"));await db.exec(readFileSync("supabase/migrations/202610100004_independent_locale_channels.sql","utf8"));
     Object.assign(process.env,fixtureEnvironment);globalThis.fetch=campaignRest(db);
     const incomplete={bs:{text:'Original BS CTA',link:'/upis'},sq:{text:'',link:''},en:{text:'',link:''}};
     const saved=await service.saveCampaign(draft({id,revision:1,content:incomplete}),'fixture');assert.equal(saved.revision,2);assert.equal(service.selectCampaign([saved]).campaign,null);
@@ -136,13 +137,13 @@ test('cleanup outage never loses another campaign or falsely reports image remov
 
 test('runtime eligibility gives identical Admin/public rejection reasons and skips incomplete higher-priority campaigns',()=>{
   const {campaignRejection,scheduleEligible}=load('src/admin/campaigns/model'),now=Date.parse('2026-10-10T12:00:00Z');
-  const c={...draft(),poster:{id:randomUUID(),width:600,height:900,src:'/private'},revision:1,active:true,activatedAt:'2026-10-10T10:00:00Z'};
+  const c={...draft(),poster:{id:randomUUID(),width:600,height:900,src:'/private'},revision:1,active:true,localeActive:{bs:true,sq:true,en:true},activatedAt:'2026-10-10T10:00:00Z'};
   assert.equal(campaignRejection(c,now),null);assert.equal(eligible(c,now),true);
-  const cases=[{active:false},{content:{...content(),sq:{text:'',link:''}}},{poster:null},{startsAt:'2026-10-10T12:00:01Z'},{endsAt:'2026-10-10T12:00:00Z'},{startsAt:'invalid'}];
+  const cases=[{active:false},{content:{...content(),bs:{text:'',link:''}}},{poster:null},{startsAt:'2026-10-10T12:00:01Z'},{endsAt:'2026-10-10T12:00:00Z'},{startsAt:'invalid'}];
   for(const [i,reason]of ['inactive','localization_incomplete','poster_missing','not_started','expired','invalid_schedule'].entries())assert.equal(campaignRejection({...c,...cases[i]},now),reason);
   assert.equal(scheduleEligible({...c,startsAt:'2026-10-10T08:00:00-04:00'},now),true,'UTC instant includes exact start despite offset');
   assert.equal(scheduleEligible({...c,endsAt:'2026-10-10T14:00:00+02:00'},now),false,'End is exclusive at identical UTC instant');
-  const invalid={...c,id:randomUUID(),content:{...content(),en:{text:'',link:''}},activatedAt:'2026-10-10T11:00:00Z'};
+  const invalid={...c,id:randomUUID(),content:{...content(),bs:{text:'',link:''}},activatedAt:'2026-10-10T11:00:00Z'};
   assert.equal(service.selectCampaign([invalid,c],now).campaign.id,c.id,'Invalid newest campaign cannot block another eligible campaign');
 });
 test('authenticated Preview runtime probe reads actual stored selection and poster, makes no writes and exposes no paths/secrets',async()=>{
@@ -167,7 +168,7 @@ test('PostgREST timezone-offset schedule readback can be reactivated without tou
     const raw=(await db.query('select to_jsonb(c) data from medresa_campaigns c where id=$1',[c.id])).rows[0].data;
     assert.ok(raw.starts_at.endsWith('+00:00'),'Fixture reproduces the actual PostgreSQL/PostgREST offset format');
     const readback=(await service.listCampaigns()).campaigns[0];assert.equal(readback.startsAt,'2000-01-01T15:00:00.000Z');assert.equal(readback.endsAt,'2099-01-01T15:00:00.000Z');
-    const activated=await service.saveCampaign({...readback,posterId:readback.poster.id,active:true},'fixture');
+    const activated=await service.saveCampaign({...readback,posterId:readback.poster.id,active:true,localeActive:{bs:true,sq:false,en:false}},'fixture');
     assert.equal(activated.active,true);assert.equal((await service.currentCampaign()).campaign.id,c.id);assert.equal(activated.startsAt,c.startsAt);assert.equal(activated.endsAt,c.endsAt);
   }finally{await db.close();}
 });

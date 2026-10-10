@@ -15,3 +15,5 @@
 .publish p { max-width:650px; }
 .notice { padding:12px 16px; border-left:2px solid var(--admin-gold); font-size:14px; margin-bottom:24px !important; }
 @media(max-width:639px) { .actions { gap:8px; } .file { display:block; } .file span { display:block; margin-top:8px; } }
+
+.complete { color:#25734b; }

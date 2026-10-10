@@ -1,3 +1,5 @@
+> Current locale behavior: see [Independent Admin locale channels](admin-independent-locales.md). Migration 202610100004 supersedes the earlier all-three-locale activation/publication rules documented below. Existing history and assets are preserved.
+
 # Admin Akcije — Preview only
 
 Branch: `codex/admin-panel`. Runtime guards require `VERCEL_ENV=preview`, this exact branch, the established project reference `safsijrhxbefgcahvsvm`, and `MEDRESA_SUPABASE_WRITE_ENABLED=true` for mutations. No additional credentials or environment changes are required. Main/Production are excluded. News, Analytics, provider auth, translation and public page components are unchanged.

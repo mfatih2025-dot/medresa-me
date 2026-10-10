@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AdminError } from "@/admin/contracts";
 import { validateCampaign } from "@/admin/campaigns/contracts";
-import { campaignLocales, campaignRejection, completeContent, scheduleEligible, eligible, uuid, type CampaignDiagnostic, type CampaignContent, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
+import { campaignLocales, campaignRejection, localeComplete, scheduleEligible, eligible, uuid, type CampaignDiagnostic, type CampaignContent, type CampaignLocale, type CampaignChannels, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
 import { supabaseConfiguration, supabaseRequest } from "../supabase";
 const BUCKET = "medresa-campaigns-preview";
 const PREVIEW_REF = "safsijrhxbefgcahvsvm";
@@ -15,19 +15,22 @@ export function campaignConfiguration(write = false) {
   return c;
 }
 type AssetRow = { id: string; object_path: string; mime: string; bytes: number; width: number; height: number };
-type CampaignRow = { id: string; revision: number; name: string; poster_id: string | null; cta_text: string; cta_link: string; cta_localizations: CampaignContent; active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; updated_at: string; activated_at: string | null };
-const campaignColumns = "id,revision,name,poster_id,cta_text,cta_link,cta_localizations,active,starts_at,ends_at,created_at,updated_at,activated_at";
+type CampaignRow = { id: string; revision: number; name: string; poster_id: string | null; cta_text: string; cta_link: string; cta_localizations: CampaignContent; locale_active: CampaignChannels; active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; updated_at: string; activated_at: string | null };
+const campaignColumns = "id,revision,name,poster_id,cta_text,cta_link,cta_localizations,locale_active,active,starts_at,ends_at,created_at,updated_at,activated_at";
 async function request(path: string, init: RequestInit = {}, write = false) { campaignConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }
 function poster(row: Pick<AssetRow, "id" | "width" | "height">): Poster { return { id: row.id, width: row.width, height: row.height, src: `/api/admin/campaigns/assets/${row.id}` }; }
 function project(row: CampaignRow, asset?: Pick<AssetRow, "id" | "width" | "height">): Campaign {
-  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, content: row.cta_localizations, active: row.active, startsAt: row.starts_at ? new Date(row.starts_at).toISOString() : null, endsAt: row.ends_at ? new Date(row.ends_at).toISOString() : null, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
+  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, content: row.cta_localizations, localeActive: row.locale_active ?? {bs:row.active && localeComplete(row.cta_localizations,"bs"),sq:row.active && localeComplete(row.cta_localizations,"sq"),en:row.active && localeComplete(row.cta_localizations,"en")}, active: row.active, startsAt: row.starts_at ? new Date(row.starts_at).toISOString() : null, endsAt: row.ends_at ? new Date(row.ends_at).toISOString() : null, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
 }
 async function rows(activeOnly = false): Promise<Campaign[]> {
   const campaigns = new Map<string, Campaign>();
   // Embed only referenced asset dimensions. Retained old/unreferenced uploads
   // cannot hide a new poster behind PostgREST's default row limit.
   for (let offset = 0; ; offset += 200) {
-    const page = await (await request(`/rest/v1/medresa_campaigns?select=${campaignColumns},poster:medresa_campaign_assets(id,width,height)&order=updated_at.desc,id.asc&limit=200&offset=${offset}${activeOnly ? "&active=eq.true" : ""}`)).json();
+    const url = `/rest/v1/medresa_campaigns?select=${campaignColumns},poster:medresa_campaign_assets(id,width,height)&order=updated_at.desc,id.asc&limit=200&offset=${offset}${activeOnly ? "&active=eq.true" : ""}`;
+    let response: Response;
+    try { response = await request(url); } catch { response = await request(url.replace(",locale_active,",",")); } // Read-only compatibility until the follow-up migration is applied.
+    const page = await response.json();
     if (!Array.isArray(page)) throw new AdminError(503, "Akcije trenutno nijesu dostupne.");
     for (const row of page) campaigns.set(row.id, project(row, row.poster ?? undefined));
     if (page.length < 200) break;
@@ -35,14 +38,14 @@ async function rows(activeOnly = false): Promise<Campaign[]> {
   return [...campaigns.values()];
 }
 export async function listCampaigns(): Promise<CampaignLibrary> {
-  try { const c = campaignConfiguration(); return { generatedAt: new Date().toISOString(), campaigns: await rows(), ready: true, writable: c.writable, message: c.writable ? null : "Akcije su dostupne samo za čitanje." }; }
+  try { const c = campaignConfiguration(); let channelsReady = true; try { await request("/rest/v1/medresa_campaigns?select=locale_active&limit=1"); } catch { channelsReady = false; } return { generatedAt: new Date().toISOString(), campaigns: await rows(), ready: true, writable: c.writable && channelsReady, message: !channelsReady ? "Za nezavisnu aktivaciju jezika primijenite Preview migraciju 202610100004_independent_locale_channels.sql." : c.writable ? null : "Akcije su dostupne samo za čitanje." }; }
   catch { return { generatedAt: new Date().toISOString(), campaigns: [], ready: false, writable: false, message: "Akcije trenutno nijesu spremne. Provjerite Preview povezivanje i migraciju za akcije." }; }
 }
 export async function saveCampaign(value: unknown, actor: string): Promise<Campaign> {
   campaignConfiguration(true); validateCampaign(value); const draft: CampaignDraft = value;
   let result: Response;
   try {
-    result = await request("/rest/v1/rpc/medresa_campaign_save_localized", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_id: draft.id, p_expected: draft.revision, p_name: draft.name, p_poster: draft.posterId, p_content: draft.content, p_active: draft.active, p_starts: draft.startsAt, p_ends: draft.endsAt, p_actor: actor }) }, true);
+    result = await request("/rest/v1/rpc/medresa_campaign_save_channels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_id: draft.id, p_expected: draft.revision, p_name: draft.name, p_poster: draft.posterId, p_content: draft.content, p_channels: draft.localeActive, p_starts: draft.startsAt, p_ends: draft.endsAt, p_actor: actor }) }, true);
   } catch (error) {
     if (error instanceof AdminError && error.status === 409) throw new AdminError(409, "Akcija je promijenjena u drugom prozoru. Ponovo je otvorite prije spremanja.");
     if (error instanceof AdminError && error.status === 404) throw new AdminError(404, "Akcija nije pronađena.");
@@ -84,18 +87,19 @@ export async function readPoster(id: string) {
 }
 /** Several campaigns may be scheduled. Only the most recently ACTIVATED eligible
  * campaign wins (ID breaks ties). Edits don't silently reorder active campaigns. */
-export function selectCampaign(campaigns: Campaign[], now = Date.now()) {
-  const current = campaigns.filter(c => eligible(c, now)).sort((a, b) => (b.activatedAt ?? "").localeCompare(a.activatedAt ?? "") || a.id.localeCompare(b.id))[0];
+export function selectCampaign(campaigns: Campaign[], now = Date.now(), locale: CampaignLocale = "bs") {
+  const current = campaigns.filter(c => eligible(c, now, locale)).sort((a, b) => (b.activatedAt ?? "").localeCompare(a.activatedAt ?? "") || a.id.localeCompare(b.id))[0];
   const times = campaigns.filter(c => c.active && c.poster).flatMap(c => [c.startsAt, c.endsAt]).filter((t): t is string => !!t && Date.parse(t) > now).sort((a,b) => Date.parse(a)-Date.parse(b));
-  const campaign: PublicCampaign | null = current?.poster ? { id: current.id, version: current.revision, poster: { ...current.poster, src: `/api/campaigns/poster/${current.id}?version=${current.revision}` }, ctaText: current.content.bs.text, ctaLink: current.content.bs.link, content: current.content, endsAt: current.endsAt } : null;
+  const campaign: PublicCampaign | null = current?.poster ? { id: current.id, version: current.revision, poster: { ...current.poster, src: `/api/campaigns/poster/${current.id}?version=${current.revision}` }, ctaText: current.content[locale].text, ctaLink: current.content[locale].link, endsAt: current.endsAt } : null;
   return { campaign, nextChangeAt: times[0] ?? null };
 }
-export async function currentCampaign(now = Date.now()) {
-  try { campaignConfiguration(); return selectCampaign(await rows(true), now); } catch { console.warn("medresa.campaign.read.failed", { reason: "campaign_backend_unavailable" }); return { campaign: null, nextChangeAt: null }; }
+export async function currentCampaign(now = Date.now(), locale: CampaignLocale = "bs") {
+  try { campaignConfiguration(); return selectCampaign(await rows(true), now, locale); } catch { console.warn("medresa.campaign.read.failed", { reason: "campaign_backend_unavailable" }); return { campaign: null, nextChangeAt: null }; }
 }
 export async function publicPoster(id: string, version: string) {
   if (!uuid(id) || !/^[1-9]\d{0,15}$/.test(version)) throw new AdminError(404, "Slika nije dostupna.");
-  const { campaign } = await currentCampaign();
+  const campaigns = await rows(true);
+  const campaign = campaignLocales.map(locale => selectCampaign(campaigns, Date.now(), locale).campaign).find(c => c?.id === id && c.version === Number(version));
   if (!campaign || campaign.id !== id || campaign.version !== Number(version)) throw new AdminError(404, "Slika nije dostupna.");
   return readPoster(campaign.poster.id);
 }
@@ -120,19 +124,19 @@ export async function deleteCampaign(value: unknown) {
 
 /** Explicit authenticated read-only probe. No raw provider errors, credentials,
  * private Storage paths or poster bytes leave this projection. */
-export async function diagnoseCampaign(id: string): Promise<CampaignDiagnostic> {
+export async function diagnoseCampaign(id: string, locale: CampaignLocale = "bs"): Promise<CampaignDiagnostic> {
   campaignConfiguration();
   if (!uuid(id)) throw new AdminError(422, "Akcija nije ispravna.");
   const campaigns = await rows(), now = Date.now(), target = campaigns.find(c => c.id === id);
-  const selected = selectCampaign(campaigns, now).campaign;
+  const selected = selectCampaign(campaigns, now, locale).campaign;
   let posterAccessible: boolean | null = null;
   if (target?.poster) { try { await readPoster(target.poster.id); posterAccessible = true; } catch { posterAccessible = false; } }
-  const reason = target ? campaignRejection(target, now) : "campaign_missing";
+  const reason = target ? campaignRejection(target, now, locale) : "campaign_missing";
   return {
     campaignFound: !!target, id: target?.id ?? null, revision: target?.revision ?? null,
-    active: target?.active ?? false, scheduleEligible: !!target && scheduleEligible(target, now),
-    localizationComplete: !!target && completeContent(target.content),
-    missingLocales: target ? campaignLocales.filter(locale => !completeContent({ bs: target.content[locale], sq: target.content[locale], en: target.content[locale] })) : [...campaignLocales],
+    active: target?.localeActive[locale] ?? false, scheduleEligible: !!target && scheduleEligible(target, now),
+    localizationComplete: !!target && localeComplete(target.content, locale),
+    missingLocales: target ? campaignLocales.filter(locale => !localeComplete(target.content, locale)) : [...campaignLocales],
     serverTime: new Date(now).toISOString(), startsAt: target?.startsAt ?? null, endsAt: target?.endsAt ?? null,
     selectedForPublic: !!target && selected?.id === target.id,
     posterAccessible,

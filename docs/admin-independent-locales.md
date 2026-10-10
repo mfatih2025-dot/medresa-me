@@ -1,0 +1,17 @@
+# Independent Admin locale channels — Preview only
+
+Apply `supabase/migrations/202610100004_independent_locale_channels.sql` manually in **medresa-me-preview**. Prerequisites: the existing Campaign migrations `202610100001` and `202610100002`, and Results migration `202610100003`. Apply any missing prerequisite once; never rerun an installed migration. No remote migration or data operation was performed by this change. No bucket or environment variable is added.
+
+News already uses immutable per-locale publication heads. Its existing review, concurrency, slug reservation and publication protections are unchanged. AI translation is optional. The tab check indicates that that locale's required content fields are complete, independently of human review/publication.
+
+Campaigns retain one identity/poster/schedule/revision and shared dismissal key. `locale_active` explicitly records independent BS/SQ/EN activation. Admin's Status selector belongs to the selected content locale. Completing a CTA does not activate it. Each activated locale must have its own valid CTA; inactive locales may have incomplete drafts. The parent `active` field is derived from any active locale, not a second activation control. The new guarded RPC and table constraint enforce these rules. Existing active campaigns retain their CTA, revision, timestamp and all three active channels. Previously inactive campaigns stay inactive. Deletion/shared poster safety is unchanged.
+
+The public campaign request uses the website's existing locale and selects the eligible campaign for that locale only. It returns that active CTA, never other locales' drafts. Poster authorization accepts the currently selected campaign in any eligible locale. The artwork renderer, localization routes, schedule boundaries, dismissal key and visual design remain unchanged. Locale changes hide the previous locale response immediately while obtaining the new response; one shared dismissal key prevents duplicate impressions.
+
+Results retain one shared draft control row and original private PDF assets. Each locale now has an immutable publication history and independent published head. `OBJAVI BS/SQ/EN REZULTATE` validates only that locale's PDF, then atomically changes only that head under the existing optimistic revision lock. Other heads remain unchanged, even if their drafts are missing or removed. New locale tables use RLS, service-role-only access, invoker RPCs, locale-matching foreign keys/triggers and immutable history. All previous complete Results releases are backfilled as three locale publications with their original assets, versions and timestamps; original history is untouched. Superseded all-locale mutation RPCs are retired, not removed.
+
+The unchanged `/upis`, `/sq/regjistrimi`, `/en/admissions` module gets only that locale's current published download URL. A locale with no publication stays in the existing unlinked state. Replacement needs no deployment. PDF parsing, 5 MiB validation, private chunk transport and immutable original bytes are unchanged.
+
+Before the follow-up migration is installed, read-only compatibility preserves existing active Campaigns and complete published Results. Admin explains that the migration is needed and disables mutations; it does not pretend locale publication works against the old schema.
+
+Validation uses disposable local PostgreSQL/Storage/API fixtures only. No real campaigns, PDFs or News data are seeded remotely.
