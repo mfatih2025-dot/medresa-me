@@ -34,9 +34,11 @@ const origin='http://localhost:3214';
   const dialog=page.getByRole('dialog',{name:'Obavijest Medrese'});
   const save=async()=>{await page.getByRole('button',{name:'Sačuvaj akciju',exact:true}).click();await page.getByText('Akcija je sačuvana.',{exact:true}).waitFor();};
   const current=async()=> (await (await context.request.get(origin+'/api/campaigns/current')).json()).campaign;
+  const fillTranslations=async()=>{for(const [locale,text,link]of [['SQ','SQ fixture','/sq/regjistrimi'],['EN','EN fixture','/en/admissions']]){await page.getByRole('tab',{name:new RegExp('^'+locale)}).click();await page.getByLabel('Tekst dugmeta').fill(text);await page.getByLabel('Link',{exact:true}).fill(link);}await page.getByRole('tab',{name:/^BS/}).click();};
   const adminRows=async()=> (await(await context.request.get(origin+'/api/admin/campaigns')).json()).campaigns;
   const directSave=async(c,change)=>{
-    const body={id:c.id,revision:c.revision,name:c.name,posterId:c.poster?.id??null,ctaText:c.ctaText,ctaLink:c.ctaLink,active:c.active,startsAt:c.startsAt,endsAt:c.endsAt,...change};
+    const body={id:c.id,revision:c.revision,name:c.name,posterId:c.poster?.id??null,ctaText:c.ctaText,ctaLink:c.ctaLink,content:c.content,active:c.active,startsAt:c.startsAt,endsAt:c.endsAt,...change};
+    if(change.ctaText)body.content={...body.content,bs:{...body.content.bs,text:change.ctaText}};
     const res=await context.request.post(origin+'/api/admin/campaigns',{headers:{Origin:origin},data:body});assert.ok(res.ok(),await res.text());return (await res.json()).campaign;
   };
   try {
@@ -58,7 +60,7 @@ const origin='http://localhost:3214';
     await page.getByAltText('Odabrani poster').waitFor();await save();assert.equal(await current(),null);
     let first=(await adminRows())[0];const originalAsset=first.poster.id;
     assert.equal(createHash('sha256').update(await(await context.request.get(origin+first.poster.src)).body()).digest('hex'),createHash('sha256').update(png).digest('hex'));
-    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
+    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
     await page.goto(origin+'/historijat');await dialog.waitFor();await page.waitForFunction(()=>document.fonts.status==='loaded');
     assert.ok(!(await dialog.innerText()).includes(first.name));assert.equal(await dialog.locator('a').getAttribute('href'),'/upis?fixture=exact#destination');
     assert.equal(await page.evaluate(()=>document.documentElement.style.overflow),'hidden');
@@ -87,7 +89,7 @@ const origin='http://localhost:3214';
     await page.goto(origin+'/historijat');await dialog.waitFor();await dialog.locator('img').evaluate(el=>el.decode());assert.ok(Math.abs((await dialog.locator('img').boundingBox()).width/(await dialog.locator('img').boundingBox()).height-2)<0.01);const exactHref=await dialog.locator('a').getAttribute('href'); await Promise.all([page.waitForURL(origin+exactHref),dialog.locator('a').click()]); assert.equal(page.url(),origin+exactHref);
     first=await directSave(first,{active:false});assert.equal(await current(),null);
     await page.goto(origin+'/admin/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByRole('button',{name:'Ukloni',exact:true}).click();assert.equal(await page.getByAltText('Odabrani poster').count(),0);await save();first=(await adminRows())[0];assert.equal(first.poster,null);assert.equal(objects.size,2);
-    await page.getByRole('button',{name:'Nova akcija',exact:true}).click();await page.getByLabel('Naziv akcije').fill('Second internal fixture');await page.getByLabel('Link',{exact:true}).fill('/donacije');await page.getByLabel('Odaberi sliku',{exact:true}).setInputFiles({name:'new-fixture.png',mimeType:'image/png',buffer:png});await page.getByAltText('Odabrani poster').waitFor();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();
+    await page.getByRole('button',{name:'Nova akcija',exact:true}).click();await page.getByLabel('Naziv akcije').fill('Second internal fixture');await page.getByLabel('Link',{exact:true}).fill('/donacije');await page.getByLabel('Odaberi sliku',{exact:true}).setInputFiles({name:'new-fixture.png',mimeType:'image/png',buffer:png});await page.getByAltText('Odabrani poster').waitFor();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();
     let second=(await adminRows()).find(c=>c.id!==first.id);await page.goto(origin+'/historijat');await dialog.waitFor();assert.equal(await dialog.locator('a').getAttribute('href'),'/donacije');assert.equal((await current()).id,second.id);
     for (const [width,height] of [[600,1800],[800,800]]) {
       const bytes=await sharp({create:{width,height,channels:3,background:'#123c31'}}).png().toBuffer();
@@ -109,6 +111,16 @@ const origin='http://localhost:3214';
     second=await directSave(second,{startsAt:null,endsAt:null});await freshPage.goto(origin+'/');await freshPage.getByRole('dialog',{name:/Medresa/}).waitFor();assert.equal(await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).count(),0,'Campaign waits for existing language gateway');
     await freshPage.getByRole('button',{name:'Bosanski'}).click();await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).waitFor();await freshPage.getByRole('button',{name:'Zatvori obavijest'}).click();await freshPage.getByRole('dialog',{name:'Obavijest Medrese'}).waitFor({state:'detached'});await fresh.close();
     assert.equal((await db.query('select count(*)::int n from medresa_campaigns')).rows[0].n,2,'Both historical campaigns retained');
+    // The same identity/version uses website language without duplicating artwork or dismissal.
+    await page.goto(origin+'/sq/historiku');await dialog.waitFor();assert.equal((await dialog.locator('a').innerText()).replace(/\s+/g,' '),'SQ fixture →');assert.equal(await dialog.locator('a').getAttribute('href'),'/sq/regjistrimi');
+    await dialog.getByRole('button').click();await dialog.waitFor({state:'detached'});await page.goto(origin+'/en/history');assert.equal(await dialog.count(),0,'Dismissal is shared across languages');
+    second=await directSave(second,{ctaText:'New version fixture'});await page.reload();await dialog.waitFor();assert.equal(await dialog.locator('a').getAttribute('href'),'/en/admissions');await dialog.getByRole('button').click();
+    await page.goto(origin+'/admin/akcije');
+    const target=page.locator('li').filter({has:page.getByRole('heading',{name:second.name,exact:true})});
+    for(const width of [360,390,412,430,1440]) { await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);const box=await target.getByRole('button',{name:'Obriši',exact:true}).boundingBox();assert.ok(box.height>=44); }
+    await target.getByRole('button',{name:'Obriši',exact:true}).click();const confirmation=page.getByRole('dialog',{name:'Obriši akciju'});await confirmation.waitFor();assert.ok((await confirmation.innerText()).includes(second.name));await confirmation.getByRole('button',{name:'Odustani'}).click();assert.equal((await adminRows()).length,2,'Cancel performs no deletion');
+    await target.getByRole('button',{name:'Obriši',exact:true}).click();await confirmation.getByRole('button',{name:'Obriši',exact:true}).click();await target.waitFor({state:'detached'});assert.equal((await adminRows()).length,1);assert.equal(await current(),null);
+
     assert.equal((await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n,0);assert.equal((await db.query('select count(*)::int n from medresa_admin_articles')).rows[0].n,0);
     assert.deepEqual(errors,[],'No browser/hydration errors');
     for(const src of await page.locator('script[src]').evaluateAll(xs=>xs.map(x=>x.src))){const code=await(await context.request.get(src)).text();assert.ok(!code.includes(process.env.SUPABASE_SERVICE_ROLE_KEY));assert.ok(!code.includes('medresa_campaign_save'),'RPC/server code stays server-side');}

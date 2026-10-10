@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AdminError } from "@/admin/contracts";
 import { validateCampaign } from "@/admin/campaigns/contracts";
-import { eligible, uuid, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
+import { eligible, uuid, type CampaignContent, type Campaign, type CampaignDraft, type CampaignLibrary, type Poster, type PublicCampaign } from "@/admin/campaigns/model";
 import { supabaseConfiguration, supabaseRequest } from "../supabase";
 const BUCKET = "medresa-campaigns-preview";
 const PREVIEW_REF = "safsijrhxbefgcahvsvm";
@@ -15,12 +15,12 @@ export function campaignConfiguration(write = false) {
   return c;
 }
 type AssetRow = { id: string; object_path: string; mime: string; bytes: number; width: number; height: number };
-type CampaignRow = { id: string; revision: number; name: string; poster_id: string | null; cta_text: string; cta_link: string; active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; updated_at: string; activated_at: string | null };
-const campaignColumns = "id,revision,name,poster_id,cta_text,cta_link,active,starts_at,ends_at,created_at,updated_at,activated_at";
+type CampaignRow = { id: string; revision: number; name: string; poster_id: string | null; cta_text: string; cta_link: string; cta_localizations: CampaignContent; active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; updated_at: string; activated_at: string | null };
+const campaignColumns = "id,revision,name,poster_id,cta_text,cta_link,cta_localizations,active,starts_at,ends_at,created_at,updated_at,activated_at";
 async function request(path: string, init: RequestInit = {}, write = false) { campaignConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }
 function poster(row: Pick<AssetRow, "id" | "width" | "height">): Poster { return { id: row.id, width: row.width, height: row.height, src: `/api/admin/campaigns/assets/${row.id}` }; }
 function project(row: CampaignRow, asset?: Pick<AssetRow, "id" | "width" | "height">): Campaign {
-  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, active: row.active, startsAt: row.starts_at, endsAt: row.ends_at, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
+  return { id: row.id, revision: row.revision, name: row.name, poster: asset ? poster(asset) : null, ctaText: row.cta_text, ctaLink: row.cta_link, content: row.cta_localizations, active: row.active, startsAt: row.starts_at, endsAt: row.ends_at, createdAt: row.created_at, updatedAt: row.updated_at, activatedAt: row.activated_at };
 }
 async function rows(activeOnly = false): Promise<Campaign[]> {
   const campaigns = new Map<string, Campaign>();
@@ -42,7 +42,7 @@ export async function saveCampaign(value: unknown, actor: string): Promise<Campa
   campaignConfiguration(true); validateCampaign(value); const draft: CampaignDraft = value;
   let result: Response;
   try {
-    result = await request("/rest/v1/rpc/medresa_campaign_save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_id: draft.id, p_expected: draft.revision, p_name: draft.name, p_poster: draft.posterId, p_cta_text: draft.ctaText, p_cta_link: draft.ctaLink, p_active: draft.active, p_starts: draft.startsAt, p_ends: draft.endsAt, p_actor: actor }) }, true);
+    result = await request("/rest/v1/rpc/medresa_campaign_save_localized", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_id: draft.id, p_expected: draft.revision, p_name: draft.name, p_poster: draft.posterId, p_content: draft.content, p_active: draft.active, p_starts: draft.startsAt, p_ends: draft.endsAt, p_actor: actor }) }, true);
   } catch (error) {
     if (error instanceof AdminError && error.status === 409) throw new AdminError(409, "Akcija je promijenjena u drugom prozoru. Ponovo je otvorite prije spremanja.");
     if (error instanceof AdminError && error.status === 404) throw new AdminError(404, "Akcija nije pronađena.");
@@ -87,7 +87,7 @@ export async function readPoster(id: string) {
 export function selectCampaign(campaigns: Campaign[], now = Date.now()) {
   const current = campaigns.filter(c => eligible(c, now)).sort((a, b) => (b.activatedAt ?? "").localeCompare(a.activatedAt ?? "") || a.id.localeCompare(b.id))[0];
   const times = campaigns.filter(c => c.active && c.poster).flatMap(c => [c.startsAt, c.endsAt]).filter((t): t is string => !!t && Date.parse(t) > now).sort((a,b) => Date.parse(a)-Date.parse(b));
-  const campaign: PublicCampaign | null = current?.poster ? { id: current.id, version: current.revision, poster: { ...current.poster, src: `/api/campaigns/poster/${current.id}?version=${current.revision}` }, ctaText: current.ctaText, ctaLink: current.ctaLink, endsAt: current.endsAt } : null;
+  const campaign: PublicCampaign | null = current?.poster ? { id: current.id, version: current.revision, poster: { ...current.poster, src: `/api/campaigns/poster/${current.id}?version=${current.revision}` }, ctaText: current.content.bs.text, ctaLink: current.content.bs.link, content: current.content, endsAt: current.endsAt } : null;
   return { campaign, nextChangeAt: times[0] ?? null };
 }
 export async function currentCampaign(now = Date.now()) {
@@ -98,4 +98,22 @@ export async function publicPoster(id: string, version: string) {
   const { campaign } = await currentCampaign();
   if (!campaign || campaign.id !== id || campaign.version !== Number(version)) throw new AdminError(404, "Slika nije dostupna.");
   return readPoster(campaign.poster.id);
+}
+
+/** Database reserves an unreferenced asset before Storage deletion. Reserved assets
+ * cannot acquire new references; shared posters are never returned for cleanup. */
+export async function deleteCampaign(value: unknown) {
+  campaignConfiguration(true);
+  const input = value as { id: string; revision: number };
+  if (!input || !uuid(input.id) || !Number.isSafeInteger(input.revision) || input.revision < 1) throw new AdminError(422, "Akcija nije ispravna.");
+  const result = await (await request("/rest/v1/rpc/medresa_campaign_delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_id: input.id, p_expected: input.revision }) }, true)).json();
+  let cleanup = true;
+  if (result.asset_id) {
+    try {
+      if (!uuid(result.asset_id) || result.object_path !== `posters/${result.asset_id}.${result.extension}` || !["jpg", "png", "webp"].includes(result.extension)) throw new Error();
+      await request(`/storage/v1/object/${BUCKET}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: [result.object_path] }) }, true);
+      await request("/rest/v1/rpc/medresa_campaign_finish_cleanup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_asset: result.asset_id }) }, true);
+    } catch { cleanup = false; } // Retain the reserved private asset on cleanup failure; never reuse it.
+  }
+  return { id: input.id, cleanup };
 }

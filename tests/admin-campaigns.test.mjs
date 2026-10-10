@@ -12,13 +12,14 @@ const load=moduleLoader();
 const {validateCampaign}=load('src/admin/campaigns/contracts');
 const {validDestination,eligible,dismissalKey}=load('src/admin/campaigns/model');
 const service=load('src/server/admin/campaigns/service');
-const draft=(overrides={})=>({id:randomUUID(),revision:0,name:'Explicit local campaign fixture',posterId:null,ctaText:'SAZNAJ VIŠE',ctaLink:'/upis',active:false,startsAt:null,endsAt:null,...overrides});
+const content=()=>({bs:{text:'SAZNAJ VIŠE',link:'/upis'},sq:{text:'SQ fixture',link:'/sq/upis'},en:{text:'EN fixture',link:'/en/upis'}});
+const draft=(overrides={})=>({id:randomUUID(),revision:0,name:'Explicit local campaign fixture',posterId:null,ctaText:'SAZNAJ VIŠE',ctaLink:'/upis',content:content(),active:false,startsAt:null,endsAt:null,...overrides});
 const image=()=>sharp({create:{width:600,height:900,channels:3,background:'#123c31'}}).png().toBuffer();
 test('campaign contract rejects executable destinations, unsafe assets, malformed schedules and active missing posters',()=>{
   validateCampaign(draft());
   for(const url of ['/upis','/donacije?akcija=1#info','https://example.org/path?q=1#exact'])assert.equal(validDestination(url),true);
   for(const url of ['javascript:alert(1)','data:text/html,x','//evil.example','/\\evil.example','https://user:pass@example.org','/admin','/api/admin/login','/./admin','/%61dmin','/upis\n',' http://x','http://example.org',''])assert.equal(validDestination(url),false,url);
-  for(const patch of [{active:true},{name:''},{name:'x'.repeat(161)},{ctaText:''},{revision:-1},{posterId:'bad'},{startsAt:'2026-02-31T12:00:00Z'},{startsAt:'2026-10-10T12:00:00.000Z',endsAt:'2026-10-10T11:00:00.000Z'}])assert.throws(()=>validateCampaign(draft(patch)));
+  for(const patch of [{active:true},{name:''},{name:'x'.repeat(161)},{content:{bs:{text:'',link:''}}},{revision:-1},{posterId:'bad'},{startsAt:'2026-02-31T12:00:00Z'},{startsAt:'2026-10-10T12:00:00.000Z',endsAt:'2026-10-10T11:00:00.000Z'}])assert.throws(()=>validateCampaign(draft(patch)));
 });
 test('manual status and schedule boundaries select just one campaign; no name in public projection',()=>{
   const id=randomUUID(),p={id:randomUUID(),src:'/private',width:600,height:900};
@@ -49,7 +50,7 @@ test('additive campaign migration validates RLS/private Storage/grants and optim
     Object.assign(process.env,fixtureEnvironment);globalThis.fetch=campaignRest(db);const saved=await service.saveCampaign(draft(),'fixture');assert.equal(saved.revision,1);
     const updated=await service.saveCampaign({...draft({id:saved.id}),revision:1,name:'Edited local fixture'},'fixture');assert.equal(updated.revision,2);
     await assert.rejects(service.saveCampaign({...draft({id:saved.id}),revision:1},'fixture'),e=>e.status===409);
-    await db.exec('set role service_role');assert.equal((await service.saveCampaign(draft(),'service-role-fixture')).revision,1);await assert.rejects(db.query('delete from medresa_campaigns'),e=>e.code==='42501');await assert.rejects(db.query('truncate medresa_campaigns'),e=>e.code==='42501');await assert.rejects(db.query('update medresa_campaign_assets set mime=$1',['image/png']),e=>e.code==='42501');await db.exec('reset role');
+    await db.exec('set role service_role');assert.equal((await service.saveCampaign(draft(),'service-role-fixture')).revision,1);assert.equal((await db.query("select has_table_privilege('service_role','medresa_campaigns','DELETE') allowed")).rows[0].allowed,true);await assert.rejects(db.query('truncate medresa_campaigns'),e=>e.code==='42501');await assert.rejects(db.query('update medresa_campaign_assets set mime=$1',['image/png']),e=>e.code==='42501');await db.exec('reset role');
     assert.equal((await db.query('select count(*)::int n from medresa_admin_articles')).rows[0].n,0);assert.equal((await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n,0);
     assert.equal((await db.query("select public from storage.buckets where id='medresa-news-preview'")).rows[0].public,false);
   }finally{await db.close();}
@@ -60,7 +61,7 @@ test('original poster bytes, replacement, remove, activation/deactivation and au
     const original=await image(),poster=await service.uploadPoster(original,'image/png','fixture');assert.equal(poster.width,600);assert.equal(poster.height,900);
     assert.deepEqual((await service.readPoster(poster.id)).bytes,original);
     const p2=await service.uploadPoster(original,'image/png','fixture');assert.notEqual(p2.id,poster.id);
-    let c=await service.saveCampaign(draft({posterId:poster.id,active:true,ctaText:'Exact admin CTA',ctaLink:'https://example.org/donate?q=1#details'}),'fixture');
+    let c=await service.saveCampaign(draft({posterId:poster.id,active:true,ctaText:'Exact admin CTA',ctaLink:'https://example.org/donate?q=1#details',content:{...content(),bs:{text:'Exact admin CTA',link:'https://example.org/donate?q=1#details'}}}),'fixture');
     assert.equal((await service.listCampaigns()).campaigns[0].name,c.name);const current=(await service.currentCampaign()).campaign;assert.equal(current.ctaLink,c.ctaLink);
     assert.equal(createHash('sha256').update((await service.publicPoster(c.id,String(c.revision))).bytes).digest('hex'),createHash('sha256').update(original).digest('hex'));
     c=await service.saveCampaign({...draft({id:c.id,posterId:p2.id,active:true}),revision:c.revision},'fixture');assert.equal(c.poster.id,p2.id);assert.equal(objects.size,2);
@@ -77,7 +78,7 @@ test('original poster bytes, replacement, remove, activation/deactivation and au
   }finally{await db.close();}
 });
 test('campaign mutation/upload/asset endpoints authenticate before touching storage and reject foreign origins',async()=>{
-  let calls=0;const fake={campaignConfiguration(){calls++;},listCampaigns(){calls++;},saveCampaign(){calls++;},uploadPoster(){calls++;},readPoster(){calls++;}};
+  let calls=0;const fake={deleteCampaign(){calls++;},campaignConfiguration(){calls++;},listCampaigns(){calls++;},saveCampaign(){calls++;},uploadPoster(){calls++;},readPoster(){calls++;}};
   Object.assign(process.env,fixtureEnvironment);const {createSession,cookieName}=load('src/server/admin/auth');
   process.env.MEDRESA_ADMIN_USER='fixture';process.env.MEDRESA_ADMIN_SESSION_SECRET='x'.repeat(48);process.env.MEDRESA_ADMIN_PASSWORD_HASH='scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128);process.env.MEDRESA_ADMIN_ORIGIN='http://localhost:3214';
   const token=createSession();
@@ -88,4 +89,47 @@ test('campaign mutation/upload/asset endpoints authenticate before touching stor
     }
   }
   assert.equal(calls,0);
+});
+
+test('localized migration preserves original BS data, gates activation, and retains incomplete drafts',async()=>{
+  const {readFileSync}=await import('node:fs');const db=await campaignDatabase(false);
+  try {
+    const id=randomUUID();await db.query('select medresa_campaign_save($1,0,$2,null,$3,$4,false,null,null,$5)',[id,'Original retained','Original BS CTA','/upis','fixture']);
+    await db.exec(readFileSync('supabase/migrations/202610100002_campaign_localization_delete.sql','utf8'));
+    const row=(await db.query('select * from medresa_campaigns where id=$1',[id])).rows[0];
+    assert.equal(row.name,'Original retained');assert.deepEqual(row.cta_localizations,{bs:{text:'Original BS CTA',link:'/upis'},sq:{text:'',link:''},en:{text:'',link:''}});
+    Object.assign(process.env,fixtureEnvironment);globalThis.fetch=campaignRest(db);
+    const incomplete={bs:{text:'Original BS CTA',link:'/upis'},sq:{text:'',link:''},en:{text:'',link:''}};
+    const saved=await service.saveCampaign(draft({id,revision:1,content:incomplete}),'fixture');assert.equal(saved.revision,2);assert.equal(service.selectCampaign([saved]).campaign,null);
+    const p=await service.uploadPoster(await image(),'image/png','fixture');
+    await assert.rejects(service.saveCampaign(draft({id,revision:2,posterId:p.id,active:true,content:incomplete}),'fixture'),e=>e.status===422);
+    await assert.rejects(db.query('update medresa_campaigns set active=true,poster_id=$2,activated_at=now() where id=$1',[id,p.id]),e=>e.code==='23514');
+    for(const role of ['anon','authenticated']){await db.exec(`set role ${role}`);await assert.rejects(db.query('select medresa_campaign_delete($1,2)',[id]),e=>e.code==='42501');await db.exec('reset role');}
+  }finally{await db.close();}
+});
+test('confirmed deletion preserves shared posters, rejects stale revisions, and removes only unreferenced original storage',async()=>{
+  const db=await campaignDatabase();try {
+    Object.assign(process.env,fixtureEnvironment);const objects=new Map();globalThis.fetch=campaignRest(db,objects);
+    const p=await service.uploadPoster(await image(),'image/png','fixture');
+    await db.exec('set role service_role');
+    const a=await service.saveCampaign(draft({posterId:p.id}),'fixture'),b=await service.saveCampaign(draft({posterId:p.id}),'fixture');
+    await assert.rejects(service.deleteCampaign({id:a.id,revision:2}),e=>e.status===409);
+    assert.deepEqual(await service.deleteCampaign(a),{id:a.id,cleanup:true});assert.equal(objects.size,1);assert.equal((await service.readPoster(p.id)).mime,'image/png');
+    assert.deepEqual(await service.deleteCampaign(b),{id:b.id,cleanup:true});assert.equal(objects.size,0);assert.equal((await db.query('select count(*)::int n from medresa_campaign_assets')).rows[0].n,0);
+    await db.exec('reset role');
+    const p2=await service.uploadPoster(await image(),'image/png','fixture'),c=await service.saveCampaign(draft({posterId:p2.id}),'fixture');
+    const reservation=(await db.query('select medresa_campaign_delete($1,$2) result',[c.id,c.revision])).rows[0].result;assert.equal(reservation.asset_id,p2.id);
+    await assert.rejects(service.saveCampaign(draft({posterId:p2.id}),'fixture'),'Cleanup reservation blocks new references before storage removal');
+    assert.equal(objects.size,1,'Private object retained until storage succeeds');
+    assert.equal((await db.query('select cleanup_pending from medresa_campaign_assets where id=$1',[p2.id])).rows[0].cleanup_pending,true);
+  }finally{await db.close();}
+});
+test('cleanup outage never loses another campaign or falsely reports image removal',async()=>{
+  const db=await campaignDatabase();try {
+    Object.assign(process.env,fixtureEnvironment);const objects=new Map(),rest=campaignRest(db,objects);globalThis.fetch=rest;
+    const p=await service.uploadPoster(await image(),'image/png','fixture'),c=await service.saveCampaign(draft({posterId:p.id}),'fixture');
+    globalThis.fetch=(url,init)=>init?.method==='DELETE'?Promise.resolve(new Response('{}',{status:503})):rest(url,init);
+    assert.deepEqual(await service.deleteCampaign(c),{id:c.id,cleanup:false});assert.equal((await service.listCampaigns()).campaigns.length,0);assert.equal(objects.size,1);
+    assert.equal((await db.query('select cleanup_pending from medresa_campaign_assets where id=$1',[p.id])).rows[0].cleanup_pending,true);
+  }finally{await db.close();}
 });

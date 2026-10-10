@@ -25,3 +25,9 @@
 .status { display: inline-block; font-size: 11px; color: var(--admin-green); margin-block: 5px; }
 .link { overflow-wrap: anywhere; }
 @media (max-width: 639px) { .fields { grid-template-columns: minmax(0,1fr); gap: 18px; } .editor header { display: block; } .editor header span { display: block; margin-top: 8px; } .library li { grid-template-columns: 66px minmax(0,1fr); gap: 15px; } .library li > button { grid-column: 2; justify-self: start; } .thumbnail { height: 95px; } .details h2 { font-size: 18px; } }
+
+.groupTitle { font-size: 12px; color: var(--admin-muted); letter-spacing: .08em; margin: 24px 0 16px; }
+.listActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.listActions button, .actions button { min-height: 44px; }
+[role="tabpanel"].fields { margin-top: 20px; }
+@media (max-width: 639px) { .listActions { grid-column: 2; } }

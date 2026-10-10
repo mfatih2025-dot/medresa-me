@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { dismissalKey, uuid, validDestination, type PublicCampaign } from "@/admin/campaigns/model";
+import { completeContent, dismissalKey, uuid, validDestination, type PublicCampaign } from "@/admin/campaigns/model";
+import { useLocale } from "@/i18n/client";
 import { PosterDialog } from "./PosterDialog";
 // Memory fallback still prevents repeated navigation prompts if localStorage is blocked.
 const dismissedThisVisit = new Set<string>();
@@ -11,10 +12,11 @@ function dismissed(campaign: PublicCampaign) {
 }
 function accepted(value: unknown): value is PublicCampaign {
   const c = value as PublicCampaign;
-  return !!c && uuid(c.id) && Number.isSafeInteger(c.version) && c.version > 0 && !!c.poster && uuid(c.poster.id) && c.poster.src === `/api/campaigns/poster/${c.id}?version=${c.version}` && Number.isInteger(c.poster.width) && c.poster.width > 0 && c.poster.width <= 20000 && Number.isInteger(c.poster.height) && c.poster.height > 0 && c.poster.height <= 20000 && typeof c.ctaText === "string" && c.ctaText.length > 0 && c.ctaText.length <= 80 && validDestination(c.ctaLink) && (c.endsAt === null || Number.isFinite(Date.parse(c.endsAt)) && Date.parse(c.endsAt) > Date.now());
+  return !!c && completeContent(c.content) && uuid(c.id) && Number.isSafeInteger(c.version) && c.version > 0 && !!c.poster && uuid(c.poster.id) && c.poster.src === `/api/campaigns/poster/${c.id}?version=${c.version}` && Number.isInteger(c.poster.width) && c.poster.width > 0 && c.poster.width <= 20000 && Number.isInteger(c.poster.height) && c.poster.height > 0 && c.poster.height <= 20000 && typeof c.ctaText === "string" && c.ctaText.length > 0 && c.ctaText.length <= 80 && validDestination(c.ctaLink) && (c.endsAt === null || Number.isFinite(Date.parse(c.endsAt)) && Date.parse(c.endsAt) > Date.now());
 }
 export function CampaignPopup() {
   const pathname = usePathname();
+  const locale = useLocale();
   const privatePage = !pathname || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin-preview/");
   const [campaign, setCampaign] = useState<PublicCampaign | null>(null), [gateway, setGateway] = useState(true);
   useEffect(() => {
@@ -53,5 +55,5 @@ export function CampaignPopup() {
     }
     setCampaign(null);
   };
-  return !gateway && !privatePage && campaign ? <PosterDialog key={dismissalKey(campaign)} campaign={campaign} onClose={close} onUnavailable={() => setCampaign(null)} /> : null;
+  return !gateway && !privatePage && campaign ? <PosterDialog key={dismissalKey(campaign)} campaign={{ ...campaign, ctaText: campaign.content![locale].text, ctaLink: campaign.content![locale].link }} onClose={close} onUnavailable={() => setCampaign(null)} /> : null;
 }

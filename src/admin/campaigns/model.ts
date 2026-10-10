@@ -1,13 +1,20 @@
+export const campaignLocales = ["bs", "sq", "en"] as const;
+export type CampaignLocale = typeof campaignLocales[number];
+export type CampaignContent = Record<CampaignLocale, { text: string; link: string }>;
+export const emptyContent = (): CampaignContent => ({ bs: { text: "SAZNAJ VIŠE", link: "" }, sq: { text: "", link: "" }, en: { text: "", link: "" } });
+export function completeContent(content: CampaignContent | undefined): boolean {
+  return !!content && campaignLocales.every(locale => typeof content[locale]?.text === "string" && !!content[locale].text.trim() && content[locale].text.length <= 80 && validDestination(content[locale].link));
+}
 export type Poster = { id: string; width: number; height: number; src: string };
 export type Campaign = {
   id: string; revision: number; name: string; poster: Poster | null;
-  ctaText: string; ctaLink: string; active: boolean; startsAt: string | null; endsAt: string | null;
+  ctaText: string; ctaLink: string; content: CampaignContent; active: boolean; startsAt: string | null; endsAt: string | null;
   createdAt: string; updatedAt: string; activatedAt: string | null;
 };
-export type CampaignDraft = Pick<Campaign, "id" | "revision" | "name" | "ctaText" | "ctaLink" | "active" | "startsAt" | "endsAt"> & { posterId: string | null };
+export type CampaignDraft = Pick<Campaign, "id" | "revision" | "name" | "ctaText" | "ctaLink" | "content" | "active" | "startsAt" | "endsAt"> & { posterId: string | null };
 export type CampaignLibrary = { generatedAt: string; campaigns: Campaign[]; ready: boolean; writable: boolean; message: string | null };
 // Internal campaign names are never included in the public projection or overlaid on artwork.
-export type PublicCampaign = { id: string; version: number; poster: Poster; ctaText: string; ctaLink: string; endsAt: string | null };
+export type PublicCampaign = { id: string; version: number; poster: Poster; ctaText: string; ctaLink: string; endsAt: string | null; content?: CampaignContent };
 export const uuid = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
 /** Exact administrator destination; no rewriting/localization. Reject executable,
  * protocol-relative, credential-bearing and control-character URLs. */
@@ -19,7 +26,7 @@ export function validDestination(value: unknown): value is string {
   }
   try { const parsed = new URL(value); return parsed.protocol === "https:" && !parsed.username && !parsed.password && !!parsed.hostname; } catch { return false; }
 }
-export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster">, now = Date.now()) {
-  return campaign.active && !!campaign.poster && (!campaign.startsAt || Date.parse(campaign.startsAt) <= now) && (!campaign.endsAt || now < Date.parse(campaign.endsAt));
+export function eligible(campaign: Pick<Campaign, "active" | "startsAt" | "endsAt" | "poster"> & { content?: CampaignContent }, now = Date.now()) {
+  return campaign.active && completeContent(campaign.content) && !!campaign.poster && (!campaign.startsAt || Date.parse(campaign.startsAt) <= now) && (!campaign.endsAt || now < Date.parse(campaign.endsAt));
 }
 export function dismissalKey(campaign: Pick<PublicCampaign, "id" | "version">) { return `medresa.campaign.dismissed.${campaign.id}.v${campaign.version}`; }
