@@ -39,7 +39,7 @@ function Trend({ report, metric }: { report: ProviderReport; metric: Metric }) {
   series.forEach((point, i) => { if (point.value === null) gap = true; else { path += `${gap ? "M" : "L"}${x(i)},${y(point.value)} `; gap = false; } });
   const selected = Math.min(position, series.length - 1), p = series[selected];
   return <figure className={styles.chart}>
-    <figcaption><div><span>{metricLabels[metric]} · dnevni tok</span><time dateTime={p.day}>{p.day}</time></div><strong>{formatFor(report.provider, p.value)}</strong></figcaption>
+    <figcaption><div><span>{providerLabels[report.provider]} · {metricLabels[metric]} · dnevni tok</span><time dateTime={p.day}>{p.day}</time></div><strong>{formatFor(report.provider, p.value)}</strong></figcaption>
     <svg viewBox="0 0 600 320" preserveAspectRatio="none" role="img" aria-label={`Dnevni tok: ${metricLabels[metric]}`}>
       <title>{`${metricLabels[metric]} od ${report.range.start} do ${report.range.end}. Nedostajući dani su prekidi linije.`}</title>
       {[35, 160, 285].map(h => <line key={h} x1="20" x2="580" y1={h} y2={h} stroke="#dce1d7" strokeWidth="1" />)}
@@ -65,14 +65,14 @@ function Source({ report }: { report: ProviderReport }) {
     <Trend key={`${report.provider}-${report.range.start}-${report.range.end}`} report={report} metric={chartKey} />
     {report.provider === "website" && <div className={styles.breakdowns}><div className={styles.tabs} aria-label="Website raspodjela">{(["pages", "referrers", "devices", "countries"] as const).map((d, i) => <button key={d} type="button" aria-pressed={dimension === d} onClick={() => setDimension(d)}>{["Stranice", "Izvori posjeta", "Uređaji", "Zemlje"][i]}</button>)}</div><Ranking rows={report.breakdowns[dimension]} /></div>}
     {report.warnings.some(w => w !== "no_data") && <p className={styles.context}>{report.warnings.includes("provider_delay") ? "Najnoviji podaci ovog izvora mogu kasniti." : "Neke metrike trenutno nijesu dostupne."}</p>}
-    <p className={styles.context}>Posljednje uspješno osvježavanje: {date(report.lastSuccessAt)}</p>
+    {report.topContent.length > 0 && <div className={styles.sourceTop}><h3>Top sadržaj</h3>{(report.provider === "instagram" || report.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · pregledi od objave.</p>}<Ranking rows={report.topContent} provider={report.provider} /></div>}
   </section>;
 }
 function DailyMetric({ report, metric }: { report: ProviderReport; metric: Metric }) {
   const today = report.today?.metrics[metric], yesterday = report.yesterday?.metrics[metric];
   return <div className={styles.dailyRow} data-available={typeof today === "number" || typeof yesterday === "number"}>
-    <div className={styles.dailyToday}><span>{metricLabels[metric]}</span><strong aria-label={`${metricLabels[metric]} · danas`}>{formatFor(report.provider, today)}</strong></div>
-    <div className={styles.dailyYesterday}><span>Juče <b>{formatFor(report.provider, yesterday)}</b></span><Change current={today} previous={yesterday} partial provider={report.provider} /></div>
+    <span className={styles.dailyLabel}>{metricLabels[metric]}</span>
+    <div className={styles.dailyNumbers}><strong>{formatFor(report.provider, today)}</strong><div className={styles.dailyYesterday}><span>Juče {formatFor(report.provider, yesterday)}</span><Change current={today} previous={yesterday} partial provider={report.provider} /></div></div>
   </div>;
 }
 export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
@@ -116,21 +116,28 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
     finally { syncingRef.current = false; setSyncing(false); }
   }
   const views = periodViews(data.reports);
-  return <Shell active="/admin/analitika" title="Analitika" intro="Posjete, doseg i sadržaj na jednom mjestu." action={<button className={shared.primary} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing ? "Osvježavam podatke…" : "Osvježi podatke"}</button>}>
-    <div className={styles.toolbar}><div><p className={shared.eyebrow}>Period izvještaja</p><p>{loading ? "Učitavam period…" : `${data.reports[0].range.start} — ${data.reports[0].range.end}`}</p></div><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div></div>
+  const lastRefreshed = data.reports.map(r => r.lastSuccessAt).filter((value): value is string => !!value && Number.isFinite(Date.parse(value))).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
+  const website = data.reports.find(r => r.provider === "website");
+  return <div className={styles.dashboard}><Shell active="/admin/analitika" title="Analitika" intro="Pregledi, publika i sadržaj.">
+    <div className={styles.toolbar}>
+      <div className={styles.controls}><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div><button className={`${shared.primary} ${styles.refresh}`} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing ? "Osvježavam podatke…" : "Osvježi podatke"}</button></div>
+      <p className={styles.refreshed}>Posljednje osvježeno: {date(lastRefreshed)}</p>
+    </div>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {data.storage !== "ready" && <p className={styles.notice} role="status">Historija analitike trenutno nije dostupna.</p>}
 
     <div aria-busy={loading} className={loading ? styles.loading : undefined}>
       <section className={styles.hero} aria-label="Ukupno pregleda u izabranom periodu">
-        <div><p className={shared.eyebrow}>UKUPNO PREGLEDA</p><strong className={styles.heroValue} data-testid="period-views">{formatYouTube(views.total)}</strong><p className={styles.heroContext}>U izabranom periodu · {views.coverage === 4 ? "Sva četiri izvora" : views.coverage ? `${views.coverage} od 4 izvora` : "Podaci još nijesu dostupni"}</p></div>
-        <div className={styles.heroDetails}><p>Zbir pregleda sadržaja, ne jedinstvenih posjetilaca.</p><ul>{views.sources.map(source => <li key={source.provider}><span>{providerLabels[source.provider]}</span><strong>{formatYouTube(source.value)}</strong></li>)}</ul>{views.coverage > 0 && views.coverage < 4 && <small>Izvori bez dostupnih pregleda nijesu uključeni.</small>}</div>
+        <p className={shared.eyebrow}>UKUPNO PREGLEDA</p><strong className={styles.heroValue} data-testid="period-views">{formatYouTube(views.total)}</strong>
+        <p className={styles.heroContext}>{loading ? "Učitavam period…" : periodLabels[data.period]} · {views.coverage ? `Dostupni izvori: ${views.coverage}/4` : "Podaci još nijesu dostupni"}</p>
+        <ul className={styles.platformTotals} aria-label="Pregledi po platformi">{views.sources.map(source => <li key={source.provider}><span>{providerLabels[source.provider]}</span><strong>{formatYouTube(source.value)}</strong></li>)}</ul>
+        <p className={styles.heroDefinition}>Zbir pregleda sadržaja, ne jedinstvenih posjetilaca.{views.coverage > 0 && views.coverage < 4 ? " Nedostupni izvori nijesu uključeni." : ""}</p>
       </section>
-    <nav className={styles.contents} aria-label="Analitičke sekcije">{["Dnevni pregled", "Website", "Instagram", "Facebook", "YouTube", "Top sadržaj", "Status izvora"].map((name, i) => <a key={name} href={["#daily-overview", "#analytics-website", "#analytics-instagram", "#analytics-facebook", "#analytics-youtube", "#top-content", "#sync-status"][i]}>{name}</a>)}</nav>
-      <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas, uz jučerašnji kontekst.</h2></div></header><p className={styles.context}>Danas do sada · juče cijeli dan. — označava nedostupne podatke.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><div className={styles.dailyProvider}><h3>{providerLabels[r.provider]}</h3><span>Danas</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <DailyMetric key={k} report={r} metric={k} />)}{(r.provider === "instagram" || r.provider === "facebook") && <DailyMetric report={r} metric="followerChange" />}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
+      <nav className={styles.contents} aria-label="Analitičke sekcije">{["Danas / Juče", "Website", "Instagram", "Facebook", "YouTube", "Status izvora"].map((name, i) => <a key={name} href={["#daily-overview", "#analytics-website", "#analytics-instagram", "#analytics-facebook", "#analytics-youtube", "#sync-status"][i]}>{name}</a>)}</nav>
+      {website && <section className={styles.mainTrend} aria-label="Pregledi stranica · Website"><Trend key={`overview-${website.range.start}-${website.range.end}`} report={website} metric="pageviews" /></section>}
+      <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas / Juče</h2></div></header><p className={styles.context}>Danas do sada · juče cijeli dan. — označava nedostupne podatke.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><div className={styles.dailyProvider}><h3>{providerLabels[r.provider]}</h3><span>Danas</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <DailyMetric key={k} report={r} metric={k} />)}{(r.provider === "instagram" || r.provider === "facebook") && <DailyMetric report={r} metric="followerChange" />}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
       {data.reports.map(r => <Source key={r.provider} report={r} />)}
-      <section id="top-content" className={styles.source}><p className={shared.eyebrow}>TOP SADRŽAJ</p><h2>Sadržaj koji je privukao pažnju.</h2><div className={styles.topGrid}>{data.reports.map(r => <div key={r.provider}><h3>{providerLabels[r.provider]}</h3>{(r.provider === "instagram" || r.provider === "facebook") && <p className={styles.context}>Među najnovijim objavama u periodu · najviše pet provjerenih objava · pregledi od objave, ne samo u periodu.</p>}<Ranking rows={r.topContent} provider={r.provider} /></div>)}</div></section>
-      <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>STATUS IZVORA</p><h2>Izvori i historija osvježavanja.</h2><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><div><span>Uspješno: {date(r.lastSuccessAt)}</span><small>Pokušaj: {date(r.lastAttemptAt)}</small></div></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku od {date(data.sync.startedAt)}. Status se automatski ažurira.</p>}<h3 className={styles.historyTitle}>Posljednja osvježavanja</h3>{data.history.length ? <ul className={styles.history}>{data.history.map(run => <li key={run.id}><time>{date(run.started_at)}</time><span>{{ running: "U toku", success: "Uspješno", partial: "Djelimično · provjerite izvore", failed: "Bez dostupnih podataka", abandoned: "Prekinuto · moguće ponoviti" }[run.outcome]}</span></li>)}</ul> : <p className={styles.empty}>Podaci još nijesu dostupni</p>}</section>
+      <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>STATUS IZVORA</p><h2>Stanje izvora</h2><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><small>Osvježeno: {date(r.lastSuccessAt)}</small></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku. Status se automatski ažurira.</p>}</section>
     </div>
-  </Shell>;
+  </Shell></div>;
 }

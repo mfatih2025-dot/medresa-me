@@ -35,15 +35,15 @@ test('all periods, previous equivalent ranges, year boundaries and DST calendar 
   assert.equal((Date.parse(startInstant('2026-03-09','America/Los_Angeles'))-Date.parse(startInstant('2026-03-08','America/Los_Angeles')))/3600000,23);
   assert.equal((Date.parse(startInstant('2026-11-02','America/Los_Angeles'))-Date.parse(startInstant('2026-11-01','America/Los_Angeles')))/3600000,25);
 });
-test('Finished Analytics renders real report fields and history without setup controls, Preview labels or credential diagnostics', () => {
+test('Finished Analytics renders real report fields without visible refresh history or setup controls, Preview labels or credential diagnostics', () => {
   const css=new Proxy({}, {get:(_,name)=>String(name)});
   const {Analytics}=moduleLoader({'../Shell':{Shell:({children,action,title})=>React.createElement('main',null,React.createElement('h1',null,title),action,children)},'../admin.module.css':{default:css},'./analytics.module.css':{default:css}})('src/admin/analytics/Dashboard');
   const initial={period:'30',generatedAt:now.toISOString(),reports:reports('30'),storage:'ready',writable:true,sync:{running:false,runId:null,startedAt:null},history:[{id:randomUUID(),started_at:now.toISOString(),completed_at:now.toISOString(),outcome:'success'}]};
   for(const r of initial.reports) {r.source='Preview setup HTTP token OAuth diagnostics';r.requiredPermissions=['read_insights','instagram_manage_insights','youtube.readonly'];}
   const html=renderToStaticMarkup(React.createElement(Analytics,{initial}));
-  for(const removed of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','token','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly']) assert.ok(!html.includes(removed),removed+' remains in normal UI');
+  for(const removed of ['Posljednja osvježavanja','Uspješno','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','token','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly']) assert.ok(!html.includes(removed),removed+' remains in normal UI');
   assert.equal((html.match(/Osvježi podatke/g)||[]).length,1);
-  for(const kept of ['UKUPNO PREGLEDA','280','Sva četiri izvora','DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','TOP SADRŽAJ','Posljednje uspješno osvježavanje','Posljednja osvježavanja','Uspješno','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
+  for(const kept of ['UKUPNO PREGLEDA','280','Dostupni izvori: 4/4','DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','Posljednje osvježeno:','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
   assert.ok(html.includes('aria-pressed="true"'));assert.ok(html.includes('Povezano'));
   const unavailable=renderToStaticMarkup(React.createElement(Analytics,{initial:{...initial,storage:'migration_required',writable:false}}));
   assert.ok(unavailable.includes('Historija analitike trenutno nije dostupna.'));assert.ok(!unavailable.includes('migracij'));assert.ok(unavailable.includes('disabled=""'));

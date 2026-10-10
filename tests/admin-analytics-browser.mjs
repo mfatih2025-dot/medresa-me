@@ -116,7 +116,7 @@ const origin='http://localhost:3213';
   await page.goto(origin+'/admin/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
   const clean=async()=>{
     const text=await page.locator('main').innerText();
-    for(const removed of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
+    for(const removed of ['Posljednja osvježavanja','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
     for(const name of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Provjeri Preview vezu']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
     assert.equal(await page.locator('main pre').count(),0);assert.ok(!text.includes('NaN')&&!text.includes('Infinity'));
   };
@@ -125,20 +125,21 @@ const origin='http://localhost:3213';
     for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke']) {const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44&&box.width>=44,name+' touch target '+width);}
     for(const slider of await page.getByRole('slider').all()) assert.ok((await slider.boundingBox()).height>=52);
     for(const svg of await page.locator('svg[role="img"]').all()) assert.ok((await svg.boundingBox()).height>=190,'Charts need readable plot height');
-    assert.ok(await page.getByTestId('period-views').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=52));
+    assert.ok(await page.getByTestId('period-views').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=44));
     await clean();
   };
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   for(const width of [360,390,412,430]) {
     await page.setViewportSize({width,height:900});await fits(width);
+    await page.evaluate(()=>window.scrollTo(0,0));const summary=await page.getByRole('list',{name:'Pregledi po platformi'}).boundingBox();assert.ok(summary.y+summary.height<=844,'All four platform totals must be immediately visible '+width);
     for(const name of ['7 dana','Danas','Juče','60 dana','90 dana','30 dana']) {
       const response=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period='));await page.getByRole('button',{name,exact:true}).tap();await response;await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));await fits(width);
       assert.equal(await page.getByTestId('period-views').textContent(),({'7 dana':'280',Danas:'0','Juče':'20','60 dana':'2.400','90 dana':'3.600','30 dana':'1.200'})[name]);
     }
-    assert.equal(await page.locator('svg[role="img"]').count(),4);
-    const slider=page.getByRole('slider',{name:'Odaberi dan · Website',exact:true});await slider.tap();await slider.press('Home');await slider.press('ArrowRight');assert.equal(await slider.inputValue(),'1');
+    assert.equal(await page.locator('svg[role="img"]').count(),5);
+    const slider=page.locator('#analytics-website').getByRole('slider',{name:'Odaberi dan · Website',exact:true});await slider.tap();await slider.press('Home');await slider.press('ArrowRight');assert.equal(await slider.inputValue(),'1');
     if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) {
-      await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});
+      await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();window.scrollTo(0,0);});await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});
       await page.locator('#daily-overview').screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-daily-'+width+'.png')});
       await page.locator('#analytics-website').screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-website-'+width+'.png')});
     }
