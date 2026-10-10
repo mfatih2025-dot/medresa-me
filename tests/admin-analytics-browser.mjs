@@ -17,6 +17,7 @@ const origin='http://localhost:3213';
   for(const period of ['today','yesterday','7','30','60','90']) {
     await releaseCooldown(db);const id=randomUUID();await begin(db,id,period);const r=reports(period,fixtureDate);
     for(const p of r) {
+      p.totals[p.provider==='website'?'pageviews':'views']=({today:0,yesterday:5,'7':70,'30':300,'60':600,'90':900})[period];
       if(p.provider==='website') {p.totals.visitors=3;p.previousTotals.visitors=2;}
       if(p.provider==='instagram') for(const day of p.daily) day.metrics.reach=8;
       p.today={date:p.todayDate,metrics:p.provider==='website'?{pageviews:0,visitors:0}:{views:0,reach:0,interactions:0},complete:false};
@@ -122,7 +123,9 @@ const origin='http://localhost:3213';
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics overflow '+width);
     for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke']) {const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44&&box.width>=44,name+' touch target '+width);}
-    for(const slider of await page.getByRole('slider').all()) assert.ok((await slider.boundingBox()).height>=44);
+    for(const slider of await page.getByRole('slider').all()) assert.ok((await slider.boundingBox()).height>=52);
+    for(const svg of await page.locator('svg[role="img"]').all()) assert.ok((await svg.boundingBox()).height>=190,'Charts need readable plot height');
+    assert.ok(await page.getByTestId('period-views').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=52));
     await clean();
   };
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
@@ -130,10 +133,15 @@ const origin='http://localhost:3213';
     await page.setViewportSize({width,height:900});await fits(width);
     for(const name of ['7 dana','Danas','Juče','60 dana','90 dana','30 dana']) {
       const response=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period='));await page.getByRole('button',{name,exact:true}).tap();await response;await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));await fits(width);
+      assert.equal(await page.getByTestId('period-views').textContent(),({'7 dana':'280',Danas:'0','Juče':'20','60 dana':'2.400','90 dana':'3.600','30 dana':'1.200'})[name]);
     }
     assert.equal(await page.locator('svg[role="img"]').count(),4);
     const slider=page.getByRole('slider',{name:'Odaberi dan · Website',exact:true});await slider.tap();await slider.press('Home');await slider.press('ArrowRight');assert.equal(await slider.inputValue(),'1');
-    if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});
+    if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) {
+      await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});
+      await page.locator('#daily-overview').screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-daily-'+width+'.png')});
+      await page.locator('#analytics-website').screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-website-'+width+'.png')});
+    }
   }
   const refresh=async()=>{
     const posted=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST');const answered=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
@@ -146,6 +154,7 @@ const origin='http://localhost:3213';
   assert.equal(first.dashboard.history.find(r=>r.id===first.runId).outcome,'success');
   for(const provider of ['api.vercel.com','instagram','facebook','oauth2.googleapis.com','youtubeanalytics.googleapis.com']) assert.ok(providerCalls.includes(provider),provider+' was not invoked by normal refresh');
   assert.equal(first.dashboard.reports[0].totals.pageviews,42);assert.equal(first.dashboard.reports[0].totals.visitors,9);assert.equal(first.dashboard.reports[1].current.followers,17);assert.equal(first.dashboard.reports[2].current.followers,23);assert.equal(first.dashboard.reports[3].current.subscribers,31);assert.equal(first.dashboard.reports[3].totals.views,30);assert.equal(first.dashboard.reports[3].totals.watchMinutes,15);
+  assert.equal(await page.getByTestId('period-views').textContent(),'72','Native refresh: 42 website + 0 IG + 0 FB + 30 YouTube');
   for(const key of ['websiteDiagnostic','instagramDiagnostic','facebookDiagnostic','youtubeDiagnostic']) assert.equal(first[key],undefined);
   const persisted=await(await context.request.get(origin+'/api/admin/analytics?period=30')).json();assert.deepEqual(persisted.reports.map(r=>r.totals),first.dashboard.reports.map(r=>r.totals));
   const historyAfter=JSON.parse(await snapshot('medresa_analytics_sync_runs','id'));for(const old of savedHistory) assert.deepEqual(historyAfter.find(r=>r.id===old.id),old,'Existing run history was changed');
@@ -155,6 +164,7 @@ const origin='http://localhost:3213';
   const inert=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await inert.addCookies(await context.cookies());const serverPage=await inert.newPage();await serverPage.goto(origin+'/admin/analitika');
   const leafText=p=>p.locator('main').evaluate(root=>{const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[];while(walker.nextNode()){const text=walker.currentNode.textContent.trim();if(text)out.push(text);}return out;});assert.deepEqual(await leafText(page),await leafText(serverPage),'Server/client analytics text must agree');await inert.close();
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
+  for(const width of [768,1024,1440]) {await page.setViewportSize({width,height:1000});await fits(width);if(process.env.MEDRESA_TEST_SCREENSHOT_DIR){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});}}
   // A failing provider preserves its saved aggregates while other providers refresh.
   const ytBefore=JSON.stringify((await db.query("select * from medresa_analytics_reports where provider='youtube' order by start_date")).rows);
   await releaseCooldown(db);youtubeDenied=true;const {body:partial}=await refresh();assert.equal(partial.dashboard.history.find(r=>r.id===partial.runId).outcome,'partial');assert.ok(partial.dashboard.reports.filter(r=>r.provider!=='youtube').every(r=>r.state==='connected'));assert.equal(partial.dashboard.reports[3].state,'permission_required');assert.equal(partial.dashboard.reports[3].totals.views,30);assert.equal(JSON.stringify((await db.query("select * from medresa_analytics_reports where provider='youtube' order by start_date")).rows),ytBefore);youtubeDenied=false;

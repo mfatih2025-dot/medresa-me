@@ -43,10 +43,23 @@ test('Finished Analytics renders real report fields and history without setup co
   const html=renderToStaticMarkup(React.createElement(Analytics,{initial}));
   for(const removed of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','token','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly']) assert.ok(!html.includes(removed),removed+' remains in normal UI');
   assert.equal((html.match(/Osvježi podatke/g)||[]).length,1);
-  for(const kept of ['DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','TOP SADRŽAJ','Posljednje uspješno osvježavanje','Posljednja osvježavanja','Uspješno','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
+  for(const kept of ['UKUPNO PREGLEDA','280','Sva četiri izvora','DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','TOP SADRŽAJ','Posljednje uspješno osvježavanje','Posljednja osvježavanja','Uspješno','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
   assert.ok(html.includes('aria-pressed="true"'));assert.ok(html.includes('Povezano'));
   const unavailable=renderToStaticMarkup(React.createElement(Analytics,{initial:{...initial,storage:'migration_required',writable:false}}));
   assert.ok(unavailable.includes('Historija analitike trenutno nije dostupna.'));assert.ok(!unavailable.includes('migracij'));assert.ok(unavailable.includes('disabled=""'));
+});
+test('Selected-period views sum only native compatible totals; zero is measured, missing sources stay unavailable', () => {
+  const {periodViews}=load('src/admin/analytics/views');
+  const r=reports('30');r[0].totals={pageviews:100,visitors:50,visits:99};r[1].totals={views:20,reach:900};r[2].totals={views:30};r[3].totals={views:40};
+  assert.equal(periodViews(r).total,190);assert.equal(periodViews(r).coverage,4);
+  r[1].totals={views:null,reach:900};assert.equal(periodViews(r).total,170);assert.equal(periodViews(r).coverage,3);assert.equal(periodViews(r).sources[1].value,null);
+  for(const report of r) {report.totals={};report.cumulative={views:999,pageviews:999};report.daily=[{date:report.range.start,metrics:{views:999,pageviews:999},complete:true}];}
+  assert.equal(periodViews(r).total,null);assert.equal(periodViews(r).coverage,0);
+  r[0].totals={pageviews:0};assert.equal(periodViews(r).total,0);assert.equal(periodViews(r).coverage,1);
+  r[1].totals={views:NaN};r[2].totals={views:Infinity};r[3].totals={views:-1};assert.equal(periodViews(r).total,0);assert.equal(periodViews(r).coverage,1);
+  assert.equal(periodViews([...r,r[0]]).coverage,1,'duplicate provider cannot double count');
+  assert.equal(periodViews([]).total,null);
+  const changed=reports('7');for(const report of changed)report.totals={[report.provider==='website'?'pageviews':'views']:7};assert.equal(periodViews(changed).total,28);
 });
 test('comparisons: missing/partial/zero/negative/NaN never invent percentages', () => {
   assert.deepEqual(comparison(10,0),{direction:'↑',delta:10,percent:null});
