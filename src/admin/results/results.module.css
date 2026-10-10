@@ -1,0 +1,17 @@
+.tabs,.actions { display:flex; flex-wrap:wrap; gap:12px; }
+.tabs { margin-bottom:24px; }
+.tabs button,.actions button,.publish button { min-height:44px; }
+.document,.publish { padding:24px 0; border-block:1px solid var(--admin-line); }
+.document h2,.publish h2 { font-size:24px; font-weight:400; color:var(--admin-green); }
+.context,.empty,.published p,.publish p { font-size:13px; color:var(--admin-muted); line-height:1.6; margin-block:14px !important; }
+.file { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; margin-block:22px; }
+.file a,.published a { color:var(--admin-green); text-decoration:underline; overflow-wrap:anywhere; }
+.file span { color:var(--admin-muted); font-size:13px; }
+.picker { position:absolute; width:1px !important; height:1px; min-height:0 !important; opacity:0; pointer-events:none; }
+.published { margin-top:28px; padding-top:20px; border-top:1px solid var(--admin-line); }
+.published h3 { font-weight:400; font-size:15px; margin-bottom:14px; }
+.publish { border-top:0; margin-top:24px; }
+.publish ul { display:flex; gap:20px; flex-wrap:wrap; padding:0; list-style:none; font-size:13px; margin-block:18px; }
+.publish p { max-width:650px; }
+.notice { padding:12px 16px; border-left:2px solid var(--admin-gold); font-size:14px; margin-bottom:24px !important; }
+@media(max-width:639px) { .actions { gap:8px; } .file { display:block; } .file span { display:block; margin-top:8px; } }

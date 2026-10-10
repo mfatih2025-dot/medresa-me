@@ -91,8 +91,9 @@ function DocumentBlock({ doc, index }: { doc: UpisDocument; index: number }) {
   );
 }
 
-export function Upis({ locale }: { locale: Locale }) {
-  const u = upisContent[locale];
+export function Upis({ locale, documentHref }: { locale: Locale; documentHref?: string | null }) {
+  const source = upisContent[locale];
+  const u = documentHref === undefined ? source : { ...source, documents: source.documents.map((doc, i) => i === 0 ? { ...doc, href: documentHref } : doc) };
   const [l1, l2] = u.title;
   const statusSentence = `${u.status.before} ${u.status.word}${u.status.after}`;
   return (
