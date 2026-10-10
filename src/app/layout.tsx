@@ -9,6 +9,7 @@ import { SkipLink } from "@/components/i18n/SkipLink";
 import { site } from "@/content/site";
 import { defaultLocale, locales } from "@/i18n/config";
 import "./globals.css";
+import { CampaignPopup } from "@/components/campaigns/CampaignPopup";
 
 // Only the weights/styles in use are loaded (no synthesized bold or italic):
 // 300 body · 400 sub-headings, navigation, statistics · 500 headings, buttons, labels ·
@@ -111,6 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="main">{children}</main>
         <Footer dicts={chrome} />
         <Gateway />
+        {process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel" && <CampaignPopup />}
       </body>
     </html>
   );

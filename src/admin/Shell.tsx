@@ -7,7 +7,7 @@ import styles from "./admin.module.css";
 export const navigation = [
   { href: "/admin", label: "Dashboard", mobileLabel: "Pregled", mark: "overview" },
   { href: "/admin/vijesti", label: "Vijesti", mobileLabel: "Vijesti", mark: "news" },
-  { href: "/admin/akcije", label: "Popup / Akcije", mobileLabel: "Akcije", mark: "campaign" },
+  { href: "/admin/akcije", label: "Akcije", mobileLabel: "Akcije", mark: "campaign" },
   { href: "/admin/rezultati", label: "Rezultati ispita", mobileLabel: "Rezultati", mark: "document" },
   { href: "/admin/analitika", label: "Analitika", mobileLabel: "Analitika", mark: "analytics" },
 ];

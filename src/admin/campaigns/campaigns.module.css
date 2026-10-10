@@ -1,0 +1,27 @@
+.editor { padding: 24px 0 32px; border-block: 1px solid var(--admin-line); margin-bottom: 32px; }
+.editor header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.editor h2, .details h2, .empty h2 { color: var(--admin-green); font-size: 22px; font-weight: 400; }
+.editor header span, .help, .fields small { color: var(--admin-muted); font-size: 12px; }
+.editor fieldset { border: 0; padding: 0; margin: 0 0 24px; min-width: 0; }
+.fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px; }
+.wide { grid-column: 1 / -1; }
+.fields small { display: block; margin-top: 8px; }
+.help { align-self: end; padding-block: 8px; line-height: 1.6; }
+.upload > span { font-weight: 400; font-size: 13px; }
+.file { position: absolute; width: 1px !important; height: 1px; min-height: 0 !important; opacity: 0; overflow: hidden; pointer-events: none; }
+.posterThumb { margin: 14px 0; height: 210px; display: flex; align-items: center; justify-content: flex-start; }
+.posterThumb img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.actions { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.message { border-left: 2px solid var(--admin-gold); padding: 10px 16px; margin-bottom: 24px !important; font-size: 14px; }
+.empty { padding: 35px 0; border-block: 1px solid var(--admin-line); }
+.empty p { font-size: 14px; color: var(--admin-muted); margin-top: 12px !important; max-width: 550px; }
+.library { list-style: none; margin: 0; padding: 0; }
+.library li { display: grid; grid-template-columns: 90px minmax(0,1fr) auto; gap: 24px; align-items: center; padding: 24px 0; border-bottom: 1px solid var(--admin-line); }
+.thumbnail { height: 112px; display: flex; align-items: center; justify-content: center; }
+.thumbnail img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.thumbnail span { font-size: 11px; color: var(--admin-muted); }
+.details h2 { font-size: 20px; overflow-wrap: anywhere; }
+.details p { font-size: 12px; color: var(--admin-muted); margin-top: 6px !important; }
+.status { display: inline-block; font-size: 11px; color: var(--admin-green); margin-block: 5px; }
+.link { overflow-wrap: anywhere; }
+@media (max-width: 639px) { .fields { grid-template-columns: minmax(0,1fr); gap: 18px; } .editor header { display: block; } .editor header span { display: block; margin-top: 8px; } .library li { grid-template-columns: 66px minmax(0,1fr); gap: 15px; } .library li > button { grid-column: 2; justify-self: start; } .thumbnail { height: 95px; } .details h2 { font-size: 18px; } }
