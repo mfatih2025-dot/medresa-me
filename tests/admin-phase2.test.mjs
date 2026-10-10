@@ -30,7 +30,7 @@ function configure() {
   process.env.VERCEL_GIT_COMMIT_REF = "codex/admin-panel";
 }
 function response() { return { statusCode: 200, headers: {}, setHeader(k,v) { this.headers[k]=v; }, status(n) { this.statusCode=n; return this; }, json(v) { this.body=v; return this; }, end() { return this; }, send(v) { this.body=v; return this; } }; }
-test("in-Admin diagnostic control is behind page authentication and available only on the Preview Admin branch", async () => environment(async () => {
+test("Admin overview retains authentication and no longer exposes setup diagnostic controls", async () => environment(async () => {
   let session = null; let reads = 0;
   const pageLoader = moduleLoader({
     "@/admin/Overview": { Overview: () => null },
@@ -41,10 +41,10 @@ test("in-Admin diagnostic control is behind page authentication and available on
   configure();
   assert.deepEqual(await page.getServerSideProps({}), { redirect: { destination: "/admin/login", permanent: false } }); assert.equal(reads, 0);
   session = { user: "explicit-page-fixture" };
-  assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, true);
-  process.env.VERCEL_ENV = "production"; assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, false);
+  assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, undefined);
+  process.env.VERCEL_ENV = "production"; assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, undefined);
   process.env.VERCEL_ENV = "preview"; process.env.VERCEL_GIT_COMMIT_REF = "other-branch";
-  assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, false);
+  assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, undefined);
 }));
 test("connection diagnostic performs one minimal GET with writes disabled and never returns database content or provider bodies", async () => environment(async () => {
   configure(); process.env.MEDRESA_SUPABASE_WRITE_ENABLED = "false";

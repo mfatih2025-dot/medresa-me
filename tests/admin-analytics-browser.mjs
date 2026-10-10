@@ -26,7 +26,7 @@ const origin='http://localhost:3213';
     await finish(db,id,r);
   }
   await releaseCooldown(db);
-  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,websiteFixture=false,websiteDenied=false,websiteOptionalRejected=false,websiteNoHistory=false,instagramFixture=false,instagramDenied=false,facebookFixture=false,facebookDenied=false,youtubeFixture=false,youtubeDenied=false;const providerCalls=[];
+  const adapter=restFixture(db),originalFetch=globalThis.fetch;let missingSchema=false,delay=false,syncRequests=0,youtubeDenied=false,outage=false;const providerCalls=[];
   globalThis.fetch=async(input,init={})=>{
     const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
     if(address.startsWith(providerHost+'/')) {
@@ -36,8 +36,9 @@ const origin='http://localhost:3213';
     }
     // Existing News/public modules are intentionally outside this test and remain unchanged.
     if(new URL(address).hostname.endsWith('supabase.co')) throw new Error('Unexpected remote Supabase request');
-    if(youtubeFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
-      const u=new URL(address);providerCalls.push(u.hostname);assert.ok(['oauth2.googleapis.com','www.googleapis.com','youtubeanalytics.googleapis.com'].includes(u.hostname),'Verified Website or Meta invoked during YouTube-only test');
+    if(outage && ['api.vercel.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) return new Response(JSON.stringify({error:{message:'raw-private-provider-response'}}),{status:503});
+    if(['oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
+      const u=new URL(address);providerCalls.push(u.hostname);assert.ok(['oauth2.googleapis.com','www.googleapis.com','youtubeanalytics.googleapis.com'].includes(u.hostname),'Unexpected Google host');
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
       if(u.hostname==='oauth2.googleapis.com') {
         const body=new URLSearchParams(init.body);assert.equal(body.get('client_id'),'local-youtube-client-browser-fixture');assert.equal(body.get('client_secret'),'private-youtube-client-browser-fixture');assert.equal(body.get('refresh_token'),'private-youtube-refresh-browser-fixture');
@@ -48,25 +49,24 @@ const origin='http://localhost:3213';
       const dimension=u.searchParams.get('dimensions'),metrics=['views','estimatedMinutesWatched','subscribersGained','subscribersLost'];
       return json({columnHeaders:[...(dimension?[{name:dimension}]:[]),...metrics.map(name=>({name}))],rows:dimension==='day'?load('src/admin/analytics/period').days({start:u.searchParams.get('startDate'),end:u.searchParams.get('endDate')}).map(day=>[day,1,0.5,0,0]):dimension==='video'?[]:[[30,15,0,0]]});
     }
-    if(facebookFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
-      const u=new URL(address),auth=new Headers(init.headers).get('Authorization');providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com');assert.ok(!u.searchParams.has('access_token'));
+    if(new URL(address).hostname==='graph.facebook.com' && ['Bearer local-facebook-browser-fixture','Bearer local-facebook-page-browser-fixture'].includes(new Headers(init.headers).get('Authorization'))) {
+      const u=new URL(address),auth=new Headers(init.headers).get('Authorization');providerCalls.push('facebook');assert.equal(u.hostname,'graph.facebook.com');assert.ok(!u.searchParams.has('access_token'));
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
       if(u.pathname.includes('/me/') || u.searchParams.get('fields')==='id,access_token') assert.equal(auth,'Bearer local-facebook-browser-fixture');
-      else assert.equal(auth,'Bearer local-facebook-page-browser-fixture','Unselected provider invoked during Facebook-only sync');
+      else assert.equal(auth,'Bearer local-facebook-page-browser-fixture','Facebook calls must use its returned Page token');
       if(u.searchParams.get('fields')==='id,access_token') return json({id:'578640758657974',access_token:'local-facebook-page-browser-fixture'});
       if(u.pathname.endsWith('/me/permissions')) return json({data:[{permission:'read_insights',status:'granted'},{permission:'pages_read_engagement',status:'granted'},{permission:'pages_show_list',status:'granted'}]});
       if(u.pathname.endsWith('/me/accounts')) return json({data:[{id:'578640758657974',tasks:['ANALYZE','MANAGE']}]});
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:23});
       if(u.pathname.endsWith('/published_posts')) return json({data:[]});
       assert.ok(u.pathname.endsWith('/578640758657974/insights'));assert.equal(u.searchParams.get('period'),'day');
-      if(facebookDenied) return json({error:{code:200,error_subcode:33,type:'OAuthException',message:'Requires read_insights permission. local-facebook-page-browser-fixture raw-private-facebook-response',fbtrace_id:'private-facebook-trace-fixture'}},403);
       // Local official-shaped daily aggregates only; no live provider calls/data.
       const start=Number(u.searchParams.get('since'))*1000,end=Number(u.searchParams.get('until'))*1000,values=[];
       for(let day=start;day<end;day+=86400000) values.push({end_time:new Date(day+86400000).toISOString(),value:0});
       return json({data:[{name:u.searchParams.get('metric'),values}]});
     }
-    if(instagramFixture && ['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(new URL(address).hostname)) {
-      const u=new URL(address);providerCalls.push(u.hostname);assert.equal(u.hostname,'graph.facebook.com','Unselected provider called during Instagram-only sync');
+    if(new URL(address).hostname==='graph.facebook.com' && ['Bearer local-instagram-browser-fixture','Bearer local-instagram-page-browser-fixture'].includes(new Headers(init.headers).get('Authorization'))) {
+      const u=new URL(address);providerCalls.push('instagram');assert.equal(u.hostname,'graph.facebook.com');
       const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
       const auth=new Headers(init.headers).get('Authorization');assert.ok(!u.searchParams.has('access_token'));
       if(u.pathname.includes('/me/')) assert.equal(auth,'Bearer local-instagram-browser-fixture');
@@ -77,23 +77,19 @@ const origin='http://localhost:3213';
       if(u.searchParams.get('fields')==='id,username,account_type') return json({id:'1001',username:'medresacg',account_type:'BUSINESS'});
       if(u.searchParams.get('fields')==='followers_count') return json({followers_count:17});
       if(u.pathname.endsWith('/media')) return json({data:[]});
-      if(instagramDenied) return json({error:{code:100,error_subcode:33,type:'OAuthException',message:'Requires instagram_manage_insights permission. local-instagram-browser-fixture raw-private-instagram-response',fbtrace_id:'private-instagram-trace-fixture'}},400);
       if(u.searchParams.get('metric_type')==='time_series') return json({data:[]});
       const metric=u.searchParams.get('metric');
       return json({data:[{name:metric,total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
     }
-    if(websiteFixture) {
+    if(new URL(address).hostname==='api.vercel.com') {
       const u=new URL(address);
       if(['api.vercel.com','graph.instagram.com','graph.facebook.com','oauth2.googleapis.com','youtubeanalytics.googleapis.com','www.googleapis.com'].includes(u.hostname)) {
         providerCalls.push(u.hostname);
-        assert.equal(u.hostname,'api.vercel.com','Unselected provider called during Website-only sync');
+        assert.equal(u.hostname,'api.vercel.com','Website uses the official Vercel host');
         const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
-        if(websiteDenied) return json({error:{message:'local-vercel-browser-fixture raw-error-must-stay-hidden'}},403);
-        if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture',...(websiteNoHistory?{webAnalytics:{enabledAt:Date.now()-1000,hasData:true}}:{})});
+        if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
         assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
-        if(websiteNoHistory) return json({data:[]});
         const by=u.searchParams.get('by');
-        if(websiteOptionalRejected&&(by==='day'||by==='referrerHostname')) return json({error:{code:'invalid_odata_filter',message:"Cannot parse 'filter' expression: local-vercel-browser-fixture raw-error-must-stay-hidden"}},400);
         if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
         if(by==='day') return json({data:[]});
         return json({data:[{[by]:by==='requestPath'?'/vijesti/local-fixture':'mobile',pageviews:42}]});
@@ -101,192 +97,77 @@ const origin='http://localhost:3213';
     }
     return originalFetch(input,init);
   };
-  for(const k of ['INSTAGRAM_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN','VERCEL_ANALYTICS_TOKEN','YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN','YOUTUBE_CHANNEL_ID']) delete process.env[k];
   const password=randomBytes(24).toString('base64url'),salt=randomBytes(16).toString('hex');
-  Object.assign(process.env,fixtureEnvironment,{NEXT_TELEMETRY_DISABLED:'1',MEDRESA_ADMIN_USER:'analytics-browser-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
+  Object.assign(process.env,fixtureEnvironment,{NEXT_TELEMETRY_DISABLED:'1',MEDRESA_ADMIN_USER:'analytics-browser-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin,
+    VERCEL_ANALYTICS_TOKEN:'local-vercel-browser-fixture',INSTAGRAM_ACCESS_TOKEN:'local-instagram-browser-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'local-facebook-browser-fixture',YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-browser-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-browser-fixture'});
+  delete process.env.YOUTUBE_CHANNEL_ID;
   const app=next({dev:false,dir:process.cwd(),hostname:'localhost',port:3213});await app.prepare();
   const server=http.createServer(app.getRequestHandler());await new Promise(r=>server.listen(3213,'localhost',r));
   const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM||(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:true,args:['--no-sandbox']});
-  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push({message:e.message,stage:{websiteFixture,instagramFixture,facebookFixture,youtubeFixture,youtubeDenied,missingSchema}}));
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const snapshot=async(table,order)=>JSON.stringify((await db.query(`select * from ${table} order by ${order}`)).rows);
+  const savedHistory=JSON.parse(await snapshot('medresa_analytics_sync_runs','id'));
   assert.ok([302,307].includes((await context.request.get(origin+'/admin/analitika',{maxRedirects:0})).status()));
   assert.equal((await context.request.get(origin+'/api/admin/analytics')).status(),401);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:randomUUID()}})).status(),401);
   assert.equal((await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:process.env.MEDRESA_ADMIN_USER,password}})).status(),200);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:'https://evil.invalid'},data:{period:'30',requestId:randomUUID()}})).status(),403);
   await page.goto(origin+'/admin/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
-  const inert=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});await inert.addCookies(await context.cookies());const serverPage=await inert.newPage();await serverPage.goto(origin+'/admin/analitika');
-  assert.deepEqual(await serverPage.locator('svg title').allTextContents(),await page.locator('svg title').allTextContents(),'Chart accessibility text must match server/client DOM');await inert.close();
-  const initialReport=await (await context.request.get(origin+'/api/admin/analytics?period=30')).json();
-  assert.equal(initialReport.storage,'ready',JSON.stringify({storage:initialReport.storage,reports:initialReport.reports?.map(r=>({provider:r.provider,state:r.state,reason:r.reason,days:r.daily.length}))}));
-  assert.ok(initialReport.reports.every(r=>r.daily.length>0),JSON.stringify(initialReport.reports.map(r=>({provider:r.provider,state:r.state,reason:r.reason,range:r.range,days:r.daily.length,totals:r.totals}))));
-  assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
-  const fits=async(width)=>{
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics page overflow '+width);
-    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke','Test Website','Test Instagram','Test Facebook','Test YouTube']) {
-      const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44 && box.width>=44,name+' touch target '+width);
-    }
-    assert.equal(await page.locator('svg[role="img"]').count(),4);
-    assert.ok(!(await page.locator('main').innerText()).includes('NaN'));assert.ok(!(await page.locator('main').innerText()).includes('Infinity'));
+  const clean=async()=>{
+    const text=await page.locator('main').innerText();
+    for(const removed of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
+    for(const name of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Provjeri Preview vezu']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
+    assert.equal(await page.locator('main pre').count(),0);assert.ok(!text.includes('NaN')&&!text.includes('Infinity'));
   };
+  const fits=async(width)=>{
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics overflow '+width);
+    for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke']) {const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44&&box.width>=44,name+' touch target '+width);}
+    for(const slider of await page.getByRole('slider').all()) assert.ok((await slider.boundingBox()).height>=44);
+    await clean();
+  };
+  assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   for(const width of [360,390,412,430]) {
     await page.setViewportSize({width,height:900});await fits(width);
-    const periodResponse=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period=7'));await page.getByRole('button',{name:'7 dana',exact:true}).tap();await periodResponse;
-    await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));
-    const slider=page.getByRole('slider',{name:'Odaberi dan · Website',exact:true});await slider.tap();await slider.press('Home');for(let i=0;i<3;i++) await slider.press('ArrowRight');assert.equal(await slider.inputValue(),'3');await fits(width);
-    for(const name of ['Danas','Juče','60 dana','90 dana','30 dana']) {
-      const awaited=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period='));await page.getByRole('button',{name,exact:true}).tap();await awaited;
-      await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));await fits(width);
+    for(const name of ['7 dana','Danas','Juče','60 dana','90 dana','30 dana']) {
+      const response=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period='));await page.getByRole('button',{name,exact:true}).tap();await response;await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));await fits(width);
     }
-    if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:true});
+    assert.equal(await page.locator('svg[role="img"]').count(),4);
+    const slider=page.getByRole('slider',{name:'Odaberi dan · Website',exact:true});await slider.tap();await slider.press('Home');await slider.press('ArrowRight');assert.equal(await slider.inputValue(),'1');
+    if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});
   }
-  delay=true;const pending=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Osvježi podatke',exact:true}).tap();
-  assert.equal(await page.getByRole('button',{name:'Osvježavam podatke…',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);await pending;
-  await page.getByText('Osvježavanje je završeno; izvori još nijesu vratili dostupne podatke.',{exact:true}).waitFor();assert.equal(syncRequests,1);
-  const saved=await context.request.get(origin+'/api/admin/analytics?period=30');assert.equal(saved.status(),200);
-  const body=await saved.json();assert.equal(body.reports[0].totals.visitors,3);assert.equal(body.reports[0].state,'not_configured');assert.ok(body.reports[0].lastSuccessAt);
-  await page.reload();assert.equal(await page.locator('svg[role="img"]').count(),4);
-  // The actual authenticated production route selects only Website; other tokens
-  // are configured deliberately to catch an accidental full-provider refresh.
-  const unrelated=async()=>JSON.stringify({
-    reports:(await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider,start_date")).rows,
-    daily:(await db.query("select * from medresa_analytics_daily where provider<>'website' order by provider,day")).rows,
-    states:(await db.query("select * from medresa_analytics_provider_state where provider<>'website' order by provider")).rows,
-  });
-  const unchanged=await unrelated();await releaseCooldown(db);websiteFixture=true;
-  Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-vercel-browser-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-browser-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-browser-fixture',YOUTUBE_OAUTH_CLIENT_ID:'unused-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'unused-secret-browser-fixture',YOUTUBE_REFRESH_TOKEN:'unused-refresh-browser-fixture'});
-  const posted=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST');
-  const answered=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();
-  const submitted=(await posted).postDataJSON();const scopedId=submitted.requestId;
-  assert.deepEqual(Object.keys(submitted).sort(),['period','provider','requestId']);assert.equal(submitted.provider,'website');assert.equal(submitted.period,'30');
-  assert.equal(await page.getByRole('button',{name:'Testiram Website…',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);
-  const scoped=await answered;
-  assert.equal(scoped.status(),200);const scopedBody=await scoped.json();
-  const website=scopedBody.dashboard.reports.find(r=>r.provider==='website');assert.equal(website.state,'connected');assert.deepEqual(website.totals,{pageviews:42,visitors:9});
-  assert.ok(providerCalls.length>=10);assert.ok(providerCalls.every(host=>host==='api.vercel.com'));assert.equal(await unrelated(),unchanged);
-  const visibleResult=page.getByRole('status',{name:'Rezultat Website testa',exact:true});
-  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.ok((await visibleResult.innerText()).includes('connected'));assert.ok((await visibleResult.innerText()).includes('Pregledi stranica: 42'));assert.ok((await visibleResult.innerText()).includes(website.range.start));
+  const refresh=async()=>{
+    const posted=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST');const answered=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
+    await page.getByRole('button',{name:'Osvježi podatke',exact:true}).tap();const request=(await posted).postDataJSON();assert.deepEqual(Object.keys(request).sort(),['period','requestId']);assert.equal(request.period,'30');
+    const response=await answered;assert.equal(response.status(),200);const body=await response.json();await page.getByRole('button',{name:'Osvježi podatke',exact:true}).waitFor();await clean();return {body,request};
+  };
+  delay=true;const firstPromise=refresh();await page.getByRole('button',{name:'Osvježavam podatke…',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Osvježavam podatke…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);
+  const {body:first,request:firstRequest}=await firstPromise;
+  assert.equal(syncRequests,1);assert.ok(first.dashboard.reports.every(r=>r.state==='connected'),JSON.stringify(first.dashboard.reports.map(r=>({provider:r.provider,state:r.state,reason:r.reason}))));
+  assert.equal(first.dashboard.history.find(r=>r.id===first.runId).outcome,'success');
+  for(const provider of ['api.vercel.com','instagram','facebook','oauth2.googleapis.com','youtubeanalytics.googleapis.com']) assert.ok(providerCalls.includes(provider),provider+' was not invoked by normal refresh');
+  assert.equal(first.dashboard.reports[0].totals.pageviews,42);assert.equal(first.dashboard.reports[0].totals.visitors,9);assert.equal(first.dashboard.reports[1].current.followers,17);assert.equal(first.dashboard.reports[2].current.followers,23);assert.equal(first.dashboard.reports[3].current.subscribers,31);assert.equal(first.dashboard.reports[3].totals.views,30);assert.equal(first.dashboard.reports[3].totals.watchMinutes,15);
+  for(const key of ['websiteDiagnostic','instagramDiagnostic','facebookDiagnostic','youtubeDiagnostic']) assert.equal(first[key],undefined);
+  const persisted=await(await context.request.get(origin+'/api/admin/analytics?period=30')).json();assert.deepEqual(persisted.reports.map(r=>r.totals),first.dashboard.reports.map(r=>r.totals));
+  const historyAfter=JSON.parse(await snapshot('medresa_analytics_sync_runs','id'));for(const old of savedHistory) assert.deepEqual(historyAfter.find(r=>r.id===old.id),old,'Existing run history was changed');
+  const storedPeriods=(await db.query("select count(*) as count from medresa_analytics_reports where start_date<>$1",[first.dashboard.reports[0].range.start])).rows[0].count;assert.ok(storedPeriods>=16,'Older period snapshots must remain available');
+  const calls=providerCalls.length;const repeated=await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:firstRequest});assert.equal(repeated.status(),200);assert.equal(providerCalls.length,calls,'Idempotent request must not fetch providers again');
+  await page.reload();await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
+  const inert=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await inert.addCookies(await context.cookies());const serverPage=await inert.newPage();await serverPage.goto(origin+'/admin/analitika');
+  const leafText=p=>p.locator('main').evaluate(root=>{const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[];while(walker.nextNode()){const text=walker.currentNode.textContent.trim();if(text)out.push(text);}return out;});assert.deepEqual(await leafText(page),await leafText(serverPage),'Server/client analytics text must agree');await inert.close();
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  const count=providerCalls.length;
-  assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:scopedId,provider:'website'}})).status(),200);assert.equal(providerCalls.length,count);
-  const reloaded=await (await context.request.get(origin+'/api/admin/analytics?period=30')).json();assert.deepEqual(reloaded.reports.find(r=>r.provider==='website').totals,website.totals);
-  await page.reload();assert.equal((await db.query('select provider,outcome from medresa_analytics_sync_runs where id=$1',[scopedId])).rows[0].outcome,'success');
-  const storedWebsite=page.getByRole('region',{name:'Website analitika',exact:true});
-  assert.ok((await storedWebsite.innerText()).includes('42'));assert.ok((await storedWebsite.innerText()).includes('Povezano'));
-  const cooldownResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();await cooldownResponse;
-  await visibleResult.getByText('Sačekajte dvije minute između osvježavanja. Website test nije pokrenut.',{exact:true}).waitFor();assert.equal(providerCalls.length,count);
-  assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));
-  await releaseCooldown(db);websiteOptionalRejected=true;
-  const optionalResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();const optionalBody=await (await optionalResponse).json();
-  assert.equal(optionalBody.dashboard.reports.find(r=>r.provider==='website').state,'connected');
-  assert.deepEqual(optionalBody.websiteRequests.filter(r=>r.httpStatus===400).map(r=>r.request).sort(),['daily','referrers']);
-  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.match(await visibleResult.innerText(),/Dnevni tok · by=day · HTTP 400/);
-  assert.match(await visibleResult.innerText(),/Validacija Vercela: kod invalid_odata_filter · parametri navedeni u odgovoru: filter/);
-  assert.match(await visibleResult.innerText(),/Oblik odgovora: error_object · teme navedene u odgovoru: filter_syntax/);
-  assert.ok(!(await page.content()).includes('raw-error-must-stay-hidden'));assert.equal(await unrelated(),unchanged);
+  // A failing provider preserves its saved aggregates while other providers refresh.
+  const ytBefore=JSON.stringify((await db.query("select * from medresa_analytics_reports where provider='youtube' order by start_date")).rows);
+  await releaseCooldown(db);youtubeDenied=true;const {body:partial}=await refresh();assert.equal(partial.dashboard.history.find(r=>r.id===partial.runId).outcome,'partial');assert.ok(partial.dashboard.reports.filter(r=>r.provider!=='youtube').every(r=>r.state==='connected'));assert.equal(partial.dashboard.reports[3].state,'permission_required');assert.equal(partial.dashboard.reports[3].totals.views,30);assert.equal(JSON.stringify((await db.query("select * from medresa_analytics_reports where provider='youtube' order by start_date")).rows),ytBefore);youtubeDenied=false;
+  const reportsBefore=await snapshot('medresa_analytics_reports','provider,start_date,end_date'),dailyBefore=await snapshot('medresa_analytics_daily','provider,day');
+  await releaseCooldown(db);outage=true;const {body:failed}=await refresh();assert.ok(failed.dashboard.reports.every(r=>r.state==='temporarily_unavailable'));assert.equal(await snapshot('medresa_analytics_reports','provider,start_date,end_date'),reportsBefore);assert.equal(await snapshot('medresa_analytics_daily','provider,day'),dailyBefore);outage=false;
+  // A running external worker updates the page through GET polling, never another sync.
+  await releaseCooldown(db);const externalId=randomUUID();await begin(db,externalId,'30');await page.reload();assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
+  const requestsBefore=syncRequests,providerReadsBefore=providerCalls.length;await finish(db,externalId,first.dashboard.reports);await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Osvježi podatke'&&!b.disabled),{},{timeout:15000});assert.equal(syncRequests,requestsBefore);assert.equal(providerCalls.length,providerReadsBefore);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  await page.reload();assert.ok((await storedWebsite.innerText()).includes('42'));
-  const privateError='never-display-cookie-token-or-credential-fixture';
-  await page.route('**/api/admin/analytics/sync',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:privateError})}));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();
-  await visibleResult.getByText('Website test nije završen. Sačuvani podaci ostaju dostupni.',{exact:true}).waitFor();
-  assert.ok((await visibleResult.innerText()).includes('HTTP: 503'));assert.ok(!(await page.content()).includes(privateError));assert.ok((await storedWebsite.innerText()).includes('42'));
-  await page.unroute('**/api/admin/analytics/sync');await releaseCooldown(db);websiteDenied=true;
-  const deniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();await deniedResponse;
-  await visibleResult.getByText('Razlog: Pristup analitici nije odobren (permission_required)',{exact:true}).waitFor();
-  assert.ok(!(await visibleResult.innerText()).includes('Pregledi stranica: 42'));assert.ok(!(await page.content()).includes('raw-error-must-stay-hidden'));assert.equal(await unrelated(),unchanged);
-  assert.ok(providerCalls.every(host=>host==='api.vercel.com'));
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  await releaseCooldown(db);websiteDenied=false;websiteOptionalRejected=false;websiteNoHistory=true;
-  const historyBefore=JSON.stringify((await db.query("select day,metrics,complete from medresa_analytics_daily where provider='website' order by day")).rows);
-  const emptyResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Website',exact:true}).tap();const emptyBody=await (await emptyResponse).json();
-  assert.equal(emptyBody.dashboard.reports.find(r=>r.provider==='website').state,'connected');
-  assert.equal(emptyBody.websiteRequests.find(r=>r.request==='current').httpStatus,200);
-  for(const name of ['daily','previous']) assert.deepEqual({status:emptyBody.websiteRequests.find(r=>r.request===name).httpStatus,reason:emptyBody.websiteRequests.find(r=>r.request===name).reason},{status:name==='daily'?200:null,reason:'no_data'});
-  await visibleResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.match(await visibleResult.innerText(),/Dnevni tok · by=day · HTTP 200/);assert.match(await visibleResult.innerText(),/Nema dostupnih podataka za prethodni period/);
-  assert.ok(!(await visibleResult.innerText()).includes('HTTP 400'));assert.match(await visibleResult.innerText(),/Pregledi stranica: — · Posjetioci: —/);
-  assert.equal(JSON.stringify((await db.query("select day,metrics,complete from medresa_analytics_daily where provider='website' order by day")).rows),historyBefore);assert.equal(await unrelated(),unchanged);
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  // Actual authenticated route + local fixture proves Instagram cannot call or
-  // overwrite the locked Website provider or the other social providers.
-  await releaseCooldown(db);instagramFixture=true;process.env.INSTAGRAM_ACCESS_TOKEN='local-instagram-browser-fixture';providerCalls.length=0;
-  const nonInstagram=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'instagram' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'instagram' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'instagram' order by provider,day")).rows}),locked=await nonInstagram();
-  const instagramPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),instagramResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();
-  assert.equal((await instagramPost).postDataJSON().provider,'instagram');assert.equal(await page.getByRole('button',{name:'Testiram Instagram…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
-  const igBody=await (await instagramResponse).json();assert.equal(igBody.websiteRequests,undefined);assert.equal(igBody.instagramDiagnostic.tokenPresent,true);assert.equal(igBody.instagramDiagnostic.accountId,'1001');assert.equal(igBody.instagramDiagnostic.pageDiscovered,true);assert.equal(igBody.instagramDiagnostic.pageTokenObtained,true);assert.equal(igBody.instagramDiagnostic.userTokenLookup,'empty');assert.equal(igBody.instagramDiagnostic.pageTokenLookup,'success');assert.equal(igBody.instagramDiagnostic.username,'medresacg');assert.equal(igBody.instagramDiagnostic.selectedCredential,'page');assert.equal(igBody.instagramDiagnostic.insightsPermission,'granted');assert.equal(igBody.instagramDiagnostic.differsFromOldLoginId,true);assert.equal(igBody.instagramDiagnostic.insightsAccess,'verified');
-  const igResult=page.getByRole('status',{name:'Rezultat Instagram testa',exact:true});await igResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();
-  assert.match(await igResult.innerText(),/CONNECTED · VERIFIED/);for(const text of ['User token lookup','Page token lookup','Graph host','Page token dobijen','instagram_manage_insights:']) assert.ok(!(await igResult.innerText()).includes(text),'Temporary Instagram dump remains in normal UI');assert.equal(await nonInstagram(),locked);assert.ok(providerCalls.every(host=>host==='graph.facebook.com'));
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  await page.reload();assert.equal((await (await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='instagram').current.followers,17);assert.equal(await nonInstagram(),locked);
-  await releaseCooldown(db);instagramDenied=true;
-  const igDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Instagram',exact:true}).tap();const deniedInstagram=await (await igDeniedResponse).json();
-  assert.equal(deniedInstagram.instagramDiagnostic.insightsAccess,'denied');await igResult.getByText('Pristup analitici nije odobren',{exact:true}).waitFor();await igResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await igResult.innerText(),/Meta kod 100 · podkod 33/);assert.equal(await nonInstagram(),locked);
-  for(const marker of ['local-instagram-browser-fixture','local-instagram-page-browser-fixture','raw-private-instagram-response','private-instagram-trace-fixture']) assert.ok(!JSON.stringify(deniedInstagram).includes(marker)&&!(await page.content()).includes(marker));
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  await releaseCooldown(db);facebookFixture=true;process.env.FACEBOOK_PAGE_ACCESS_TOKEN='local-facebook-browser-fixture';providerCalls.length=0;
-  const nonFacebook=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'facebook' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'facebook' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'facebook' order by provider,day")).rows}),protectedBefore=await nonFacebook();
-  const fbPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),fbResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();assert.equal((await fbPost).postDataJSON().provider,'facebook');assert.equal(await page.getByRole('button',{name:'Testiram Facebook…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
-  const fbBody=await(await fbResponse).json();assert.equal(fbBody.instagramDiagnostic,undefined);assert.equal(fbBody.websiteRequests,undefined);assert.equal(fbBody.facebookDiagnostic.tokenPresent,true);assert.equal(fbBody.facebookDiagnostic.pageId,'578640758657974');assert.equal(fbBody.facebookDiagnostic.permissions.read_insights,'granted');assert.equal(fbBody.facebookDiagnostic.insightsAccess,'verified');
-  const fbResult=page.getByRole('status',{name:'Rezultat Facebook testa',exact:true});await fbResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await fbResult.innerText(),/CONNECTED · VERIFIED/);for(const removed of ['Token na serveru','Medresa Page','Page ID','read_insights','Page zadaci','Page token']) assert.ok(!(await fbResult.innerText()).includes(removed),'Temporary Facebook dump remains in normal UI');assert.equal(await nonFacebook(),protectedBefore);
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  await page.reload();assert.equal((await(await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='facebook').current.followers,23);assert.equal(await nonFacebook(),protectedBefore);
-  await releaseCooldown(db);facebookDenied=true;const fbDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test Facebook',exact:true}).tap();const fbDenied=await(await fbDeniedResponse).json();assert.equal(fbDenied.facebookDiagnostic.insightsAccess,'denied');await fbResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await fbResult.innerText(),/Meta kod 200 · podkod 33/);assert.equal(await nonFacebook(),protectedBefore);
-  const savedFacebook=(await db.query("select report from medresa_analytics_reports where provider='facebook' and start_date=$1 and end_date=$2",[fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.start,fbBody.dashboard.reports.find(r=>r.provider==='facebook').range.end])).rows[0].report;assert.equal(savedFacebook.current.followers,23);
-  for(const marker of ['local-facebook-browser-fixture','local-facebook-page-browser-fixture','raw-private-facebook-response','private-facebook-trace-fixture']) assert.ok(!JSON.stringify(fbDenied).includes(marker)&&!(await page.content()).includes(marker));
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  // Missing configuration is diagnosed from the authenticated runtime, not guessed.
-  await releaseCooldown(db);youtubeFixture=true;providerCalls.length=0;
-  for(const k of ['YOUTUBE_OAUTH_CLIENT_ID','YOUTUBE_OAUTH_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN']) delete process.env[k];
-  const nonYouTube=async()=>JSON.stringify({reports:(await db.query("select * from medresa_analytics_reports where provider<>'youtube' order by provider,start_date")).rows,states:(await db.query("select * from medresa_analytics_provider_state where provider<>'youtube' order by provider")).rows,daily:(await db.query("select * from medresa_analytics_daily where provider<>'youtube' order by provider,day")).rows}),verifiedProviders=await nonYouTube();
-  const absentResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();const absent=await(await absentResponse).json();
-  assert.ok(Object.values(absent.youtubeDiagnostic.configuration).every(v=>v===false));assert.equal(providerCalls.length,0);
-  const ytResult=page.getByRole('status',{name:'Rezultat YouTube testa',exact:true});await ytResult.getByText(/Nedostaje Preview konfiguracija/).waitFor();assert.equal(await nonYouTube(),verifiedProviders);assert.ok(!(await ytResult.innerText()).includes('CONNECTED · VERIFIED'));
-  await releaseCooldown(db);Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-browser-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-browser-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-browser-fixture'});
-  const ytPost=page.waitForRequest(r=>r.url().endsWith('/api/admin/analytics/sync')&&r.method()==='POST'),ytResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));
-  await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();assert.equal((await ytPost).postDataJSON().provider,'youtube');assert.equal(await page.getByRole('button',{name:'Testiram YouTube…',exact:true}).isDisabled(),true);
-  for(const name of ['Test Website','Test Instagram','Test Facebook','Osvježi podatke']) assert.equal(await page.getByRole('button',{name,exact:true}).isDisabled(),true);
-  const ytBody=await(await ytResponse).json();assert.equal(ytBody.websiteRequests,undefined);assert.equal(ytBody.instagramDiagnostic,undefined);assert.equal(ytBody.facebookDiagnostic,undefined);assert.equal(ytBody.youtubeDiagnostic.analyticsVerified,true);
-  await ytResult.getByText('Rezultat sačuvan u Preview Supabase.',{exact:true}).waitFor();assert.match(await ytResult.innerText(),/CONNECTED · VERIFIED/);assert.equal(await nonYouTube(),verifiedProviders);
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  const ssrContext=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await ssrContext.addCookies(await context.cookies());const ssrPage=await ssrContext.newPage();await ssrPage.goto(origin+'/admin/analitika');
-  const leafText=async page=>page.locator('main').evaluate(root=>{const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[];while(walker.nextNode()) {const text=walker.currentNode.textContent.trim();if(text) out.push(text);}return out;});
-  const serverText=await leafText(ssrPage);
-  await page.reload();await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();const clientText=await leafText(page);
-  const mismatch=serverText.findIndex((text,i)=>text!==clientText[i]);assert.equal(mismatch,-1,JSON.stringify({server:serverText.slice(Math.max(0,mismatch-2),mismatch+4),client:clientText.slice(Math.max(0,mismatch-2),mismatch+4)}));await ssrContext.close();
-  const ytSaved=(await(await context.request.get(origin+'/api/admin/analytics?period=30')).json()).reports.find(r=>r.provider==='youtube');assert.equal(ytSaved.current.subscribers,31);assert.equal(ytSaved.totals.views,30);assert.equal(await nonYouTube(),verifiedProviders);
-  await releaseCooldown(db);youtubeDenied=true;const ytDeniedResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/analytics/sync'));await page.getByRole('button',{name:'Test YouTube',exact:true}).tap();const ytDenied=await(await ytDeniedResponse).json();
-  assert.equal(ytDenied.youtubeDiagnostic.requests[0].googleReason,'invalid_grant');await ytResult.getByText('Detalji greške',{exact:true}).tap();assert.match(await ytResult.innerText(),/Google OAuth · HTTP 400/);assert.match(await ytResult.innerText(),/invalid_grant/);assert.ok(!(await ytResult.innerText()).includes('CONNECTED · VERIFIED'));assert.equal(ytDenied.dashboard.reports.find(r=>r.provider==='youtube').totals.views,30);assert.equal(await nonYouTube(),verifiedProviders);
-  for(const marker of ['private-youtube-client-browser-fixture','private-youtube-refresh-browser-fixture','private-youtube-access-browser-fixture','raw-private-youtube-response']) assert.ok(!JSON.stringify(ytDenied).includes(marker)&&!(await page.content()).includes(marker));
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  missingSchema=true;await page.reload();await page.getByText('Historija analitike čeka zasebnu Preview migraciju. News i prijevod ostaju dostupni.',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Test Website',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Test Instagram',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Test Facebook',exact:true}).isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Test YouTube',exact:true}).isDisabled(),true);
-  for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);}
-  const html=await page.content();
-  for(const secret of [process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN]) assert.ok(!html.includes(secret));
-  const scripts=await page.locator('script[src]').evaluateAll(xs=>xs.map(x=>x.src));
-  for(const script of scripts) {
-    const code=await (await context.request.get(script)).text();
-    // The public Graph hostname is deliberately displayed; helpers, headers and both tokens stay server-only.
-    for(const marker of ['sb_secret_local-analytics-fixture','graph.instagram.com','oauth2.googleapis.com','api.vercel.com/v1/query','medresa_analytics_complete_sync','discoverInstagramFacebook','Authorization',process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.INSTAGRAM_ACCESS_TOKEN,'local-instagram-page-browser-fixture','local-facebook-browser-fixture','local-facebook-page-browser-fixture','facebookGraph','youtubeJson','private-youtube-client-browser-fixture','private-youtube-refresh-browser-fixture','private-youtube-access-browser-fixture']) assert.ok(!code.includes(marker),'Server code/credential leaked to client chunk');
-  }
-  assert.deepEqual(errors,[]);console.log('PASS: Analytics production SSR/API authentication/origin protection; all six periods; isolated Website, Instagram, Facebook and YouTube actions; concise Meta status and optional sanitized failures; YouTube runtime missing-configuration checks, OAuth/owner/Insights verification and saved metrics after reload; unchanged unselected providers; scoped idempotency; PostgreSQL persistence; existing full refresh; failed/unconfigured sync preserves prior data; missing migration safely disables sync; four SVG charts; touch slider; all test actions >=44px; 360/390/412/430px without horizontal overflow; server modules/credentials absent from client chunks. All data/provider calls are explicit local fixtures.');
+  missingSchema=true;await page.reload();await page.getByText('Historija analitike trenutno nije dostupna.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);await clean();
+  const secretMarkers=[process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN,process.env.FACEBOOK_PAGE_ACCESS_TOKEN,process.env.YOUTUBE_OAUTH_CLIENT_SECRET,process.env.YOUTUBE_REFRESH_TOKEN,'private-youtube-access-browser-fixture','local-instagram-page-browser-fixture','local-facebook-page-browser-fixture','raw-private-provider-response','raw-private-youtube-response'];
+  for(const marker of secretMarkers) assert.ok(!JSON.stringify([first,partial,failed]).includes(marker)&&!(await page.content()).includes(marker),'Secret/raw error exposed');
+  for(const script of await page.locator('script[src]').evaluateAll(xs=>xs.map(x=>x.src))) {const code=await(await context.request.get(script)).text();for(const marker of [...secretMarkers,'medresa_analytics_complete_sync','discoverInstagramFacebook','facebookGraph','youtubeJson','Test Website','Test Instagram','Test Facebook','Test YouTube']) assert.ok(!code.includes(marker),'Server/setup code leaked to client chunk');}
+  assert.deepEqual(errors,[]);console.log('PASS: clean normal Analytics UI; authenticated full four-provider refresh through production Next handlers; native metric persistence/reload; history and older periods retained; idempotency; partial/total outage preserves saved aggregates; GET-only running-status polling; six periods/charts/touch targets; 360/390/412/430px without overflow; no setup controls, raw errors or secrets in UI/client chunks. Explicit local PostgreSQL/provider fixtures only, not live provider verification.');
   await browser.close();await db.close();server.close();await app.close();process.exit(0);
 })().catch(e=>{console.error((e.stack||e.message).split('Call log:')[0]);process.exit(1);});

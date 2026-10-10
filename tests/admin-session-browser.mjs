@@ -77,27 +77,28 @@ try {
   assert.equal(Boolean((await (await crossSiteRequest).allHeaders()).cookie), false);
   assert.equal((await crossSiteResponse).status(), 401); assert.equal(reads, beforeExternal);
 
-  // The existing session remains valid. The in-Admin action uses same-origin fetch.
+  // The existing session remains valid. Internal maintenance still uses same-origin fetch.
   await page.goto(origin + '/admin'); assert.equal(page.url(), origin + '/admin');
   const beforeCheck = reads;
   const probeRequest = page.waitForRequest(r => r.url() === origin + '/api/admin/diagnostics?connectivity=1');
-  await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).click();
+  const probeBody = await page.evaluate(() => fetch('/api/admin/diagnostics?connectivity=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()));
   const request = await probeRequest; assert.equal(request.method(), 'GET'); assert.ok((await request.allHeaders()).cookie);
-  const result = page.getByLabel('Rezultat Preview dijagnostike', { exact: true }); await result.waitFor();
-  assert.deepEqual(JSON.parse(await result.textContent()), {
-    configuration: { accepted: true, failedChecks: [], checks: {
-      previewEnvironment: true, adminBranch: true, supabaseUrlPresent: true, serviceRoleKeyPresent: true, projectRefPresent: true,
-      supabaseUrlParseable: true, supabaseUrlExactOrigin: true, supabaseUrlHttps: true, supabaseHostnameMatchesProjectRef: true, projectRefFormatValid: true,
-    } },
-    runtime: { supabaseHostname: 'abcdefghijklmnopqrst.supabase.co', projectRef: 'abcdefghijklmnopqrst' },
-    connectivity: { state: 'connected', httpStatus: 200 },
+  assert.equal(await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).count(), 0);
+  assert.equal(probeBody.configurationAccepted, true);
+  assert.deepEqual(probeBody.checks, {
+    previewEnvironment: true, adminBranch: true, supabaseUrlPresent: true, serviceRoleKeyPresent: true, projectRefPresent: true,
+    supabaseUrlParseable: true, supabaseUrlExactOrigin: true, supabaseUrlHttps: true, supabaseHostnameMatchesProjectRef: true, projectRefFormatValid: true, writeFlagIsFalse: false,
   });
+  assert.deepEqual(probeBody.failedChecks, ['writeFlagIsFalse']);
+  assert.deepEqual(probeBody.runtime, { supabaseHostname: 'abcdefghijklmnopqrst.supabase.co', projectRef: 'abcdefghijklmnopqrst' });
+  assert.deepEqual(probeBody.connectivity, { state: 'connected', httpStatus: 200 });
+  assert.equal(typeof probeBody.translation.checks.openAiKeyPresent, 'boolean');
+  assert.equal(probeBody.translation.keyDelivery, undefined);
   assert.equal(reads, beforeCheck + 1);
   for (const width of [360, 390, 412, 430]) {
     await page.setViewportSize({ width, height: 900 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
-    const box = await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).boundingBox();
-    assert.ok(box.height >= 44 && box.x >= 0 && box.x + box.width <= width);
+    assert.equal(await page.locator('main pre').count(), 0);
   }
   // Same hostname/ref can hide an invalid raw URL or an unavailable server key.
   // These are process-local fixtures; no Vercel configuration is changed.
@@ -110,19 +111,12 @@ try {
     process.env.SUPABASE_URL = rawUrl;
     if (keyAvailable) process.env.SUPABASE_SERVICE_ROLE_KEY = key; else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     const beforeBlocked = reads;
-    const probe = page.waitForResponse(r => r.url() === origin + '/api/admin/diagnostics?connectivity=1');
-    await page.getByRole('button', { name: 'Provjeri Preview vezu', exact: true }).click();
-    await probe;
-    await page.waitForFunction(expected => {
-      const text = document.querySelector('[aria-label="Rezultat Preview dijagnostike"]')?.textContent;
-      return text && JSON.parse(text).configuration.failedChecks.includes(expected);
-    }, failedCheck);
-    const blocked = JSON.parse(await result.textContent());
-    assert.equal(blocked.configuration.accepted, false); assert.deepEqual(blocked.configuration.failedChecks, [failedCheck]);
+    const blocked = await page.evaluate(() => fetch('/api/admin/diagnostics?connectivity=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()));
+    assert.equal(blocked.configurationAccepted, false); assert.deepEqual(blocked.failedChecks.filter(c => c !== 'writeFlagIsFalse'), [failedCheck]);
     assert.deepEqual(blocked.connectivity, { state: 'blocked', reason: 'configuration-unavailable' });
-    assert.equal(reads, beforeBlocked); assert.equal(blocked.configuration.checks.supabaseHostnameMatchesProjectRef, true);
-    assert.equal(blocked.configuration.checks.writeFlagIsFalse, undefined);
-    for (const secret of [key, password, process.env.MEDRESA_ADMIN_PASSWORD_HASH, process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!(await result.textContent()).includes(secret));
+    assert.equal(reads, beforeBlocked); assert.equal(blocked.checks.supabaseHostnameMatchesProjectRef, true);
+    assert.equal(blocked.checks.writeFlagIsFalse, false);
+    for (const secret of [key, password, process.env.MEDRESA_ADMIN_PASSWORD_HASH, process.env.MEDRESA_ADMIN_SESSION_SECRET]) assert.ok(!JSON.stringify(blocked).includes(secret));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
   }
   process.env.SUPABASE_URL = provider; process.env.SUPABASE_SERVICE_ROLE_KEY = key;

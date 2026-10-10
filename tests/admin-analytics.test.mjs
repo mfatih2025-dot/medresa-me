@@ -35,6 +35,19 @@ test('all periods, previous equivalent ranges, year boundaries and DST calendar 
   assert.equal((Date.parse(startInstant('2026-03-09','America/Los_Angeles'))-Date.parse(startInstant('2026-03-08','America/Los_Angeles')))/3600000,23);
   assert.equal((Date.parse(startInstant('2026-11-02','America/Los_Angeles'))-Date.parse(startInstant('2026-11-01','America/Los_Angeles')))/3600000,25);
 });
+test('Finished Analytics renders real report fields and history without setup controls, Preview labels or credential diagnostics', () => {
+  const css=new Proxy({}, {get:(_,name)=>String(name)});
+  const {Analytics}=moduleLoader({'../Shell':{Shell:({children,action,title})=>React.createElement('main',null,React.createElement('h1',null,title),action,children)},'../admin.module.css':{default:css},'./analytics.module.css':{default:css}})('src/admin/analytics/Dashboard');
+  const initial={period:'30',generatedAt:now.toISOString(),reports:reports('30'),storage:'ready',writable:true,sync:{running:false,runId:null,startedAt:null},history:[{id:randomUUID(),started_at:now.toISOString(),completed_at:now.toISOString(),outcome:'success'}]};
+  for(const r of initial.reports) {r.source='Preview setup HTTP token OAuth diagnostics';r.requiredPermissions=['read_insights','instagram_manage_insights','youtube.readonly'];}
+  const html=renderToStaticMarkup(React.createElement(Analytics,{initial}));
+  for(const removed of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','token','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly']) assert.ok(!html.includes(removed),removed+' remains in normal UI');
+  assert.equal((html.match(/Osvježi podatke/g)||[]).length,1);
+  for(const kept of ['DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','TOP SADRŽAJ','Posljednje uspješno osvježavanje','Posljednja osvježavanja','Uspješno','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
+  assert.ok(html.includes('aria-pressed="true"'));assert.ok(html.includes('Povezano'));
+  const unavailable=renderToStaticMarkup(React.createElement(Analytics,{initial:{...initial,storage:'migration_required',writable:false}}));
+  assert.ok(unavailable.includes('Historija analitike trenutno nije dostupna.'));assert.ok(!unavailable.includes('migracij'));assert.ok(unavailable.includes('disabled=""'));
+});
 test('comparisons: missing/partial/zero/negative/NaN never invent percentages', () => {
   assert.deepEqual(comparison(10,0),{direction:'↑',delta:10,percent:null});
   assert.deepEqual(comparison(0,0),{direction:'—',delta:0,percent:null});
@@ -510,18 +523,13 @@ test('Facebook-only sync persists aggregates, preserves failed history and never
     await releaseCooldown(db);pageDenied=true;const failed=await service.synchronize('30',randomUUID(),'facebook');assert.equal(facebookTestResult(failed,200).stored,false);assert.deepEqual(await stored(),retained);assert.equal(await protectedData(),before);
   }finally{await db.close();}
 });
-test('Facebook UI projection rejects secrets/raw metadata and Instagram status no longer displays its diagnostic dump', () => {
+test('Internal Facebook diagnostic projection rejects secrets and raw metadata', () => {
   const {facebookTestResult}=load('src/admin/analytics/facebookTest'),secret='private-facebook-ui-fixture',id=randomUUID(),fb=reports()[2];
   const body={acquired:true,runId:id,facebookDiagnostic:{tokenPresent:true,pageDiscovered:true,pageId:'578640758657974',derivedPageTokenObtained:true,permissions:{read_insights:'granted',pages_read_engagement:secret},pageTasks:['ANALYZE',secret],insightsAccess:'verified',access_token:secret,requests:[{request:'insights',metric:'page_media_view',httpStatus:200,code:200,subcode:33,errorType:'OAuthException',hints:['read_insights',secret],message:secret,headers:secret}]},dashboard:{storage:'ready',reports:[fb],history:[{id,outcome:'success'}]}};
   const parsed=facebookTestResult(body,200);assert.equal(parsed.stored,true);assert.equal(parsed.diagnostic.tokenPresent,true);assert.deepEqual(parsed.diagnostic.pageTasks,['ANALYZE']);assert.equal(parsed.diagnostic.permissions.pages_read_engagement,'unverified');assert.ok(!JSON.stringify(parsed).includes(secret));
   for(const status of [401,403,503]) {const r=facebookTestResult(body,status);assert.equal(r.stored,false);assert.equal(r.diagnostic,null);}
   assert.equal(facebookTestResult({...body,acquired:false,outcome:'cooldown'},200).stored,false);
-  const {InstagramTestResult}=load('src/admin/analytics/InstagramTestResult');
-  const result={message:'Instagram test je završen.',httpStatus:200,state:'connected',reason:null,stored:true,diagnostic:{insightsAccess:'verified',requests:[]}};
-  const html=renderToStaticMarkup(React.createElement(InstagramTestResult,{result}));assert.match(html,/CONNECTED · VERIFIED/);
-  for(const removed of ['User token lookup','Page token lookup','instagram_manage_insights','Graph host','Page token dobijen']) assert.ok(!html.includes(removed));
-  const {FacebookTestResult}=load('src/admin/analytics/FacebookTestResult'),facebookHtml=renderToStaticMarkup(React.createElement(FacebookTestResult,{result:parsed}));assert.match(facebookHtml,/CONNECTED · VERIFIED/);
-  for(const removed of ['Token na serveru','Medresa Page','Page ID','read_insights','Page zadaci','Page token']) assert.ok(!facebookHtml.includes(removed));
+
 });
 test('YouTube uses owner OAuth/channel discovery, handles delayed days and preserves hidden subscriber counts', async () => {
   credentials(); Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-fixture',YOUTUBE_REFRESH_TOKEN:'private-refresh-fixture'});
@@ -577,7 +585,7 @@ test('YouTube official owner/OAuth queries retain native metrics and reject malf
 test('YouTube diagnostics retain only fixed Google error enums and UI never treats missing configuration or stale data as verified', async () => {
   const {formatYouTube}=load('src/admin/analytics/formatYouTube');for(const [value,expected] of [[0.5,'0,5'],[12345.5,'12.345,5'],[-1.5,'-1,5'],[0,'0'],[null,'—'],[NaN,'—'],[Infinity,'—']]) assert.equal(formatYouTube(value),expected);
   credentials();Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture'});
-  const {newYouTubeDiagnostic}=load('src/server/admin/analytics/youtubeDiagnostic'),{youtubeTestResult}=load('src/admin/analytics/youtubeTest'),{YouTubeTestResult}=load('src/admin/analytics/YouTubeTestResult');
+  const {newYouTubeDiagnostic}=load('src/server/admin/analytics/youtubeDiagnostic'),{youtubeTestResult}=load('src/admin/analytics/youtubeTest');
   for(const mode of ['oauth','permission','invalid']) {
     const d=newYouTubeDiagnostic();globalThis.fetch=async input=>{
       const u=new URL(input);
@@ -589,11 +597,10 @@ test('YouTube diagnostics retain only fixed Google error enums and UI never trea
   }
   const id=randomUUID(),yt=reports()[3],body={acquired:true,runId:id,youtubeDiagnostic:{configuration:{YOUTUBE_OAUTH_CLIENT_ID:true,YOUTUBE_OAUTH_CLIENT_SECRET:true,YOUTUBE_REFRESH_TOKEN:true},oauthVerified:true,channelDiscovered:true,channelId:'UC'+'a'.repeat(22),analyticsVerified:true,access_token:'private-ui-secret-fixture',requests:[{request:'daily',httpStatus:403,reason:'permission_required',googleReason:'private-ui-secret-fixture',googleStatus:'PERMISSION_DENIED',message:'private-ui-secret-fixture'}]},dashboard:{storage:'ready',reports:[yt],history:[{id,outcome:'success'}]}};
   const parsed=youtubeTestResult(body,200);assert.equal(parsed.stored,true);assert.equal(parsed.diagnostic.requests[0].googleReason,null);assert.ok(!JSON.stringify(parsed).includes('private-ui-secret-fixture'));
-  assert.match(renderToStaticMarkup(React.createElement(YouTubeTestResult,{result:parsed})),/CONNECTED · VERIFIED/);
   for(const status of [401,403,503]) {const r=youtubeTestResult(body,status);assert.equal(r.stored,false);assert.equal(r.diagnostic,null);}
   assert.equal(youtubeTestResult({...body,acquired:false,outcome:'cooldown'},200).stored,false);
   const missing=youtubeTestResult({...body,youtubeDiagnostic:newYouTubeDiagnostic(),dashboard:{...body.dashboard,reports:[{...yt,state:'not_configured',reason:'not_configured'}],history:[{id,outcome:'failed'}]}},200);
-  assert.equal(missing.stored,false);assert.ok(!renderToStaticMarkup(React.createElement(YouTubeTestResult,{result:missing})).includes('CONNECTED · VERIFIED'));
+  assert.equal(missing.stored,false);assert.equal(missing.state,'not_configured');
 });
 test('YouTube-only sync persists native aggregates, leaves all verified providers unchanged and retains data after OAuth failure', async () => {
   credentials();Object.assign(process.env,{YOUTUBE_OAUTH_CLIENT_ID:'local-youtube-client-fixture',YOUTUBE_OAUTH_CLIENT_SECRET:'private-youtube-client-fixture',YOUTUBE_REFRESH_TOKEN:'private-youtube-refresh-fixture',VERCEL_ANALYTICS_TOKEN:'unused-website-fixture',INSTAGRAM_ACCESS_TOKEN:'unused-instagram-fixture',FACEBOOK_PAGE_ACCESS_TOKEN:'unused-facebook-fixture'});
