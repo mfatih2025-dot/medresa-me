@@ -86,7 +86,7 @@ export function Nastava({ locale }: { locale: Locale }) {
       style={{ "--edge": edge } as CSSProperties}
     >
       {/* ---------- Opening ---------- */}
-      <header className="wrap pt-32 md:pt-44 lg:pt-48">
+      <header className="wrap pt-32 md:pt-48">
         <LineReveal
           as="h1"
           immediate
@@ -99,26 +99,26 @@ export function Nastava({ locale }: { locale: Locale }) {
         />
       </header>
 
-      <section aria-label={n.heading} className="wrap mt-10 md:mt-14 lg:mt-20 lg:grid lg:grid-cols-12">
-        <Reveal y={16} className="lg:col-span-7 lg:pr-12">
+      <section aria-label={n.heading} className="wrap mt-10 md:mt-20 md:grid md:grid-cols-12">
+        <Reveal y={16} className="md:col-span-7 md:pr-12">
           <p className="hist-text max-w-[30em] text-[1.1875rem] font-light leading-[1.6] text-ink md:text-[1.375rem] md:leading-[1.58]">
             {keepWhole(n.intro[0])}
           </p>
         </Reveal>
-        <Reveal y={16} delay={0.06} className="mt-6 md:mt-8 lg:col-span-4 lg:col-start-9 lg:mt-0 lg:self-end">
+        <Reveal y={16} delay={0.06} className="mt-6 md:col-span-4 md:col-start-9 md:mt-0 md:self-end">
           <p className={`${body} max-w-[30em]`}>{keepWhole(n.intro[1])}</p>
         </Reveal>
       </section>
 
       {/* ---------- The two pillars ---------- */}
-      <section aria-label={n.pillarsLead} className="wrap mt-16 md:mt-20 lg:mt-28">
+      <section aria-label={n.pillarsLead} className="wrap mt-16 md:mt-28">
         <Reveal y={14}>
           <p className="display hist-text max-w-[20em] text-[clamp(1.375rem,1.1rem+1.1vw,2rem)] font-normal leading-[1.25] tracking-[-0.012em] text-green">
             {n.pillarsLead}
           </p>
         </Reveal>
 
-        <div className="relative mt-6 pb-14 md:mt-8 md:pb-16 lg:grid lg:grid-cols-12 lg:pb-20">
+        <div className="relative mt-6 pb-14 md:mt-8 md:grid md:grid-cols-12 md:pb-20">
           {/* General education: enters from the left page edge and runs down its side. */}
           <Line origin="left" duration={0.8} className="top-0 left-[calc(-1*var(--edge))] w-[var(--edge)]" />
           <Stream className="top-0 bottom-0 left-0" />
@@ -126,7 +126,7 @@ export function Nastava({ locale }: { locale: Locale }) {
           <div
             aria-labelledby={`nas-${general.id}`}
             role="group"
-            className="pl-6 pt-7 md:pl-8 lg:col-span-6 lg:pr-14 lg:pt-8"
+            className="pl-6 pt-7 md:pl-8 md:col-span-6 md:pr-14 md:pt-8"
           >
             <Pillar pillar={general} />
           </div>
@@ -135,16 +135,16 @@ export function Nastava({ locale }: { locale: Locale }) {
           <div
             aria-labelledby={`nas-${islamic.id}`}
             role="group"
-            className="relative mt-16 pl-6 pr-6 pt-7 md:mt-20 md:pl-8 md:pr-8 lg:col-span-6 lg:col-start-7 lg:mt-48 lg:pr-0 lg:pt-8"
+            className="relative mt-16 pl-6 pr-6 pt-7 md:pl-8 md:col-span-6 md:col-start-7 md:mt-48 md:pr-0 md:pt-8"
           >
-            <Line origin="right" duration={0.9} className="top-0 -right-[var(--edge)] left-full lg:left-0" />
-            <Stream className="top-0 -bottom-14 left-full md:-bottom-16 lg:-bottom-20 lg:left-0" />
+            <Line origin="right" duration={0.9} className="top-0 -right-[var(--edge)] left-full md:left-0" />
+            <Stream className="top-0 -bottom-14 left-full md:-bottom-20 md:left-0" />
             <Pillar pillar={islamic} />
           </div>
 
           {/* Convergence: the two lines turn toward each other and meet at the centre. */}
           <Line origin="left" duration={0.8} className="bottom-0 left-0 w-1/2" />
-          <Line origin="right" duration={0.8} className="bottom-0 right-0 w-1/2 lg:hidden" />
+          <Line origin="right" duration={0.8} className="bottom-0 right-0 w-1/2 md:hidden" />
         </div>
       </section>
 
@@ -152,7 +152,7 @@ export function Nastava({ locale }: { locale: Locale }) {
       <div className="wrap">
         <div className="relative pt-16 md:pt-20">
           <Line origin="top" duration={0.6} delay={0.5} className="top-0 left-1/2 h-11 md:h-[3.25rem]" />
-          <div className="mx-[calc(-1*var(--edge))] md:mx-0 lg:mx-[8.3333%]">
+          <div className="mx-[calc(-1*var(--edge))] md:mx-[8.3333%]">
             <Aperture
               src={n.image.src}
               alt={n.image.alt}
@@ -165,7 +165,7 @@ export function Nastava({ locale }: { locale: Locale }) {
 
       {/* ---------- Nastava i jezik: one line, one quiet column ---------- */}
       <section aria-labelledby="nas-jezik" className="wrap">
-        <div className="relative pb-14 pl-6 pt-14 md:pb-16 md:pl-8 md:pt-16 lg:ml-[16.6667%] lg:max-w-[58.3333%] lg:pb-20 lg:pt-20">
+        <div className="relative pb-14 pl-6 pt-14 md:pl-8 md:ml-[16.6667%] md:max-w-[58.3333%] md:pb-20 md:pt-20">
           <Line origin="top" duration={1.1} className="top-0 bottom-0 left-0" />
           <h2 id="nas-jezik" className={h2}>
             {n.language.heading}
@@ -180,22 +180,22 @@ export function Nastava({ locale }: { locale: Locale }) {
 
       {/* ---------- Praktična nastava: the line turns into the rule over the activities ---------- */}
       <section aria-labelledby="nas-aktivnosti" className="wrap">
-        <div className="relative pb-14 pt-8 md:pb-16 md:pt-10 lg:grid lg:grid-cols-12 lg:pb-20">
-          <Line origin="left" duration={1} className="top-0 left-0 right-0 lg:left-[16.6667%]" />
+        <div className="relative pb-14 pt-8 md:pt-10 md:grid md:grid-cols-12 md:pb-20">
+          <Line origin="left" duration={1} className="top-0 left-0 right-0 md:left-[16.6667%]" />
           <Line
             origin="top"
             duration={0.7}
             delay={0.6}
-            className="top-0 bottom-0 left-full hidden lg:block"
+            className="top-0 bottom-0 left-full hidden md:block"
           />
 
           <h2
             id="nas-aktivnosti"
-            className={`${h2} max-w-[12em] lg:col-span-4 lg:col-start-3 lg:max-w-none lg:pr-10`}
+            className={`${h2} max-w-[12em] md:col-span-4 md:col-start-3 md:max-w-none md:pr-10`}
           >
             {n.activities.heading}
           </h2>
-          <ol className="mt-8 lg:col-span-6 lg:col-start-7 lg:mt-1 lg:pr-8">
+          <ol className="mt-8 md:col-span-6 md:col-start-7 md:mt-1 md:pr-8">
             {n.activities.items.map((a, i) => (
               <li
                 key={a}
@@ -218,17 +218,17 @@ export function Nastava({ locale }: { locale: Locale }) {
 
       {/* ---------- Cilj programa: the line closes over the outcome ---------- */}
       <section aria-labelledby="nas-cilj" className="wrap">
-        <div className="relative pt-8 md:pt-10 lg:pt-12">
+        <div className="relative pt-8 md:pt-12">
           <Line origin="right" duration={1.3} className="top-0 left-0 right-0" />
           {/* The goals as one sequence: a label beside a single aligned column (desktop). */}
-          <div className="lg:grid lg:grid-cols-12">
+          <div className="md:grid md:grid-cols-12">
             <h2
               id="nas-cilj"
-              className="eyebrow eyebrow-display text-gold-deep lg:col-span-2 lg:pt-[0.55rem]"
+              className="eyebrow eyebrow-display text-gold-deep md:col-span-2 md:pt-[0.55rem]"
             >
               {n.goals.heading}
             </h2>
-            <ul className="mt-6 md:mt-8 lg:col-span-8 lg:col-start-3 lg:mt-0">
+            <ul className="mt-6 md:col-span-8 md:col-start-3 md:mt-0">
               {n.goals.items.map((g, i) => (
                 <li key={g} className="mt-5 first:mt-0 md:mt-6">
                   <Reveal y={18} delay={i * 0.08}>
@@ -249,19 +249,19 @@ export function Nastava({ locale }: { locale: Locale }) {
       </section>
 
       {/* ---------- FAQ ---------- */}
-      <section aria-labelledby="nas-faq" className="wrap mt-20 md:mt-28 lg:mt-36 lg:grid lg:grid-cols-12">
-        <h2 id="nas-faq" className={`${h2} max-w-[10em] lg:col-span-4 lg:pr-10`}>
+      <section aria-labelledby="nas-faq" className="wrap mt-20 md:mt-36 md:grid md:grid-cols-12">
+        <h2 id="nas-faq" className={`${h2} max-w-[10em] md:col-span-4 md:pr-10`}>
           {n.faq.heading}
         </h2>
-        <div className="mt-8 lg:col-span-7 lg:col-start-6 lg:mt-1">
+        <div className="mt-8 md:col-span-7 md:col-start-6 md:mt-1">
           <Faq items={n.faq.items} />
         </div>
       </section>
 
       {/* ---------- Područno odjeljenje u Rožajama ---------- */}
-      <section aria-labelledby="nas-rozaje" className="wrap mt-16 md:mt-20 lg:mt-24">
-        <div className="border-t border-ink/15 pt-8 md:pt-10 lg:grid lg:grid-cols-12">
-          <div className="lg:col-span-4 lg:pr-10">
+      <section aria-labelledby="nas-rozaje" className="wrap mt-16 md:mt-24">
+        <div className="border-t border-ink/15 pt-8 md:pt-10 md:grid md:grid-cols-12">
+          <div className="md:col-span-4 md:pr-10">
             <h2
               id="nas-rozaje"
               className="display hist-text text-[1.5rem] leading-[1.15] tracking-[-0.015em] text-green md:text-[1.75rem]"
@@ -270,7 +270,7 @@ export function Nastava({ locale }: { locale: Locale }) {
             </h2>
             <p className="mt-2 text-[1rem] text-ink-soft">{n.rozaje.address}</p>
           </div>
-          <div className="mt-7 lg:col-span-7 lg:col-start-6 lg:mt-1">
+          <div className="mt-7 md:col-span-7 md:col-start-6 md:mt-1">
             <h3 className="eyebrow text-gold-deep">{n.rozaje.contactLabel}</h3>
             <ul className="mt-4 space-y-1.5 text-[1rem] leading-[1.6] text-ink md:text-[1.0625rem]">
               {n.rozaje.contacts.map((c) => (

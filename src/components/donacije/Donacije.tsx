@@ -97,7 +97,7 @@ export function Donacije({ locale }: { locale: Locale }) {
       style={{ "--edge": edge } as CSSProperties}
     >
       {/* ---------- Opening: why, first ---------- */}
-      <header className="wrap pt-32 md:pt-44 lg:pt-48">
+      <header className="wrap pt-32 md:pt-48">
         <h1 className="display text-green">
           <Emerge
             immediate
@@ -134,11 +134,11 @@ export function Donacije({ locale }: { locale: Locale }) {
         </Reveal>
 
         {/* The second paragraph meets the photograph's edge (desktop). */}
-        <div className="mt-6 md:mt-8 lg:mt-20 lg:grid lg:grid-cols-12 lg:items-end">
-          <Reveal y={16} className="lg:col-span-4 lg:pb-2 lg:pr-12">
+        <div className="mt-6 md:mt-20 md:grid md:grid-cols-12 md:items-end">
+          <Reveal y={16} className="md:col-span-5 md:pb-2 md:pr-8 lg:col-span-4 lg:pr-12">
             <p className={`${body} max-w-[30em]`}>{d.intro[1]}</p>
           </Reveal>
-          <div className="mx-[calc(-1*var(--edge))] mt-12 md:mt-14 lg:col-span-8 lg:col-start-5 lg:ml-0 lg:mt-0">
+          <div className="mx-[calc(-1*var(--edge))] mt-12 md:col-span-7 md:col-start-6 md:ml-0 md:mt-0 lg:col-span-8 lg:col-start-5">
             <Slit
               src={d.image.src}
               alt={d.image.alt}
@@ -152,14 +152,14 @@ export function Donacije({ locale }: { locale: Locale }) {
       </section>
 
       {/* ---------- The ways of helping ---------- */}
-      <section aria-labelledby="don-podrska" className="wrap mt-16 md:mt-24 lg:mt-28 lg:grid lg:grid-cols-12">
+      <section aria-labelledby="don-podrska" className="wrap mt-16 md:mt-28 md:grid md:grid-cols-12">
         <h2
           id="don-podrska"
-          className="display hist-text max-w-[11em] text-[clamp(1.875rem,1.4rem+2vw,3rem)] leading-[1.05] tracking-[-0.022em] text-green lg:col-span-4 lg:pr-10"
+          className="display hist-text max-w-[11em] text-[clamp(1.875rem,1.4rem+2vw,3rem)] leading-[1.05] tracking-[-0.022em] text-green md:col-span-4 md:pr-10"
         >
           {d.support.heading}
         </h2>
-        <ul className="relative mt-7 md:mt-9 lg:col-span-7 lg:col-start-6 lg:mt-2">
+        <ul className="relative mt-7 md:col-span-7 md:col-start-6 md:mt-2">
           <Line origin="left" duration={1.1} className="top-0 left-0 right-0" />
           {d.support.items.map((s, i) => (
             <li key={s} className="border-b border-ink/12 py-4 md:py-5">
@@ -175,25 +175,25 @@ export function Donacije({ locale }: { locale: Locale }) {
       </section>
 
       {/* ---------- Zašto donirati Medresi? — three reasons along a chain ---------- */}
-      <section aria-labelledby="don-zasto" className="wrap mt-24 md:mt-32 lg:mt-40">
+      <section aria-labelledby="don-zasto" className="wrap mt-24 md:mt-40">
         <h2
           id="don-zasto"
           className="display hist-text text-[clamp(2.25rem,1.5rem+3.4vw,4.75rem)] leading-[1] tracking-[-0.03em] text-green"
         >
           <Emerge>{d.why.heading}</Emerge>
         </h2>
-        <div className="relative mt-10 pb-16 md:mt-12 md:pb-20 lg:mt-16 lg:pb-24">
+        <div className="relative mt-10 pb-16 md:mt-16 md:pb-24">
           {/* The chain: drawn by reading, the reasons hang from it. */}
-          <Chain className="top-0 bottom-0 left-0 lg:left-[8.3333%]" />
+          <Chain className="top-0 bottom-0 left-0 md:left-[8.3333%]" />
           <ol>
             {d.why.reasons.map((r, i) => (
               <li
                 key={r}
                 className={`relative mt-10 first:mt-0 md:mt-12 lg:mt-16 ${
                   [
-                    "pl-6 md:pl-8 lg:pl-[16.6667%]",
-                    "pl-9 md:pl-12 lg:pl-[25%]",
-                    "pl-12 md:pl-16 lg:pl-[33.3333%]",
+                    "pl-6 md:pl-[16.6667%]",
+                    "pl-9 md:pl-[25%]",
+                    "pl-12 md:pl-[33.3333%]",
                   ][i]
                 }`}
               >
@@ -204,9 +204,9 @@ export function Donacije({ locale }: { locale: Locale }) {
                   delay={0.15}
                   className={`top-[0.82em] left-0 text-[clamp(1.375rem,1.05rem+1.6vw,2.5rem)] lg:left-[8.3333%] ${
                     [
-                      "w-3.5 md:w-5 lg:w-[calc(8.3333%-1.25rem)]",
-                      "w-6 md:w-8 lg:w-[calc(16.6667%-1.25rem)]",
-                      "w-8 md:w-12 lg:w-[calc(25%-1.25rem)]",
+                      "w-3.5 md:w-[calc(8.3333%-1.25rem)]",
+                      "w-6 md:w-[calc(16.6667%-1.25rem)]",
+                      "w-8 md:w-[calc(25%-1.25rem)]",
                     ][i]
                   }`}
                 />
@@ -222,15 +222,15 @@ export function Donacije({ locale }: { locale: Locale }) {
           <Line
             origin="left"
             duration={0.8}
-            className="bottom-0 left-0 w-1/2 lg:left-[8.3333%] lg:w-[41.6667%]"
+            className="bottom-0 left-0 w-1/2 md:left-[8.3333%] md:w-[41.6667%]"
           />
         </div>
       </section>
 
       {/* ---------- The hadith: a pause between why and how ---------- */}
       <section aria-label={d.hadith.source} className="wrap">
-        <div className="relative pb-16 pt-16 md:pb-20 md:pt-20 lg:pb-24 lg:pt-24">
-          <Line origin="top" duration={0.7} className="top-0 left-1/2 h-10 md:h-12 lg:h-14" />
+        <div className="relative pb-16 pt-16 md:pb-24 md:pt-24">
+          <Line origin="top" duration={0.7} className="top-0 left-1/2 h-10 md:h-14" />
           <figure className="mx-auto max-w-[27em] text-center">
             <Settle duration={1.4} y={8}>
               <blockquote>
@@ -245,37 +245,37 @@ export function Donacije({ locale }: { locale: Locale }) {
               </figcaption>
             </Settle>
           </figure>
-          <Line origin="top" duration={0.7} delay={0.2} className="bottom-0 left-1/2 h-10 md:h-12 lg:h-14" />
+          <Line origin="top" duration={0.7} delay={0.2} className="bottom-0 left-1/2 h-10 md:h-14" />
         </div>
       </section>
 
       {/* ---------- Payment details: calm, complete, copyable ---------- */}
       <section aria-labelledby="don-uplata" className="wrap">
-        <div className="relative pt-12 md:pt-14 lg:pt-16">
+        <div className="relative pt-12 md:pt-16">
           {/* The line opens edge to edge over the details. */}
           <Line
             origin="center"
             duration={1.4}
             className="top-0 left-[calc(-1*var(--edge))] right-[calc(-1*var(--edge))]"
           />
-          <div className="lg:grid lg:grid-cols-12 lg:items-end">
+          <div className="md:grid md:grid-cols-12 md:items-end">
             <h2
               id="don-uplata"
-              className="display hist-text max-w-[14em] text-[clamp(1.75rem,1.3rem+2vw,3rem)] leading-[1.08] tracking-[-0.022em] text-green lg:col-span-7"
+              className="display hist-text max-w-[14em] text-[clamp(1.75rem,1.3rem+2vw,3rem)] leading-[1.08] tracking-[-0.022em] text-green md:col-span-7"
             >
               {d.payment.heading}
             </h2>
-            <p className={`${body} mt-5 max-w-[26em] lg:col-span-4 lg:col-start-9 lg:mt-0`}>
+            <p className={`${body} mt-5 max-w-[26em] md:col-span-4 md:col-start-9 md:mt-0`}>
               {d.payment.lead}
             </p>
           </div>
 
           {/* Abroad */}
-          <div className="mt-12 md:mt-14 lg:mt-20 lg:grid lg:grid-cols-12">
-            <h3 className="display text-[1.375rem] leading-[1.2] tracking-[-0.01em] text-green md:text-[1.625rem] lg:col-span-3 lg:pr-8">
+          <div className="mt-12 md:mt-20 md:grid md:grid-cols-12">
+            <h3 className="display text-[1.375rem] leading-[1.2] tracking-[-0.01em] text-green md:text-[1.625rem] md:col-span-3 md:pr-8">
               {d.payment.abroad}
             </h3>
-            <div className="mt-6 grid gap-y-8 md:grid-cols-2 md:gap-x-10 md:gap-y-10 lg:col-span-9 lg:col-start-4 lg:mt-1 lg:gap-x-14">
+            <div className="mt-6 grid gap-y-8 md:grid-cols-2 md:gap-y-10 md:col-span-9 md:col-start-4 md:mt-1 md:gap-x-14">
               <PartyBlock party={intermediary} />
               <PartyBlock party={bank} delay={0.06} />
               <PartyBlock party={beneficiary} emphasis delay={0.12} className="md:col-span-2" />
@@ -283,11 +283,11 @@ export function Donacije({ locale }: { locale: Locale }) {
           </div>
 
           {/* Montenegro */}
-          <div className="mt-14 md:mt-16 lg:mt-20 lg:grid lg:grid-cols-12">
-            <h3 className="display text-[1.375rem] leading-[1.2] tracking-[-0.01em] text-green md:text-[1.625rem] lg:col-span-3 lg:pr-8">
+          <div className="mt-14 md:mt-20 md:grid md:grid-cols-12">
+            <h3 className="display text-[1.375rem] leading-[1.2] tracking-[-0.01em] text-green md:text-[1.625rem] md:col-span-3 md:pr-8">
               {d.payment.domestic.heading}
             </h3>
-            <dl className="mt-6 grid gap-y-8 md:grid-cols-2 md:gap-x-10 lg:col-span-9 lg:col-start-4 lg:mt-1 lg:gap-x-14">
+            <dl className="mt-6 grid gap-y-8 md:grid-cols-2 md:col-span-9 md:col-start-4 md:mt-1 md:gap-x-14">
               {d.payment.domestic.accounts.map((a, i) => (
                 <Settle key={a.value} delay={i * 0.06} className="border-t border-ink/20 pt-5 md:pt-6">
                   <dt className="text-[1rem] text-ink-soft md:text-[1.0625rem]">{a.label}</dt>
@@ -306,7 +306,7 @@ export function Donacije({ locale }: { locale: Locale }) {
       </section>
 
       {/* ---------- Closing: and the line runs on ---------- */}
-      <section aria-labelledby="don-kraj" className="wrap mt-24 md:mt-32 lg:mt-36">
+      <section aria-labelledby="don-kraj" className="wrap mt-24 md:mt-36">
         <div className="relative pb-10 md:pb-12">
           <h2
             id="don-kraj"

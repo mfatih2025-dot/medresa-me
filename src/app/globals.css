@@ -49,6 +49,13 @@
     --section-y: 5.75rem;
   }
 }
+/* Large desktop: the page grows with the screen instead of floating in the
+   middle of it (content 1456px at 1920, from 1296px). */
+@media (min-width: 1600px) {
+  :root {
+    --max: 100rem;
+  }
+}
 
 html {
   background: var(--color-ivory);
@@ -1242,6 +1249,12 @@ html[data-gateway] .gw {
   .kr-text {
     font-size: 1.25rem;
     line-height: 2.125rem;
+  }
+}
+/* The spread (see KucniRed.tsx): the frame sits in its own columns. */
+@media (min-width: 1280px) {
+  .kr-frame {
+    margin-left: 0;
   }
 }
 

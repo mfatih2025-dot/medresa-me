@@ -33,6 +33,10 @@ import { NewsPhoto } from "./Motion";
  * moment needs a landscape photograph; a graphic is only ever compact);
  * consecutive stories without photographs gather into one text passage. A new
  * year is marked where the archive crosses into it. Twelve stories a page.
+ *
+ * That sequence is the phone's. From 768px the same stories are set as a
+ * front page instead (see Front, below): the lead with the next stories in a
+ * rail beside it, then an index of the rest — newest first throughout.
  */
 
 type Block =
@@ -327,6 +331,193 @@ function Pagination({ page, locale, t }: { page: number; locale: Locale; t: News
   );
 }
 
+/* ---------------------------------------------------------------- tablet & desktop
+ * A publication's front page, composed from the same stories in the same order:
+ *
+ *   front    page 1: the lead (photograph, headline, standfirst) with the next
+ *            three stories in a rail beside it (below it on tablets)
+ *   opener   a later page, or a new year: its first story as a spread
+ *   index    the rest, as rows of headline + excerpt with the photograph at
+ *            the side; two columns on wide screens
+ */
+
+type Section = { year: string; mark: boolean; list: NewsArticle[] };
+
+function sections(items: readonly NewsArticle[], prevYear?: string): Section[] {
+  const out: Section[] = [];
+  let last = prevYear;
+  for (const a of items) {
+    const y = yearOf(a);
+    if (!out.length || out[out.length - 1].year !== y) {
+      out.push({ year: y, mark: last !== undefined && last !== y, list: [] });
+    }
+    out[out.length - 1].list.push(a);
+    last = y;
+  }
+  return out;
+}
+
+function WideLead({ a, locale, t }: { a: NewsArticle; locale: Locale; t: NewsUi }) {
+  const v = a[locale];
+  const img = imageOf(a);
+  return (
+    <article className="lg:col-span-8">
+      <Link href={articlePath(a, locale)} className={press}>
+        {img && (
+          <NewsPhoto
+            photo={{ ...img, alt: img.alt[locale] }}
+            immediate
+            fit={img.graphic ? "contain" : "cover"}
+            sizes="(min-width: 1440px) 1340px, 94vw"
+            className="aspect-[16/9] lg:aspect-[3/2]"
+          />
+        )}
+        <DateLine a={a} locale={locale} className="mt-7 lg:mt-8" />
+        <h2 className="news-headline mt-4 max-w-[22em] text-[clamp(2.25rem,1rem+2.6vw,3.75rem)] font-medium leading-[1.05] tracking-[-0.024em] text-green">
+          <span className="link-u">{v.title}</span>
+        </h2>
+        <p className={`${excerptCls} mt-5 max-w-[38em] line-clamp-3 text-[1.0625rem] leading-[1.65] lg:text-[1.125rem]`}>
+          {excerpt(v)}
+        </p>
+        <ReadMore label={t.read} />
+      </Link>
+    </article>
+  );
+}
+
+function Rail({ list, locale }: { list: NewsArticle[]; locale: Locale }) {
+  return (
+    <ol className="mt-12 grid grid-cols-3 gap-x-8 border-t border-gold/50 lg:col-span-4 lg:mt-0 lg:block lg:border-t-0 lg:border-l lg:border-gold/40 lg:pl-10 xl:pl-12">
+      {list.map((a, k) => {
+        const img = photoOf(a);
+        return (
+          <li key={a.id} className={`pt-6 lg:pt-0 ${k ? "lg:mt-8 lg:border-t lg:border-ink/10 lg:pt-8" : ""}`}>
+            <Link href={articlePath(a, locale)} className={press}>
+              {img && (
+                <NewsPhoto
+                  photo={{ ...img, alt: img.alt[locale] }}
+                  sizes="(min-width: 1024px) 22vw, 30vw"
+                  className="mb-5 hidden aspect-[16/10] lg:block"
+                />
+              )}
+              <DateLine a={a} locale={locale} />
+              <h3 className="news-headline mt-3 text-[1.1875rem] font-medium leading-[1.22] tracking-[-0.01em] text-green xl:text-[1.375rem]">
+                <span className="link-u">{a[locale].title}</span>
+              </h3>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function Opener({ a, locale, t }: { a: NewsArticle; locale: Locale; t: NewsUi }) {
+  const v = a[locale];
+  const img = imageOf(a);
+  return (
+    <article>
+      <Link
+        href={articlePath(a, locale)}
+        className={`${press} ${img ? "grid grid-cols-12 items-center gap-x-10 xl:gap-x-14" : ""}`}
+      >
+        {img && (
+          <NewsPhoto
+            photo={{ ...img, alt: img.alt[locale] }}
+            fit={img.graphic ? "contain" : "cover"}
+            sizes="(min-width: 1024px) 58vw, 94vw"
+            className="col-span-12 aspect-[16/10] lg:col-span-6 xl:col-span-7"
+          />
+        )}
+        <div className={img ? "col-span-12 mt-7 lg:col-span-6 lg:mt-0 xl:col-span-5" : "max-w-[46rem]"}>
+          <DateLine a={a} locale={locale} />
+          <h2 className="news-headline mt-4 text-[clamp(1.875rem,1rem+1.6vw,2.875rem)] font-medium leading-[1.08] tracking-[-0.02em] text-green">
+            <span className="link-u">{v.title}</span>
+          </h2>
+          <p className={`${excerptCls} mt-5 line-clamp-4 text-[1.0625rem] leading-[1.65]`}>{excerpt(v)}</p>
+          <ReadMore label={t.read} />
+        </div>
+      </Link>
+    </article>
+  );
+}
+
+function Index({ list, locale, t }: { list: NewsArticle[]; locale: Locale; t: NewsUi }) {
+  return (
+    <ul className="grid border-t border-gold/50 xl:grid-cols-2 xl:gap-x-16">
+      {list.map((a) => {
+        const img = imageOf(a);
+        return (
+          <li key={a.id} className="border-b border-ink/10">
+            <Link
+              href={articlePath(a, locale)}
+              className={`${press} grid h-full items-start gap-x-8 py-8 ${img ? "grid-cols-[minmax(0,1fr)_13rem] lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_12rem] 2xl:grid-cols-[minmax(0,1fr)_14rem]" : ""}`}
+            >
+              <div className="min-w-0">
+                <DateLine a={a} locale={locale} />
+                <h3 className="news-headline mt-3 text-[clamp(1.3125rem,1rem+0.7vw,1.625rem)] font-medium leading-[1.2] tracking-[-0.012em] text-green">
+                  <span className="link-u">{a[locale].title}</span>
+                </h3>
+                <p className={`${excerptCls} mt-3 line-clamp-2 text-[0.9375rem] leading-[1.6] xl:text-base`}>
+                  {excerpt(a[locale], 160)}
+                </p>
+                <span className="sr-only">{t.read}</span>
+              </div>
+              {img && (
+                <NewsPhoto
+                  photo={{ ...img, alt: img.alt[locale] }}
+                  fit={img.graphic ? "contain" : "cover"}
+                  sizes="(min-width: 1024px) 15rem, 13rem"
+                  className="aspect-[4/3]"
+                />
+              )}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Front({
+  items,
+  page,
+  prevYear,
+  locale,
+  t,
+}: {
+  items: readonly NewsArticle[];
+  page: number;
+  prevYear?: string;
+  locale: Locale;
+  t: NewsUi;
+}) {
+  return (
+    <div className="space-y-20 lg:space-y-24">
+      {sections(items, page === 1 ? undefined : prevYear).map((sec, k) => {
+        const front = page === 1 && k === 0;
+        const [first, ...others] = sec.list;
+        const rail = front ? others.slice(0, 3) : [];
+        const rest = front ? others.slice(3) : others;
+        return (
+          <div key={sec.year + k} className="space-y-16 lg:space-y-20">
+            {sec.mark && <Year year={sec.year} />}
+            {front ? (
+              <div className="lg:grid lg:grid-cols-12 lg:gap-x-10 xl:gap-x-14">
+                <WideLead a={first} locale={locale} t={t} />
+                {rail.length > 0 && <Rail list={rail} locale={locale} />}
+              </div>
+            ) : (
+              <Opener a={first} locale={locale} t={t} />
+            )}
+            {rest.length > 0 && <Index list={rest} locale={locale} t={t} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Archive({
   locale,
   page,
@@ -361,7 +552,7 @@ export function Archive({
         <GoldRule className="mt-6 w-24 md:mt-8 md:w-32" />
       </header>
 
-      <div className="wrap mt-10 space-y-14 md:mt-14 md:space-y-20 lg:space-y-24">
+      <div className="wrap mt-10 space-y-14 md:hidden">
         {blocks.map((b, k) => {
           switch (b.kind) {
             case "lead":
@@ -378,6 +569,10 @@ export function Archive({
               return <Year key={`y${b.year}-${k}`} year={b.year} />;
           }
         })}
+      </div>
+
+      <div className="wrap mt-14 hidden md:block lg:mt-16">
+        <Front items={items} page={page} prevYear={prevYear} locale={locale} t={t} />
       </div>
 
       <div className="wrap">

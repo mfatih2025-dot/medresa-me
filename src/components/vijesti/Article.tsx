@@ -33,6 +33,12 @@ import { PhotoTile, PhotoViewer } from "./Photos";
  *
  * Reading comes first: after the title and the lead photograph nothing moves
  * but the photographs as they arrive. No author is ever shown.
+ *
+ * Phones and tablets read it as one centred column. From 1280px the page is an
+ * editorial spread on a twelve-column grid: the way back and the date stand in
+ * a narrow rail on the left (columns 1–3); title, photograph, text and the
+ * photographs after it share one left edge in the main column (4–12), where the
+ * text keeps a reading measure and the right of the page stays open.
  */
 
 function Text({ nodes }: { nodes: Inline[] }) {
@@ -88,7 +94,11 @@ function LeadPhoto({ tile }: { tile: Photo }) {
   const portrait = tile.height >= tile.width;
   return (
     <figure
-      className={portrait ? "mx-auto w-full max-w-[min(100%,calc(78svh*var(--r)))]" : "w-full"}
+      className={
+        portrait
+          ? "mx-auto w-full max-w-[min(100%,calc(78svh*var(--r)))] xl:mx-0"
+          : "w-full xl:max-w-[min(100%,calc(80svh*var(--r)))]"
+      }
       style={{ "--r": `${tile.width / tile.height}` } as CSSProperties}
     >
       <PhotoTile
@@ -98,7 +108,7 @@ function LeadPhoto({ tile }: { tile: Photo }) {
         sizes={
           portrait
             ? "(min-width: 1024px) 40vw, 94vw"
-            : "(min-width: 1440px) 1100px, (min-width: 1024px) 76vw, 94vw"
+            : "(min-width: 1280px) 68vw, (min-width: 1024px) 76vw, 94vw"
         }
       />
     </figure>
@@ -196,8 +206,8 @@ export function Article({ a, locale }: { a: NewsArticle; locale: Locale }) {
     <PhotoViewer photos={tiles} labels={t.lightbox}>
       <article className="overflow-x-clip bg-paper pb-20 text-ink md:pb-28">
         <header className="wrap pt-28 md:pt-40 lg:pt-44">
-          <div className="mx-auto max-w-[44rem]">
-            <div className="flex items-center gap-4">
+          <div className="mx-auto max-w-[44rem] md:max-w-[42rem] xl:mx-0 xl:grid xl:max-w-none xl:grid-cols-12 xl:gap-x-12">
+            <div className="flex items-center gap-4 xl:col-span-3 xl:flex-col xl:items-start xl:gap-4 xl:pt-[0.6rem]">
               <Link
                 href={back}
                 className="group -ml-1 inline-flex min-h-11 items-center gap-2 px-1 text-[0.875rem] font-medium text-green"
@@ -205,7 +215,7 @@ export function Article({ a, locale }: { a: NewsArticle; locale: Locale }) {
                 <ArrowRight className="rotate-180 transition-transform duration-[240ms] ease-[var(--ease-out-expo)] group-hover:-translate-x-[4px]" />
                 {t.back}
               </Link>
-              <span aria-hidden className="h-px w-6 bg-gold/70" />
+              <span aria-hidden className="h-px w-6 bg-gold/70 xl:order-first xl:w-10" />
               <time
                 dateTime={a.date}
                 className="text-[0.75rem] font-medium uppercase tracking-[0.18em] text-gold-deep"
@@ -218,50 +228,56 @@ export function Article({ a, locale }: { a: NewsArticle; locale: Locale }) {
               as="h1"
               immediate
               lines={[v.title]}
-              className="news-headline mt-5 text-[clamp(1.875rem,1.25rem+2.2vw,3.25rem)] font-medium leading-[1.1] tracking-[-0.022em] text-green md:mt-7"
+              className="news-headline mt-5 text-[clamp(1.875rem,1.25rem+2.2vw,3.25rem)] font-medium leading-[1.1] tracking-[-0.022em] text-green md:mt-8 md:text-[clamp(2.625rem,1.3rem+2.6vw,3.5rem)] md:leading-[1.06] xl:col-span-9 xl:col-start-4 xl:mt-0 xl:text-[clamp(3.5rem,1.2rem+3.1vw,4.75rem)] xl:leading-[1.03] xl:tracking-[-0.026em]"
             />
             {v.lead && (
-              <p className="news-excerpt mt-5 max-w-[34em] text-[clamp(1.125rem,1rem+0.45vw,1.4375rem)] font-light leading-[1.5] text-ink md:mt-7">
+              <p className="news-excerpt mt-5 max-w-[34em] text-[clamp(1.125rem,1rem+0.45vw,1.4375rem)] font-light leading-[1.5] text-ink md:mt-8 xl:col-span-7 xl:col-start-4 xl:mt-9 xl:text-[clamp(1.375rem,0.9rem+0.6vw,1.625rem)] xl:leading-[1.48]">
                 {v.lead}
               </p>
             )}
-            <div>
-              <GoldRule className="mt-8 w-20 md:mt-10 md:w-28" />
+            <div className="xl:col-span-9 xl:col-start-4">
+              <GoldRule className="mt-8 w-20 md:mt-10 md:w-28 xl:mt-12" />
             </div>
           </div>
         </header>
 
         {lead && (
-          <div className="wrap mt-8 md:mt-12">
-            <div className="lg:mx-auto lg:max-w-[76rem]">
-              <LeadPhoto tile={lead} />
+          <div className="wrap mt-8 md:mt-12 xl:mt-14">
+            <div className="lg:mx-auto lg:max-w-[76rem] xl:mx-0 xl:grid xl:max-w-none xl:grid-cols-12 xl:gap-x-12">
+              <div className="xl:col-span-9 xl:col-start-4">
+                <LeadPhoto tile={lead} />
+              </div>
             </div>
           </div>
         )}
 
-        <div className="wrap mt-10 md:mt-14">
-          <div className="news-body hist-text mx-auto max-w-[44rem] space-y-6 text-[1.0625rem] font-light leading-[1.75] text-ink md:text-[1.1875rem] md:leading-[1.78]">
-            {blocks.map((b, i) => (
-              <BodyBlock key={i} b={b} tiles={tiles} />
-            ))}
+        <div className="wrap mt-10 md:mt-14 xl:mt-16">
+          <div className="xl:grid xl:grid-cols-12 xl:gap-x-12">
+            <div className="news-body hist-text mx-auto max-w-[44rem] space-y-6 text-[1.0625rem] font-light leading-[1.75] text-ink md:max-w-[42rem] md:text-[1.1875rem] md:leading-[1.78] xl:col-span-7 xl:col-start-4 xl:mx-0 xl:max-w-[42rem] xl:text-[1.25rem] xl:leading-[1.75]">
+              {blocks.map((b, i) => (
+                <BodyBlock key={i} b={b} tiles={tiles} />
+              ))}
+            </div>
           </div>
         </div>
 
         {rest.length > 0 && (
-          <section aria-label={t.photos} className="wrap mt-14 md:mt-20">
-            <div className="mx-auto max-w-[76rem]">
+          <section aria-label={t.photos} className="wrap mt-14 md:mt-20 xl:mt-24">
+            <div className="mx-auto max-w-[76rem] xl:mx-0 xl:grid xl:max-w-none xl:grid-cols-12 xl:gap-x-12">
+              <div className="xl:col-span-9 xl:col-start-4">
               <div className="mb-5 flex items-baseline justify-between gap-4 md:mb-7">
                 <h2 className="eyebrow text-gold-deep">{t.photos}</h2>
                 <p className="text-[0.8125rem] tabular-nums text-ink-soft">{t.photoCount(rest.length)}</p>
               </div>
               <Rest tiles={rest} />
+              </div>
             </div>
           </section>
         )}
 
-        <footer className="wrap mt-16 md:mt-24">
-          <div className="mx-auto max-w-[76rem] border-t border-gold/50 pt-6 md:pt-8">
-            <div className="grid gap-y-6 md:grid-cols-2 md:gap-x-12">
+        <footer className="wrap mt-16 md:mt-24 xl:mt-32">
+          <div className="mx-auto max-w-[76rem] border-t border-gold/50 pt-6 md:pt-8 xl:mx-0 xl:max-w-none xl:pt-10">
+            <div className="grid gap-y-6 md:grid-cols-2 md:gap-x-12 xl:gap-x-24">
               {newer ? (
                 <Neighbour a={newer} label={t.newer} locale={locale} />
               ) : (
@@ -299,7 +315,9 @@ function Neighbour({
       <span className="block text-[0.75rem] font-medium uppercase tracking-[0.18em] text-gold-deep">
         {label}
       </span>
-      <span className="news-headline mt-2 block text-[1.0625rem] font-medium leading-[1.3] text-green md:text-[1.1875rem]">
+      <span
+        className={`news-headline mt-2 block text-[1.0625rem] font-medium leading-[1.3] text-green md:text-[1.1875rem] xl:mt-3 xl:max-w-[26em] xl:text-[1.5rem] xl:leading-[1.25] ${right ? "xl:ml-auto" : ""}`}
+      >
         <span className="link-u">{a[locale].title}</span>
       </span>
       <time dateTime={a.date} className="mt-2 block text-[0.8125rem] text-ink-soft">

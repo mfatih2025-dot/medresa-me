@@ -97,7 +97,7 @@ export function Tiu({ locale }: { locale: Locale }) {
       style={{ "--edge": edge } as CSSProperties}
     >
       {/* ---------- Opening ---------- */}
-      <header className="wrap pt-32 md:pt-44 lg:pt-48">
+      <header className="wrap pt-32 md:pt-48">
         <LineReveal
           as="h1"
           immediate
@@ -109,20 +109,20 @@ export function Tiu({ locale }: { locale: Locale }) {
           className="display hist-text text-[min(10vw,clamp(2.75rem,1.3rem+6.4vw,7.25rem))] leading-[0.98] tracking-[-0.03em] text-green"
         />
       </header>
-      <section aria-label={t.heading} className="wrap mt-10 md:mt-14 lg:mt-16">
+      <section aria-label={t.heading} className="wrap mt-10 md:mt-16">
         <Reveal y={16}>
-          <p className="hist-text max-w-[34em] text-[1.125rem] font-light leading-[1.65] text-ink md:text-[1.3125rem] md:leading-[1.6] lg:max-w-[38em]">
+          <p className="hist-text max-w-[34em] text-[1.125rem] font-light leading-[1.65] text-ink md:text-[1.3125rem] md:leading-[1.6] md:max-w-[38em]">
             {rich(t.intro)}
           </p>
         </Reveal>
       </section>
 
       {/* ---------- 2025: rises out of a line across the page, from the right edge ---------- */}
-      <section aria-labelledby="tiu-2025" className="wrap mt-16 md:mt-20 lg:mt-24">
+      <section aria-labelledby="tiu-2025" className="wrap mt-16 md:mt-24">
         <Numeral
           id="tiu-2025"
           arrival="edge-right"
-          className={`${numeral} text-right text-[min(30vw,10rem)] text-green lg:-mr-[calc(var(--edge)*0.45)] lg:text-[clamp(10rem,17vw,19rem)]`}
+          className={`${numeral} text-right text-[min(30vw,10rem)] text-green md:-mr-[calc(var(--edge)*0.45)] md:text-[clamp(10rem,17vw,19rem)]`}
         >
           {y25.year}
         </Numeral>
@@ -133,110 +133,110 @@ export function Tiu({ locale }: { locale: Locale }) {
             className="inset-y-0 left-[calc(-1*var(--edge))] right-[calc(-1*var(--edge))]"
           />
         </div>
-        <div className="relative pt-8 md:pt-10 lg:grid lg:grid-cols-12 lg:pt-12">
-          <Stream className="top-0 bottom-0 left-0 lg:hidden" />
-          <Stream className="top-0 bottom-0 hidden lg:block" style={{ left: col(7) }} />
-          <Achievement lines={y25.achievements[0]} className="pl-5 md:pl-8 lg:col-span-6 lg:pl-0 lg:pr-14" />
+        <div className="relative pt-8 md:grid md:grid-cols-12 md:pt-12">
+          <Stream className="top-0 bottom-0 left-0 md:hidden" />
+          <Stream className="top-0 bottom-0 hidden md:block" style={{ left: col(7) }} />
+          <Achievement lines={y25.achievements[0]} className="pl-5 md:col-span-6 md:pl-0 md:pr-14" />
           <Achievement
             lines={y25.achievements[1]}
             delay={0.12}
-            className="mt-10 pl-5 md:pl-8 lg:col-span-5 lg:col-start-8 lg:mt-0 lg:pl-10"
+            className="mt-10 pl-5 md:col-span-5 md:col-start-8 md:mt-0 md:pl-10"
           />
         </div>
       </section>
 
       {/* ---------- 2024: the line turns and runs down the text; the year a slower plane ---------- */}
       <section aria-labelledby="tiu-2024" className="wrap">
-        <div className="relative pt-20 md:pt-24 lg:pt-28">
+        <div className="relative pt-20 md:pt-28">
           {/* Phones: across to the right, then down the right side. Desktop: left, then down. */}
-          <Line origin="left" duration={0.8} className="top-0 left-0 right-0 lg:hidden" />
-          <Stream className="top-0 bottom-0 left-full lg:hidden" />
+          <Line origin="left" duration={0.8} className="top-0 left-0 right-0 md:hidden" />
+          <Stream className="top-0 bottom-0 left-full md:hidden" />
           <Line
             origin="right"
             duration={0.8}
-            className="top-0 left-0 hidden lg:block"
+            className="top-0 left-0 hidden md:block"
             style={{ width: col(7) }}
           />
-          <Stream className="top-0 bottom-0 left-0 hidden lg:block" />
+          <Stream className="top-0 bottom-0 left-0 hidden md:block" />
 
           <Numeral
             id="tiu-2024"
             arrival="layer"
-            className={`${numeral} pointer-events-none absolute right-0 top-14 z-0 text-[37vw] text-[#ece2cc] md:top-16 lg:right-8 lg:top-16 lg:text-[min(28vw,26rem)]`}
+            className={`${numeral} pointer-events-none absolute right-0 top-14 z-0 text-[37vw] text-[#ece2cc] md:right-8 md:top-16 md:text-[min(28vw,26rem)]`}
           >
             {y24.year}
           </Numeral>
-          <div className="relative z-10 pr-5 pt-[30vw] md:pr-8 lg:max-w-[58.3333%] lg:pl-10 lg:pr-0 lg:pt-24">
+          <div className="relative z-10 pr-5 pt-[30vw] md:max-w-[58.3333%] md:pl-10 md:pr-0 md:pt-24">
             <Achievement lines={y24.achievements[0]} />
-            <Achievement lines={y24.achievements[1]} delay={0.1} className="mt-10 md:mt-12 lg:mt-14" />
+            <Achievement lines={y24.achievements[1]} delay={0.1} className="mt-10 md:mt-14" />
           </div>
         </div>
       </section>
 
       {/* ---------- 2023: the line comes down to the year, which unrolls along it ---------- */}
-      <section aria-labelledby="tiu-2023" className="wrap pt-16 md:pt-20 lg:pt-24">
+      <section aria-labelledby="tiu-2023" className="wrap pt-16 md:pt-24">
         <div className="relative">
           {/* Phones: back across to the left first. */}
-          <Line origin="right" duration={0.8} className="-top-16 left-0 right-0 md:-top-20 lg:hidden" />
-          <Stream className="-top-16 bottom-0 left-0 md:-top-20 lg:-top-24" />
+          <Line origin="right" duration={0.8} className="-top-16 left-0 right-0 md:-top-20 md:hidden" />
+          <Stream className="-top-16 bottom-0 left-0 md:-top-24" />
           <Numeral
             id="tiu-2023"
             arrival="line"
-            className={`${numeral} pb-3 pl-5 text-[min(25vw,8rem)] text-green md:pl-8 lg:pb-4 lg:pl-6 lg:text-[clamp(7rem,11vw,11.5rem)]`}
+            className={`${numeral} pb-3 pl-5 text-[min(25vw,8rem)] text-green md:pb-4 md:pl-6 md:text-[clamp(7rem,11vw,11.5rem)]`}
           >
             {y23.year}
           </Numeral>
-          <Line origin="left" duration={0.9} delay={0.2} className="bottom-0 left-0 w-[60%] lg:hidden" />
+          <Line origin="left" duration={0.9} delay={0.2} className="bottom-0 left-0 w-[60%] md:hidden" />
           <Line
             origin="left"
             duration={0.9}
             delay={0.2}
-            className="bottom-0 left-0 hidden lg:block"
+            className="bottom-0 left-0 hidden md:block"
             style={{ width: col(6) }}
           />
         </div>
-        <div className="relative pt-8 md:pt-10 lg:grid lg:grid-cols-12 lg:pt-12">
-          <Stream className="top-0 bottom-0 left-0 lg:left-1/2" />
+        <div className="relative pt-8 md:grid md:grid-cols-12 md:pt-12">
+          <Stream className="top-0 bottom-0 left-0 md:left-1/2" />
           <Achievement
             lines={y23.achievements[0]}
-            className="pl-5 md:pl-8 lg:col-span-5 lg:col-start-7 lg:pl-10"
+            className="pl-5 md:col-span-5 md:col-start-7 md:pl-10"
           />
         </div>
       </section>
 
       {/* ---------- 2022: across empty space; the year drifts over the line ---------- */}
-      <section aria-labelledby="tiu-2022" className="wrap pt-24 md:pt-32 lg:pt-40">
+      <section aria-labelledby="tiu-2022" className="wrap pt-24 md:pt-40">
         <div className="relative">
-          <Stream className="-top-24 bottom-0 left-0 md:-top-32 lg:-top-40 lg:left-1/2" />
+          <Stream className="-top-24 bottom-0 left-0 md:-top-40 md:left-1/2" />
           <Numeral
             id="tiu-2022"
             arrival="drift"
-            className={`${numeral} pb-3 pr-1 text-right text-[min(22vw,7rem)] text-gold-deep lg:pb-4 lg:text-[clamp(6rem,9vw,9.5rem)]`}
+            className={`${numeral} pb-3 pr-1 text-right text-[min(22vw,7rem)] text-gold-deep md:pb-4 md:text-[clamp(6rem,9vw,9.5rem)]`}
           >
             {y22.year}
           </Numeral>
-          <Line origin="left" duration={1} className="bottom-0 left-0 right-0 lg:hidden" />
+          <Line origin="left" duration={1} className="bottom-0 left-0 right-0 md:hidden" />
           <Line
             origin="left"
             duration={1}
-            className="bottom-0 right-0 hidden lg:block"
+            className="bottom-0 right-0 hidden md:block"
             style={{ left: col(6) }}
           />
         </div>
-        <div className="relative pr-5 pt-8 md:pr-8 md:pt-10 lg:grid lg:grid-cols-12 lg:pr-0 lg:pt-12">
+        <div className="relative pr-5 pt-8 md:grid md:grid-cols-12 md:pr-0 md:pt-12">
           <Stream className="top-0 bottom-0 left-full" />
-          <Achievement lines={y22.achievements[0]} className="lg:col-span-5 lg:col-start-2" />
+          <Achievement lines={y22.achievements[0]} className="md:col-span-5 md:col-start-2" />
         </div>
       </section>
 
       {/* ---------- 2021: the line turns back and leaves off the left edge; the year enters from it ---------- */}
-      <section aria-labelledby="tiu-2021" className="wrap pt-20 md:pt-24 lg:pt-28">
+      <section aria-labelledby="tiu-2021" className="wrap pt-20 md:pt-28">
         <div className="relative">
-          <Stream className="-top-20 bottom-0 left-full md:-top-24 lg:-top-28" />
+          <Stream className="-top-20 bottom-0 left-full md:-top-28" />
           <Numeral
             id="tiu-2021"
             arrival="edge-left"
-            className={`${numeral} text-[min(30vw,10rem)] text-green lg:-ml-[calc(var(--edge)*0.45)] lg:text-[clamp(10rem,17vw,19rem)]`}
+            className={`${numeral} text-[min(30vw,10rem)] text-green md:-ml-[calc(var(--edge)*0.45)] md:text-[clamp(10rem,17vw,19rem)]`}
           >
             {y21.year}
           </Numeral>
@@ -248,20 +248,20 @@ export function Tiu({ locale }: { locale: Locale }) {
             className="bottom-0 left-[calc(-1*var(--edge))] right-0"
           />
         </div>
-        <div className="pt-8 md:pt-10 lg:grid lg:grid-cols-12 lg:pt-12">
-          <Achievement lines={y21.achievements[0]} className="lg:col-span-6 lg:col-start-7 lg:pl-10" />
+        <div className="pt-8 md:grid md:grid-cols-12 md:pt-12">
+          <Achievement lines={y21.achievements[0]} className="md:col-span-6 md:col-start-7 md:pl-10" />
         </div>
       </section>
 
       {/* ---------- Pobjednici koji ostavljaju trag: the chronology opens out ---------- */}
-      <section aria-labelledby="tiu-trag" className="wrap mt-24 md:mt-32 lg:mt-40">
-        <div className="relative pt-12 md:pt-14 lg:grid lg:grid-cols-12 lg:pt-16">
+      <section aria-labelledby="tiu-trag" className="wrap mt-24 md:mt-40">
+        <div className="relative pt-12 md:grid md:grid-cols-12 md:pt-16">
           <Line
             origin="center"
             duration={1.5}
             className="top-0 left-[calc(-1*var(--edge))] right-[calc(-1*var(--edge))]"
           />
-          <div className="lg:col-span-10">
+          <div className="md:col-span-10">
             <h2
               id="tiu-trag"
               className="display hist-text text-[clamp(1.875rem,1.1rem+3.3vw,4.5rem)] leading-[1.02] tracking-[-0.02em] text-green"
@@ -274,7 +274,7 @@ export function Tiu({ locale }: { locale: Locale }) {
               </p>
             </Reveal>
           </div>
-          <ul className="mt-10 md:mt-12 lg:col-span-10 lg:col-start-3 lg:mt-14">
+          <ul className="mt-10 md:col-span-10 md:col-start-3 md:mt-14">
             {t.closing.items.map((c) => (
               <Resolve
                 key={c}
