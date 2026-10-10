@@ -7,11 +7,11 @@ import { providers, type ProviderReport } from "./model";
  * excluded; measured zero participates. No measured sources means unavailable, not 0.
  * Sources retain their own reporting calendar; the sum is views, not unique people.
  */
-export function periodViews(reports: readonly Pick<ProviderReport, "provider" | "totals">[]) {
+export function periodViews(reports: readonly Pick<ProviderReport, "provider" | "totals" | "totalCoverage">[]) {
   const sources = providers.map(provider => {
     const report = reports.find(r => r.provider === provider);
     const value = report?.totals[provider === "website" ? "pageviews" : "views"];
-    return { provider, value: typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null };
+    return { provider, history: report?.totalCoverage?.[provider === "website" ? "pageviews" : "views"], value: typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null };
   });
   const available = sources.filter(source => source.value !== null);
   const sum = available.reduce((total, source) => total + source.value!, 0);

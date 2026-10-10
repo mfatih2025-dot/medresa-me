@@ -1,10 +1,11 @@
-import { providers, reasonNames, metricNames, type AnalyticsDashboard, type Period, type Provider, type ProviderReport, type Metrics } from "@/admin/analytics/model";
-import { days, shiftDay, validDay } from "@/admin/analytics/period";
+import { providers, reasonNames, type AnalyticsDashboard, type Period, type Provider, type ProviderReport } from "@/admin/analytics/model";
+import { shiftDay, validDay } from "@/admin/analytics/period";
 import { AdminError } from "@/admin/contracts";
 import { supabaseRequest } from "../supabase";
 import { blank, metrics, previewConfiguration, safeText, safeUrl } from "./common";
 import { collectProvider, configurations, timezones } from "./providers";
 import type { WebsiteRequestResult } from "@/admin/analytics/websiteRequests";
+import { storedTotals } from "@/admin/analytics/storedTotals";
 import { newInstagramDiagnostic } from "./instagramDiagnostic";
 import { newFacebookDiagnostic } from "./facebookDiagnostic";
 import { newYouTubeDiagnostic } from "./youtubeDiagnostic";
@@ -76,13 +77,13 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
           r = { ...r, daily: savedDays.filter(d => validDay(d.day)).map(d => ({ date: d.day, metrics: metrics(d.metrics), complete: d.complete === true && d.day < base.todayDate })) };
           r.today = r.today ?? r.daily.find(d => d.date === base.todayDate) ?? null;
           r.yesterday = r.yesterday ?? r.daily.find(d => d.date === new Date(Date.parse(base.todayDate) - 86400000).toISOString().slice(0, 10)) ?? null;
-          // Only additive complete daily metrics may be reconstructed. Never sum unique visitors/reach.
-          const additive: Partial<Record<Provider, (typeof metricNames[number])[]>> = { website: ["pageviews"], instagram: ["views", "interactions", "followerChange"], facebook: ["views", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
-          for (const [range, field] of [[base.range, "totals"], [base.previousRange, "previousTotals"]] as const) for (const key of additive[base.provider] ?? []) {
-            if (r[field][key] != null) continue;
-            const values = days(range).map(date => r.daily.find(d => d.date === date && d.complete)?.metrics[key]);
-            if (values.every(v => typeof v === "number")) r[field] = { ...r[field], [key]: values.reduce<number>((s, v) => s + v!, 0) } as Metrics;
-          }
+          // Reconstruct available measured days, not an all-days-or-nothing total.
+          // Exact saved period totals win; partial daily coverage stays explicit.
+          const current = storedTotals(base.provider, base.range, r.totals, r.daily);
+          const previous = storedTotals(base.provider, base.previousRange, r.previousTotals, r.daily);
+          r.totals = current.totals; r.previousTotals = previous.totals;
+          r.totalCoverage = current.coverage; r.previousCoverage = previous.coverage;
+          if (r.reason === "not_synced" && Object.values(current.totals).some(v => typeof v === "number")) r.reason = null;
         }
         const state = states.find(s => s.provider === base.provider);
         if (state) { r.state = validStates.includes(state.state) ? state.state : "error"; r.reason = reasonNames.includes(state.reason) ? state.reason : null; r.lastSuccessAt = state.last_success_at; r.lastAttemptAt = state.last_attempt_at; }

@@ -14,6 +14,8 @@ export type Reason = typeof reasonNames[number];
 export type ProviderReport = {
   provider: Provider; state: ProviderState; reason: Reason | null; source: string;
   timezone: string; range: Range; previousRange: Range; todayDate: string;
+  totalCoverage?: Partial<Record<Metric, import("./storedTotals").MetricCoverage>>;
+  previousCoverage?: Partial<Record<Metric, import("./storedTotals").MetricCoverage>>;
   totals: Metrics; previousTotals: Metrics; current: Metrics;
   daily: Daily[]; today: Daily | null; yesterday: Daily | null;
   breakdowns: { pages: Ranked[]; referrers: Ranked[]; devices: Ranked[]; countries: Ranked[] };

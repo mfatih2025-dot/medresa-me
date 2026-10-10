@@ -7,7 +7,7 @@ import { moduleLoader } from '../scripts/lib/load-typescript.mjs';
 import { database, load, now, reports, begin, finish, releaseCooldown, fixtureEnvironment, restFixture } from './fixtures/analytics.mjs';
 const initialEnv = { ...process.env }, initialFetch = globalThis.fetch;
 afterEach(() => { for (const key of Object.keys(process.env)) if (!(key in initialEnv)) delete process.env[key]; Object.assign(process.env,initialEnv); globalThis.fetch=initialFetch; });
-const { ranges, days, comparison, startInstant, parsePeriod, validDay } = load('src/admin/analytics/period');
+const { ranges, days, shiftDay, comparison, startInstant, parsePeriod, validDay } = load('src/admin/analytics/period');
 const { blank, number, safeText, safeUrl, providerJson, previewConfiguration } = load('src/server/admin/analytics/common');
 const { collectProvider } = load('src/server/admin/analytics/providers');
 const json=(b,status=200)=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json'}});
@@ -856,4 +856,51 @@ test('missing provider-sync migration stops before provider calls; existing full
     const result=await service.synchronize('7',randomUUID());assert.equal(result.dashboard.storage,'ready');
     assert.deepEqual(calls,['website','instagram','facebook','youtube']);
   }finally{await db.close();}
+});
+
+test('partial stored daily flows show in every period without double counting period or cumulative totals', () => {
+  const {storedTotals}=load('src/admin/analytics/storedTotals');
+  const {periodViews}=load('src/admin/analytics/views');
+  for(const period of ['today','yesterday','7','30','60','90']) {
+    const range=ranges(period,now,'UTC').current;
+    const daily=[{date:range.end,metrics:{views:6775,pageviews:10,reach:2046,visitors:8,followers:3000},complete:period!=='today'}];
+    if(!['today','yesterday'].includes(period))daily.push({date:shiftDay(range.end,-1),metrics:{views:5,pageviews:2,reach:100,visitors:2},complete:true});
+    daily.push({...daily[0]}, {date:shiftDay(range.start,-1),metrics:{views:999999,pageviews:999999},complete:true});
+    const ig=storedTotals('instagram',range,{},daily),web=storedTotals('website',range,{},daily);
+    const expected=['today','yesterday'].includes(period)?6775:6780;
+    assert.equal(ig.totals.views,expected);assert.equal(ig.totals.reach,undefined);assert.equal(web.totals.visitors,undefined);
+    assert.equal(ig.coverage.views.days,['today','yesterday'].includes(period)?1:2);
+    assert.equal(ig.coverage.views.partial,period!=='yesterday');
+    const total=periodViews([{provider:'instagram',totals:ig.totals,totalCoverage:ig.coverage},{provider:'website',totals:web.totals,totalCoverage:web.coverage}]);
+    assert.equal(total.total,expected+(['today','yesterday'].includes(period)?10:12));assert.equal(total.coverage,2);
+    const exact=storedTotals('instagram',range,{views:8000,reach:1000},daily);
+    assert.equal(exact.totals.views,8000,'period totals replace, never add to, daily snapshots');assert.equal(exact.totals.reach,1000);
+    assert.equal(storedTotals('facebook',range,{},[]).totals.views,undefined);
+    assert.equal(storedTotals('youtube',range,{},[{date:range.end,metrics:{views:0},complete:true}]).totals.views,0);
+  }
+});
+
+test('dashboard reads partial PostgreSQL snapshots without sync, shows period hero, and leaves storage unchanged', async () => {
+  credentials();const db=await database();try {
+    const initial=reports('7',now);for(const r of initial){r.totals={};r.previousTotals={};r.daily=[];r.today=null;r.yesterday=null;}
+    initial[1].daily=[{date:'2026-10-07',metrics:{views:6775,reach:2046,interactions:299},complete:true}];
+    initial[2].daily=[{date:'2026-10-07',metrics:{views:45539,reach:2828},complete:true}];
+    const id=randomUUID();await begin(db,id);await finish(db,id,initial);
+    const before=JSON.stringify((await db.query('select * from medresa_analytics_daily order by provider,day')).rows);
+    globalThis.fetch=restFixture(db);
+    const service=moduleLoader({'./providers':{configurations:Object.fromEntries(['website','instagram','facebook','youtube'].map(p=>[p,()=>true])),timezones:{website:'UTC',instagram:'UTC',facebook:'America/Los_Angeles',youtube:'America/Los_Angeles'}}})('src/server/admin/analytics/service');
+    for(const period of ['yesterday','7','30','60','90']) {
+      const result=await service.dashboard(period,now);const ig=result.reports[1],fb=result.reports[2];
+      assert.equal(ig.totals.views,6775);assert.equal(fb.totals.views,45539);assert.equal(ig.totalCoverage.views.days,1);
+      assert.equal(load('src/admin/analytics/views').periodViews(result.reports).total,52314);
+      assert.equal(result.reports[0].totals.pageviews,undefined);assert.equal(result.reports[3].totals.views,undefined);
+      assert.equal(ig.totals.reach,undefined);assert.equal(ig.yesterday.metrics.reach,2046);
+      const css=new Proxy({}, {get:(_,name)=>String(name)});
+      const {Analytics}=moduleLoader({'../Shell':{Shell:({children})=>React.createElement('main',null,children)},'../admin.module.css':{default:css},'./analytics.module.css':{default:css}})('src/admin/analytics/Dashboard');
+      const html=renderToStaticMarkup(React.createElement(Analytics,{initial:result}));
+      assert.ok(html.includes('52.314'));assert.ok(html.includes('Dostupni izvori: 2/4'));assert.ok(html.includes('Dostupni podaci:'));
+    }
+    assert.equal(load('src/admin/analytics/views').periodViews((await service.dashboard('today',now)).reports).total,null);
+    assert.equal(JSON.stringify((await db.query('select * from medresa_analytics_daily order by provider,day')).rows),before);
+  } finally {await db.close();}
 });
