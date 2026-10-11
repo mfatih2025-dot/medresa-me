@@ -6,10 +6,10 @@ import { homeNews } from "@/content/vijesti/home";
 import { getDictionary } from "@/content";
 import { newsFallbacks } from "@/content/bs";
 import { locales, type Locale } from "@/i18n/config";
+import { backendDeploymentSupported } from "@/server/backendDeployment";
 import { supabaseConfiguration } from "@/server/admin/supabase";
 import { safeId } from "@/admin/contracts";
 
-const preview = () => process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel";
 const emptyVersion = () => ({ title: "", slug: "", body: "" });
 const batchSize = 200;
 type Publication = { article_id: string; locale: Locale; snapshot: NewsArticle; source_order: number | null };
@@ -17,20 +17,20 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 
 /** Server-only GETs. The public integration can never write or run a private RPC. */
 export async function publicNewsRequest(path: string) {
-  const config = preview() ? supabaseConfiguration() : null;
-  if (!config) throw new Error("Preview news unavailable");
+  const config = backendDeploymentSupported() ? supabaseConfiguration() : null;
+  if (!config) throw new Error("Published news unavailable");
   const headers = new Headers({ apikey: config.key });
   if (!config.key.startsWith("sb_secret_")) headers.set("Authorization", `Bearer ${config.key}`);
   const result = await fetch(`${config.url}${path}`, { headers, method: "GET", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(4000) });
-  if (!result.ok) throw new Error("Preview news unavailable");
+  if (!result.ok) throw new Error("Published news unavailable");
   return result;
 }
 
 /** Only active immutable locale publications. Never read editorial documents. */
 export const publishedNews = cache(async (): Promise<Publication[]> => {
-  if (!preview()) return [];
-  // Preview must read at request time, including unknown newly published slugs.
-  // Production and every other branch retain their existing static behavior.
+  if (!backendDeploymentSupported()) return [];
+  // Approved deployments read at request time, including newly published slugs.
+  // Other deployments keep the static archive fallback.
   await connection();
   if (!supabaseConfiguration()) return [];
   try {

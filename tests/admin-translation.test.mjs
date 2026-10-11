@@ -152,7 +152,7 @@ test('authenticated runtime diagnostic distinguishes missing key from Supabase/b
   let calls=0; globalThis.fetch=async()=>{calls++;throw new Error('No provider calls allowed');};
   process.env.VERCEL_GIT_COMMIT_SHA='a'.repeat(40);
   let report=translationConfigurationDiagnostic(); assert.equal(report.available,true); assert.deepEqual(report.failedChecks,[]); assert.equal(report.checks.openAiKeyPresent,true); assert.equal(report.commitSha,'a'.repeat(40));
-  for(const [name,value,expected] of [['OPENAI_API_KEY','   ','openAiKeyPresent'],['MEDRESA_SUPABASE_WRITE_ENABLED','false','supabaseWritesEnabled'],['MEDRESA_SUPABASE_PROJECT_REF','wrongprojectref','supabaseConfigurationAvailable'],['VERCEL_GIT_COMMIT_REF','main','adminBranch'],['VERCEL_ENV','production','previewEnvironment']]) {
+  for(const [name,value,expected] of [['OPENAI_API_KEY','   ','openAiKeyPresent'],['MEDRESA_SUPABASE_WRITE_ENABLED','false','supabaseWritesEnabled'],['MEDRESA_SUPABASE_PROJECT_REF','wrongprojectref','supabaseConfigurationAvailable'],['VERCEL_GIT_COMMIT_REF','main','deploymentBranch'],['VERCEL_ENV','production','deploymentBranch']]) {
     const old=process.env[name];process.env[name]=value;report=translationConfigurationDiagnostic();assert.equal(report.available,false);assert.equal(report.checks[expected],false);assert.ok(report.failedChecks.includes(expected));assert.ok(Object.values(report.checks).every(v=>typeof v==='boolean'));process.env[name]=old;
   }
   process.env.VERCEL_GIT_COMMIT_SHA=process.env.OPENAI_API_KEY;assert.equal(translationConfigurationDiagnostic().commitSha,null);assert.equal(calls,0);

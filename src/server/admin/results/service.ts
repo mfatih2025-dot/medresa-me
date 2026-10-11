@@ -1,3 +1,4 @@
+import { backendDeploymentSupported } from "@/server/backendDeployment";
 import { randomUUID } from "node:crypto";
 import { AdminError } from "@/admin/contracts";
 import { uuid } from "@/admin/campaigns/model";
@@ -8,7 +9,7 @@ import { pdfDigest, validatePdf } from "./pdf";
 const BUCKET = "medresa-results-preview";
 export function resultsConfiguration(write = false) {
   const c = supabaseConfiguration();
-  if (!c || c.ref !== "safsijrhxbefgcahvsvm" || process.env.VERCEL_ENV !== "preview" || process.env.VERCEL_GIT_COMMIT_REF !== "codex/admin-panel" || write && !c.writable) throw new AdminError(503, "Rezultati nijesu spremni za namijenjeni Preview projekat.");
+  if (!c || c.ref !== "safsijrhxbefgcahvsvm" || !backendDeploymentSupported() || write && !c.writable) throw new AdminError(503, "Rezultati nijesu spremni za namijenjeni Preview projekat.");
   return c;
 }
 async function request(path: string, init: RequestInit = {}, write = false) { resultsConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }

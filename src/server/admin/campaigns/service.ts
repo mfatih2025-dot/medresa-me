@@ -1,3 +1,4 @@
+import { backendDeploymentSupported, previewDeployment } from "@/server/backendDeployment";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AdminError } from "@/admin/contracts";
@@ -10,7 +11,7 @@ export const MAX_POSTER_BYTES = 4 * 1024 * 1024;
 export const POSTER_MIMES = ["image/jpeg", "image/png", "image/webp"];
 export function campaignConfiguration(write = false) {
   const c = supabaseConfiguration();
-  if (process.env.VERCEL_ENV !== "preview" || process.env.VERCEL_GIT_COMMIT_REF !== "codex/admin-panel" || !c || c.ref !== PREVIEW_REF) throw new AdminError(503, "Akcije su dostupne samo na namijenjenom Preview projektu.");
+  if (!backendDeploymentSupported() || !c || c.ref !== PREVIEW_REF) throw new AdminError(503, "Akcije su dostupne samo na namijenjenom Preview projektu.");
   if (write && !c.writable) throw new AdminError(503, "Upis u Preview nije omogućen.");
   return c;
 }
@@ -125,6 +126,7 @@ export async function deleteCampaign(value: unknown) {
 /** Explicit authenticated read-only probe. No raw provider errors, credentials,
  * private Storage paths or poster bytes leave this projection. */
 export async function diagnoseCampaign(id: string, locale: CampaignLocale = "bs"): Promise<CampaignDiagnostic> {
+  if (!previewDeployment()) throw new AdminError(404, "Dijagnostika je dostupna samo u Preview okruženju.");
   campaignConfiguration();
   if (!uuid(id)) throw new AdminError(422, "Akcija nije ispravna.");
   const campaigns = await rows(), now = Date.now(), target = campaigns.find(c => c.id === id);

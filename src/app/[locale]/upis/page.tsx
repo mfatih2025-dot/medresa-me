@@ -1,3 +1,4 @@
+import { backendDeploymentSupported } from "@/server/backendDeployment";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { publicAdmissionStatus } from "@/server/admin/results/admissions";
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Upis i prijemni: the admission status and its documents. */
 export default async function Page({ params }: Props) {
-  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel") await connection();
+  if (backendDeploymentSupported()) await connection();
   const locale = asLocale((await params).locale);
   const [documentHref, admissionStatus] = await Promise.all([publishedHref(locale), publicAdmissionStatus()]);
   return (

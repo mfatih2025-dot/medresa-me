@@ -1,3 +1,4 @@
+import { backendDeploymentSupported } from "@/server/backendDeployment";
 import { CampaignPopup } from "@/components/campaigns/CampaignPopup";
 import { Kanit } from "next/font/google";
 import type { ReactNode } from "react";
@@ -56,7 +57,7 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
         <main id="main">{children}</main>
         <Footer dicts={chrome} />
         <Gateway />
-        {process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel" && <CampaignPopup />}
+        {backendDeploymentSupported() && <CampaignPopup />}
       </body>
     </html>
   );

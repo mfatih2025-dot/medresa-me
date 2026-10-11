@@ -1,3 +1,4 @@
+import { backendDeploymentSupported } from "@/server/backendDeployment";
 // Only authenticated API routes / getServerSideProps import this server module.
 import { AdminError } from "@/admin/contracts";
 import { supabaseConfiguration } from "../supabase";
@@ -6,7 +7,7 @@ import { metricNames, type Metrics, type Period, type Provider, type ProviderRep
 export const EXPECTED_PREVIEW_REF = "safsijrhxbefgcahvsvm";
 export function previewConfiguration(write = false) {
   const c = supabaseConfiguration();
-  if (process.env.VERCEL_ENV !== "preview" || process.env.VERCEL_GIT_COMMIT_REF !== "codex/admin-panel" || !c || c.ref !== EXPECTED_PREVIEW_REF) throw new AdminError(503, "Analitika je dostupna samo za namijenjeni Supabase Preview projekt.");
+  if (!backendDeploymentSupported() || !c || c.ref !== EXPECTED_PREVIEW_REF) throw new AdminError(503, "Analitika je dostupna samo za namijenjeni Supabase Preview projekt.");
   if (write && !c.writable) throw new AdminError(503, "Upis analitike u Preview nije omogućen.");
   return c;
 }

@@ -1,5 +1,6 @@
 // Pages Router server consumers only: authenticated API and getServerSideProps.
 // Next strips getServerSideProps dependencies from the editor browser bundle.
+import { backendEnvironmentSupported, backendBranchSupported } from "@/server/backendDeployment";
 import { AdminError, canonicalJson, validateDraft } from "@/admin/contracts";
 import type { NewsDraft } from "@/admin/model";
 import { applyTranslationDraft, bosnianTranslationReady, existingTranslationLocales, translationLocales, validateTranslationDraft, type TranslationDraft } from "@/admin/translation";
@@ -11,8 +12,8 @@ import { medresaGlossary } from "./translationGlossary";
 export function translationConfigurationDiagnostic() {
   const config = supabaseConfiguration();
   const checks = {
-    previewEnvironment: process.env.VERCEL_ENV === "preview",
-    adminBranch: process.env.VERCEL_GIT_COMMIT_REF === "codex/admin-panel",
+    deploymentEnvironment: backendEnvironmentSupported(),
+    deploymentBranch: backendBranchSupported(),
     openAiKeyPresent: !!process.env.OPENAI_API_KEY?.trim(),
     supabaseConfigurationAvailable: config !== null,
     supabaseWritesEnabled: config?.writable === true,

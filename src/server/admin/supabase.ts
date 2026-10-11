@@ -1,4 +1,5 @@
 // Server-only consumers: API routes, getServerSideProps, import CLI.
+import { APPROVED_SUPABASE_REF, backendDeploymentSupported } from "@/server/backendDeployment";
 import { AdminError } from "@/admin/contracts";
 import type { BackendState } from "@/admin/model";
 
@@ -6,7 +7,7 @@ export function supabaseConfiguration() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const ref = process.env.MEDRESA_SUPABASE_PROJECT_REF;
-  if (process.env.VERCEL_ENV === "production" || (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF !== "codex/admin-panel") || !url || !key || !ref) return null;
+  if ((["production", "preview"].includes(process.env.VERCEL_ENV ?? "") && !backendDeploymentSupported()) || (process.env.VERCEL_ENV === "production" && ref !== APPROVED_SUPABASE_REF) || !url || !key || !ref) return null;
   try {
     const parsed = new URL(url);
     if (parsed.origin !== url || parsed.protocol !== "https:" || parsed.hostname !== `${ref}.supabase.co` || !/^[a-z0-9]{10,40}$/.test(ref)) return null;
