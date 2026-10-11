@@ -18,6 +18,7 @@ import type { Locale } from "@/i18n/config";
 import { pathFor } from "@/i18n/routes";
 import { site } from "@/content/site";
 import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
+import { FooterLines } from "./FooterLines";
 import { Overlay } from "./Overlay";
 import { LanguageSwitch } from "@/components/i18n/LanguageSwitch";
 
@@ -261,30 +262,42 @@ function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => vo
   const contact = { ...site.contact, address: dict.contact.address };
   return (
     <Overlay open={open} onClose={onClose} label={ui.menu} className="menu-overlay">
-      <div className="relative flex min-h-dvh flex-col bg-green-deep geo-dark">
-        <div className="wrap flex h-[4.5rem] items-center justify-between pt-4">
-          <span className="eyebrow text-gold-soft">{site.shortName}</span>
+      {/* The footer's mihrab drawing is the menu's background too (see FooterLines.tsx). */}
+      <div data-lines-host className="relative isolate flex min-h-dvh flex-col overflow-clip bg-green-deep">
+        <FooterLines />
+
+        {/* Phones: the whole menu fits one screen — spacing follows the screen's height (svh). */}
+        <div className="wrap relative flex items-start justify-between pt-3 md:h-[4.5rem] md:items-center md:pt-4">
+          <div className="flex flex-col items-start pt-3 md:flex-row md:items-center md:gap-8 md:pt-0">
+            <span className="eyebrow text-gold-soft">{site.shortName}</span>
+            {/* The language, at hand as soon as the menu opens. */}
+            <div className="text-sm">
+              <LanguageSwitch label={ui.language} />
+            </div>
+          </div>
+          {/* Focus lands here when the menu opens, as before the language moved up. */}
           <button
             type="button"
             onClick={onClose}
             aria-label={ui.closeMenu}
-            className="grid size-12 place-items-center rounded-full border border-ivory/25 transition-colors hover:bg-ivory/10"
+            autoFocus
+            className="grid size-12 shrink-0 place-items-center rounded-full border border-ivory/25 transition-colors hover:bg-ivory/10"
           >
             <CloseIcon />
           </button>
         </div>
 
-        <div className="wrap grid flex-1 content-center gap-12 py-10 md:grid-cols-3 md:gap-10 lg:py-16">
+        <div className="wrap relative grid flex-1 content-center gap-[clamp(1rem,2.8svh,2rem)] py-[clamp(0.75rem,2svh,1.5rem)] md:grid-cols-3 md:gap-10 md:py-10 lg:py-16">
           {nav.groups.map((g, gi) => (
             <div key={g.title} className="menu-item" style={{ "--i": gi } as CSSProperties}>
-              <p className="eyebrow mb-5 text-gold">{g.title}</p>
-              <ul className="space-y-1">
+              <p className="eyebrow mb-[clamp(0.25rem,1svh,0.625rem)] text-gold md:mb-5">{g.title}</p>
+              <ul className="md:space-y-1">
                 {g.items.map((l) => (
                   <li key={l.href}>
                     <Link
                       href={l.href}
                       onClick={onClose}
-                      className="display block py-1.5 text-[clamp(1.75rem,1.2rem+2vw,2.75rem)] font-normal transition-colors hover:text-gold-soft"
+                      className="display block py-[clamp(0.1875rem,0.55svh,0.375rem)] text-[clamp(1.375rem,min(3.1svh,6.6vw),1.75rem)] font-normal transition-colors hover:text-gold-soft md:py-1.5 md:text-[clamp(1.75rem,1.2rem+2vw,2.75rem)]"
                     >
                       {l.label}
                     </Link>
@@ -295,11 +308,12 @@ function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => vo
           ))}
         </div>
 
+        {/* A slim footer: where the Medresa is, how to reach it, e-medresa. */}
         <div
-          className="wrap menu-item flex flex-col gap-6 border-t border-ivory/15 py-8 text-sm text-ivory/75 md:flex-row md:items-end md:justify-between"
+          className="wrap menu-item relative flex flex-wrap items-end justify-between gap-x-6 gap-y-1 border-t border-ivory/15 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3 text-[0.8125rem] leading-[1.45] text-ivory/75 md:items-end md:gap-6 md:py-8 md:text-sm md:leading-relaxed"
           style={{ "--i": 4 } as CSSProperties}
         >
-          <address className="not-italic leading-relaxed">
+          <address className="not-italic">
             {contact.address.join(", ")}
             <br />
             <a href={contact.phoneHref} className="link-u">
@@ -310,12 +324,9 @@ function MenuOverlay({ open, onClose, dict }: { open: boolean; onClose: () => vo
               {contact.email}
             </a>
           </address>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href={site.eMedresa} className="link-u" rel="noopener">
-              e-medresa
-            </a>
-            <LanguageSwitch label={ui.language} />
-          </div>
+          <a href={site.eMedresa} className="link-u" rel="noopener">
+            e-medresa
+          </a>
         </div>
       </div>
     </Overlay>

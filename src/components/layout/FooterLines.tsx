@@ -16,6 +16,10 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * Every stroke has pathLength=1 and is drawn with stroke-dashoffset; the
  * observer only sets data attributes on the footer, never React state.
  * Reduced motion: the complete drawing, static (see globals.css).
+ *
+ * The same drawing, with the same sequence and breathing, is the background of
+ * the fullscreen menu: its panel is marked `data-lines-host`, and the menu
+ * coming into view plays the drawing there exactly as the footer does.
  */
 
 const CX = 500;
@@ -59,7 +63,8 @@ export function FooterLines() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const footer = ref.current?.closest("footer");
+    // The footer, or another surface that hosts the drawing (the fullscreen menu).
+    const footer = ref.current?.closest<HTMLElement>("footer, [data-lines-host]");
     if (!footer) return;
     const io = new IntersectionObserver(
       ([entry]) => {

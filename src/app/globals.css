@@ -593,11 +593,6 @@ button,
 }
 
 /* ---------- Overlays ---------- */
-.geo-dark {
-  background-image: url("/brand/geo.svg");
-  background-size: 140px 140px;
-  background-blend-mode: soft-light;
-}
 /* open 240ms; close faster (180ms) — the system answers a dismissal at once */
 .menu-overlay,
 .search-overlay {
