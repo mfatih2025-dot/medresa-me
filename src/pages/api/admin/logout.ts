@@ -5,5 +5,5 @@ export default function logout(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).end(); }
   if (!allowedOrigin(req.headers.origin)) return res.status(403).end();
   res.setHeader("Set-Cookie", sessionCookie("", true));
-  return res.redirect(303, "/admin/login");
+  return res.redirect(303, "/ulaz7/login");
 }

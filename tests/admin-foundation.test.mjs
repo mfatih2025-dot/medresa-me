@@ -155,7 +155,7 @@ test("every sampled public proxy outcome exactly matches the audited baseline", 
     const request = { nextUrl: { pathname: path, search: "?x=1", clone: () => new URL(`https://www.medresa.me${path}?x=1`) }, cookies: { get: () => cookie ? { value: cookie } : undefined } };
     assert.deepEqual(current.proxy(request), baseline.proxy(request), `${path} / ${cookie}`);
   }
-  for (const path of ["/admin", "/admin/login", "/admin/vijesti/nova", "/admin-preview/article"]) {
+  for (const path of ["/ulaz7", "/ulaz7/login", "/ulaz7/vijesti/nova", "/admin-preview/article"]) {
     const request = { nextUrl: { pathname: path }, cookies: { get: () => ({ value: "sq" }) } };
     const result = current.proxy(request); assert.equal(result.action, "next"); assert.equal(result.headers.get("X-Robots-Tag"), "noindex, nofollow");
   }

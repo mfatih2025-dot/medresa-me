@@ -34,7 +34,7 @@ process.env.NODE_ENV='production';const origin='http://localhost:3215';
   await page.goto(origin+'/upis');const resultModule=page.locator('main article section').last();const beforeClasses=await resultModule.locator('*').evaluateAll(xs=>xs.map(e=>e.getAttribute("class")||""));const originalTitle=await resultModule.locator('h2').innerText();assert.ok(originalTitle.includes('2026 - 2027'));
   assert.equal((await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:process.env.MEDRESA_ADMIN_USER,password}})).status(),200);
   assert.equal((await context.request.post(origin+'/api/admin/results/upload',{headers:{Origin:'https://evil.example'},data:{}})).status(),403);
-  await page.goto(origin+'/admin/rezultati');await page.getByRole('heading',{name:'Rezultati ispita',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/^OBJAVI (BS|SQ|EN) REZULTATE$/}).isDisabled(),true);
+  await page.goto(origin+'/ulaz7/rezultati');await page.getByRole('heading',{name:'Rezultati ispita',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/^OBJAVI (BS|SQ|EN) REZULTATE$/}).isDisabled(),true);
   for(const width of [360,390,412,430,768,1440]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Results overflow '+width);const choose=await page.locator('button').filter({hasText:/^Odaberi PDF$/}).boundingBox();assert.ok(choose.height>=44);assert.ok((await page.getByRole('button',{name:'CLOSED',exact:true}).boundingBox()).height>=44);}
   const statusStrings={open:{bs:'UPIS JE OTVOREN',sq:'REGJISTRIMI ËSHTË I HAPUR',en:'ADMISSIONS ARE OPEN'},closed:{bs:'UPIS JE ZATVOREN',sq:'REGJISTRIMI ËSHTË I MBYLLUR',en:'ADMISSIONS ARE CLOSED'}};
   const locales=[['bs','/upis'],['sq','/sq/regjistrimi'],['en','/en/admissions']];
@@ -43,7 +43,7 @@ process.env.NODE_ENV='production';const origin='http://localhost:3215';
    await page.reload();assert.equal(await page.getByRole('button',{name:status.toUpperCase(),exact:true}).getAttribute('aria-pressed'),'true');
    const state=(await(await context.request.get(origin+'/api/admin/results/admissions')).json()).state;assert.equal(state.status,status);
    for(const [locale,path]of locales){await page.goto(origin+path);const section=page.locator('main article section').first();assert.equal(await section.locator('p.sr-only').innerText(),statusStrings[status][locale]);await page.reload();assert.equal(await section.locator('p.sr-only').innerText(),statusStrings[status][locale]);}
-   await page.goto(origin+'/admin/rezultati');
+   await page.goto(origin+'/ulaz7/rezultati');
   }
   await page.setViewportSize({width:390,height:844});const pdfs={bs:await pdfFixture('BS local original'),sq:await pdfFixture('SQ local original'),en:await pdfFixture('EN local 5MB original',5*1024*1024)};
   await upload('bs',pdfs.bs,'Bosanski rezultati.pdf');assert.equal((await context.request.get(origin+'/api/results/bs')).status(),404,'Draft must not be public');assert.equal(await page.getByRole('button',{name:/^OBJAVI (BS|SQ|EN) REZULTATE$/}).isEnabled(),true);
@@ -58,7 +58,7 @@ process.env.NODE_ENV='production';const origin='http://localhost:3215';
   }
   await page.goto(origin+'/upis');assert.equal(await resultModule.locator('h2').innerText(),originalTitle);const afterClasses=await resultModule.locator('*').evaluateAll(xs=>xs.map(e=>e.getAttribute("class")||""));assert.deepEqual(afterClasses.map(x=>x.replace(' cursor-default text-left','')),beforeClasses.map(x=>x.replace(' cursor-default text-left','')),'Same module styling after publishing');
   const oldRelease=(await(await context.request.get(origin+'/api/admin/results')).json()).state.published.bs.id;
-  await page.goto(origin+'/admin/rezultati');const replacement=await pdfFixture('BS replacement local');await upload('bs',replacement,'Replacement.pdf');assert.equal(hash(await(await context.request.get(origin+'/api/results/bs')).body()),hash(pdfs.bs));
+  await page.goto(origin+'/ulaz7/rezultati');const replacement=await pdfFixture('BS replacement local');await upload('bs',replacement,'Replacement.pdf');assert.equal(hash(await(await context.request.get(origin+'/api/results/bs')).body()),hash(pdfs.bs));
   await tabs('sq').click();await page.getByRole('button',{name:'Ukloni PDF',exact:true}).click();await page.getByText('PDF je uklonjen iz pripreme. Objavljeni rezultati ostaju dostupni.',{exact:true}).waitFor();assert.equal(hash(await(await context.request.get(origin+'/api/results/sq')).body()),hash(pdfs.sq));assert.equal(await page.getByRole('button',{name:/^OBJAVI (BS|SQ|EN) REZULTATE$/}).isDisabled(),true);
 
   await upload('sq',pdfs.sq,'SQ again.pdf');await publish('bs');assert.equal(hash(await(await context.request.get(origin+'/api/results/bs')).body()),hash(replacement),'New release visible without rebuild/redeployment');assert.notEqual((await(await context.request.get(origin+'/api/admin/results')).json()).state.published.bs.id,oldRelease);

@@ -13,9 +13,9 @@ export function NewArticleAction({ backend }: { backend: BackendState }) {
     setBusy(true); setError("");
     try {
       const { article } = await adminRequest<{ article: ManagedArticle }>("/api/admin/news", {});
-      await router.push(`/admin/vijesti/${article.draft.id}`);
+      await router.push(`/ulaz7/vijesti/${article.draft.id}`);
     } catch (error) { setError(error instanceof Error ? error.message : "Nacrt nije kreiran."); setBusy(false); }
   }
-  if (!backend.writable) return <Link href="/admin/vijesti/nova" className={styles.primary}>＋ Nova vijest</Link>;
+  if (!backend.writable) return <Link href="/ulaz7/vijesti/nova" className={styles.primary}>＋ Nova vijest</Link>;
   return <div><button className={styles.primary} disabled={busy} onClick={create}>{busy ? "Kreiranje nacrta…" : "＋ Nova vijest"}</button>{error && <p className={styles.error} role="alert">{error}</p>}</div>;
 }

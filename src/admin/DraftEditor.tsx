@@ -74,7 +74,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
         ? await adminRequest<{ article: ManagedArticle }>(`/api/admin/news/${draft.id}`, { action: "save", draft, expectedRevision: record.draft.revision })
         : await adminRequest<{ article: ManagedArticle }>("/api/admin/news", { draft });
       setRecord(result.article); setDraft(result.article.draft); setDirty(false); setMessage("Nacrt je spremljen u bazu.");
-      if (!record) await router.replace(`/admin/vijesti/${result.article.draft.id}?saved=1`, undefined, { scroll: false });
+      if (!record) await router.replace(`/ulaz7/vijesti/${result.article.draft.id}?saved=1`, undefined, { scroll: false });
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nacrt nije spremljen."); }
     finally { setBusy(false); }
   }
@@ -123,7 +123,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
     } catch (error) { setMessage(error instanceof Error ? error.message : "Objava nije završena."); setConfirm(null); }
     finally {
       setBusy(false);
-      if (!record && persisted) await router.replace(`/admin/vijesti/${persisted.draft.id}`, undefined, { scroll: false });
+      if (!record && persisted) await router.replace(`/ulaz7/vijesti/${persisted.draft.id}`, undefined, { scroll: false });
     }
   }
   function download() {
@@ -132,7 +132,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
   }
   const image = (id: string | null) => draft.images.find(a => a.id === id);
   const editAlt = (assetId: string, value: string) => change({ images: draft.images.map(a => a.id === assetId ? { ...a, alt: { ...a.alt, [locale]: value } } : a) });
-  return <Shell active="/admin/vijesti" title={record ? "Uredi vijest" : "Nova vijest"} intro="Priča u blokovima. Jedan redoslijed, tri jezika." action={<Link href="/admin/vijesti" className={styles.secondary} onClick={e => { if (dirty && !window.confirm("Nespremljene promjene će biti izgubljene. Želite li otići?")) e.preventDefault(); }}>← Sve vijesti</Link>}>
+  return <Shell active="/ulaz7/vijesti" title={record ? "Uredi vijest" : "Nova vijest"} intro="Priča u blokovima. Jedan redoslijed, tri jezika." action={<Link href="/ulaz7/vijesti" className={styles.secondary} onClick={e => { if (dirty && !window.confirm("Nespremljene promjene će biti izgubljene. Želite li otići?")) e.preventDefault(); }}>← Sve vijesti</Link>}>
     <div className={styles.noticeInline}><span className={styles.status}>{statusLabels[draft.status]}{dirty ? " · nespremljene promjene" : ""}</span><p>{record?.source === "static" ? "Postojeća vijest · import još nije izvršen. Uređivanje i pregled su dostupni; spremanje čeka provjereni import." : record?.archivedAt || record?.deletedAt ? "Vijest je arhivirana ili u smeću. Vratite je iz biblioteke prije uređivanja." : backend.message}</p></div>
     <div className={styles.editorGrid}><section className={styles.editor} aria-label="Uređivanje vijesti"><div className={styles.editorTop}><div className={styles.segment} aria-label="Jezik uređivanja">{(["bs", "sq", "en"] as const).map(l => <button key={l} aria-label={l.toUpperCase()} aria-pressed={locale === l} onClick={() => setLocale(l)}>{l.toUpperCase()}{publicationChecklist(draft,l).filter(c=>c.key!=="review").every(c=>c.complete) && <span style={{color:"#25734b"}} aria-label="Sadržaj kompletan"> ✓</span>}</button>)}</div><span>{locale === "bs" ? "Bosanski master" : "Prijevod za ljudski pregled"}</span></div>
       <fieldset disabled={busy || !!record?.archivedAt || !!record?.deletedAt} className={styles.editorFields}>

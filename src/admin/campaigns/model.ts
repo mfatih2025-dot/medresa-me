@@ -26,8 +26,8 @@ export const uuid = (value: unknown): value is string => typeof value === "strin
 export function validDestination(value: unknown): value is string {
   if (typeof value !== "string" || !value || value.length > 2048 || value !== value.trim() || /[\u0000-\u0020\u007f\\]/.test(value)) return false;
   if (value.startsWith("/")) {
-    if (value.startsWith("//") || /^\/(?:admin|api)(?:\/|[?#]|$)/i.test(value)) return false;
-    try { const parsed = new URL(value, "https://medresa.invalid"); return parsed.origin === "https://medresa.invalid" && !/^\/(?:admin|api)(?:\/|$)/i.test(decodeURIComponent(parsed.pathname)); } catch { return false; }
+    if (value.startsWith("//") || /^\/(?:admin|ulaz7|api)(?:\/|[?#]|$)/i.test(value)) return false;
+    try { const parsed = new URL(value, "https://medresa.invalid"); return parsed.origin === "https://medresa.invalid" && !/^\/(?:admin|ulaz7|api)(?:\/|$)/i.test(decodeURIComponent(parsed.pathname)); } catch { return false; }
   }
   try { const parsed = new URL(value); return parsed.protocol === "https:" && !parsed.username && !parsed.password && !!parsed.hostname; } catch { return false; }
 }

@@ -89,8 +89,8 @@ let translationMode = 'success';
   const context=await browser.newContext({viewport:{width:390,height:844}}); const page=await context.newPage();
   const publicContext=await browser.newContext({viewport:{width:390,height:844}}); const publicPage=await publicContext.newPage();
   const errors=[]; publicPage.on('pageerror',error=>errors.push(error.message)); page.on('pageerror',error=>errors.push(error.message)); page.on('dialog',dialog=>dialog.accept());
-  for(const path of ['/admin','/admin/vijesti','/admin/vijesti/nova','/admin/vijesti/2026-05-03-kurban','/admin-preview/editor']) {
-    const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/admin/login');
+  for(const path of ['/ulaz7','/ulaz7/vijesti','/ulaz7/vijesti/nova','/ulaz7/vijesti/2026-05-03-kurban','/admin-preview/editor']) {
+    const response=await context.request.get(origin+path,{maxRedirects:0}); assert.ok([302,307].includes(response.status()),path); assert.equal(response.headers().location,'/ulaz7/login');
   }
   assert.equal((await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{}})).status(),401);
   const lockedDiagnostic=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(lockedDiagnostic.status(),401); const lockedReport=await lockedDiagnostic.json(); assert.equal(lockedReport.checks,undefined); assert.equal(lockedReport.runtime,undefined);
@@ -117,13 +117,13 @@ let translationMode = 'success';
     const production=await context.request.get(origin+'/api/admin/diagnostics'); assert.equal(production.status(),404); const productionReport=await production.json(); assert.equal(productionReport.checks,undefined); assert.equal(productionReport.runtime,undefined);
     assert.equal(providerRequests,beforeDiagnostic);
   } finally { process.env.VERCEL_ENV='preview'; process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel'; process.env.MEDRESA_SUPABASE_PROJECT_REF='abcdefghijklmnopqrst'; process.env.MEDRESA_SUPABASE_WRITE_ENABLED='true'; }
-  await page.goto(origin+'/admin');
+  await page.goto(origin+'/ulaz7');
   assert.equal(await page.getByRole('button',{name:'Provjeri Preview vezu',exact:true}).count(),0);
   assert.equal(await page.locator('pre').count(),0);
-  await page.goto(origin+'/admin/vijesti'); assert.equal(await page.getByRole('article').count(),17);
+  await page.goto(origin+'/ulaz7/vijesti'); assert.equal(await page.getByRole('article').count(),17);
   await page.getByRole('searchbox').fill('TIKA'); assert.equal(await page.getByRole('article').count(),1); await page.getByRole('searchbox').fill('');
   await page.getByRole('button',{name:'＋ Nova vijest',exact:true}).click();
-  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+$/);
+  await page.waitForURL(/\/ulaz7\/vijesti\/[a-f0-9-]+$/);
   const newId=page.url().split('/').pop();
   assert.equal((await db.query('select status from medresa_admin_articles where id=$1',[newId])).rows[0].status,'draft');
   await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'');
@@ -200,7 +200,7 @@ let translationMode = 'success';
   }
   // Direct /nova has no stored record: create, save review against its canonical
   // server ID/revision, then publish BS without a separate Save click.
-  await page.goto(origin+'/admin/vijesti/nova');
+  await page.goto(origin+'/ulaz7/vijesti/nova');
   await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
   await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Direct BS-only publication');
@@ -210,7 +210,7 @@ let translationMode = 'success';
   assert.equal(await page.getByRole('button',{name:'OBJAVI BS',exact:true}).isEnabled(),true);
   await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click();
   await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
-  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+$/);
+  await page.waitForURL(/\/ulaz7\/vijesti\/[a-f0-9-]+$/);
   const directId=page.url().split('/').pop();
   const directRows=(await db.query('select * from medresa_admin_locale_publication_state where article_id=$1',[directId])).rows;
   assert.equal(directRows.length,1); assert.equal(directRows[0].locale,'bs'); assert.equal(directRows[0].snapshot.photos.length,0);
@@ -252,7 +252,7 @@ let translationMode = 'success';
   await page.getByText('Objavljeno: BS. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
   await page.reload(); assert.match(await page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem').nth(0).textContent(),/BSObjavljeno/);
   // Existing editor and actual renderer: unsaved content, languages, reorder and gallery.
-  await page.goto(origin+'/admin/vijesti/2026-05-03-kurban');
+  await page.goto(origin+'/ulaz7/vijesti/2026-05-03-kurban');
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Nespremljeni naslov');
   await page.getByRole('button',{name:'Osvježi pregled',exact:true}).click();
   await page.frameLocator('iframe').getByRole('heading',{name:'Nespremljeni naslov',exact:true}).waitFor();
@@ -261,7 +261,7 @@ let translationMode = 'success';
   await page.getByRole('button',{name:'Odaberi iz biblioteke',exact:false}).first().click();
   assert.ok(await page.getByRole('button',{name:/^Odaberi:/}).count()>0);
   // Create a real draft using actual service/RPCs against in-memory PostgreSQL fixture.
-  await page.goto(origin+'/admin/vijesti/nova');
+  await page.goto(origin+'/ulaz7/vijesti/nova');
   await page.getByLabel('Datum objave',{exact:true}).fill('2026-10-07');
   await page.getByRole('button',{name:'＋ Tekst',exact:true}).click();
   const jpeg=await sharp({create:{width:96,height:64,channels:3,background:{r:23,g:62,b:43}}}).jpeg().toBuffer();
@@ -293,10 +293,10 @@ let translationMode = 'success';
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).click();
   await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
-  await page.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
-  const savedUrl=page.url().split('?')[0]; assert.match(savedUrl,/\/admin\/vijesti\/[a-f0-9-]+$/);
+  await page.waitForURL(/\/ulaz7\/vijesti\/[a-f0-9-]+\?saved=1$/);
+  const savedUrl=page.url().split('?')[0]; assert.match(savedUrl,/\/ulaz7\/vijesti\/[a-f0-9-]+$/);
   await page.getByRole('link',{name:'← Sve vijesti',exact:true}).click();
-  await page.waitForURL(origin+'/admin/vijesti');
+  await page.waitForURL(origin+'/ulaz7/vijesti');
   await page.goBack(); await page.waitForURL(savedUrl+'?saved=1');
   assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Browser draft BS');
   await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Browser draft BS');
@@ -323,7 +323,7 @@ let translationMode = 'success';
   // All requested mobile widths including native input attributes, thumbnails and preview controls.
   for(const width of [360,390,412,430]) {
     await page.setViewportSize({width,height:900});
-    for(const path of ['/admin/vijesti', '/admin/vijesti/nova','/admin/vijesti/'+id,'/admin/vijesti/2026-05-03-kurban']) {
+    for(const path of ['/ulaz7/vijesti', '/ulaz7/vijesti/nova','/ulaz7/vijesti/'+id,'/ulaz7/vijesti/2026-05-03-kurban']) {
       await page.goto(origin+path); const size=await page.evaluate(()=>({view:document.documentElement.clientWidth,content:document.documentElement.scrollWidth})); if(size.content>size.view+1) { console.log('OVERFLOW',path,width,size,await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).map(e=>({tag:e.tagName,class:e.className,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width,text:e.textContent.slice(0,70)})).filter(e=>e.right>document.documentElement.clientWidth+1).slice(0,15)));  } assert.ok(size.content<=size.view+1,path+' overflow at '+width);
     }
     const input=page.getByLabel('Datoteka · Naslovna slika',{exact:true}); assert.equal(await input.getAttribute('type'),'file'); assert.match(await input.getAttribute('accept'),/image\/jpeg.*image\/png.*image\/webp/);
@@ -332,7 +332,7 @@ let translationMode = 'success';
   }
   // Archive, cancel/confirm trash, restore, and dialog geometry at every width.
   for(const width of [360,390,412,430]) {
-    await page.setViewportSize({width,height:900}); await page.goto(origin+'/admin/vijesti');
+    await page.setViewportSize({width,height:900}); await page.goto(origin+'/ulaz7/vijesti');
     const row=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Browser draft BS',exact:true})});
     await row.getByRole('button',{name:'Obriši',exact:true}).click();
     const bounds=await page.getByRole('dialog').boundingBox(); assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width+1); await page.getByRole('button',{name:'Odustani',exact:true}).click();
@@ -358,7 +358,7 @@ let translationMode = 'success';
   source.blocks=[{id:'first',type:'text',text:bsText('Učenici su posjetili Medresu.')},{id:'photo-one',type:'image',assetId:source.images[0].id},{id:'second',type:'text',text:bsText('Nastavak naše vijesti.')},{id:'photo-two',type:'image',assetId:source.images[0].id},{id:'quote',type:'quote',text:bsText('Znanje nas povezuje.')},{id:'heading',type:'subheading',text:bsText('Naša škola')},{id:'last',type:'text',text:bsText('Zajedništvo učenika i nastavnika.')}];
   const createdTranslation=await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{draft:source}}); assert.equal(createdTranslation.status(),201);
   const translationId=(await createdTranslation.json()).article.draft.id;
-  await page.goto(origin+'/admin/vijesti/'+translationId);
+  await page.goto(origin+'/ulaz7/vijesti/'+translationId);
   await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
   await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
   await page.getByText('Objavljeno: BS. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
@@ -399,10 +399,10 @@ let translationMode = 'success';
   // Real touch events, every mobile width: reachable menu and a complete multi-image draft without dragging.
   const touchContext=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:360,height:900},storageState:await context.storageState()});
   const phone=await touchContext.newPage(); phone.on('pageerror',error=>errors.push(error.message)); phone.on('dialog',dialog=>dialog.accept());
-  const sections=[['Pregled','/admin'],['Vijesti','/admin/vijesti'],['Akcije','/admin/akcije'],['Rezultati','/admin/rezultati'],['Analitika','/admin/analitika']];
+  const sections=[['Pregled','/ulaz7'],['Vijesti','/ulaz7/vijesti'],['Akcije','/ulaz7/akcije'],['Rezultati','/ulaz7/rezultati'],['Analitika','/ulaz7/analitika']];
   const assertFits=async () => assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'phone page overflow at '+(await phone.viewportSize()).width);
   for(const width of [360,390,412,430]) {
-    await phone.setViewportSize({width,height:900}); await phone.goto(origin+'/admin');
+    await phone.setViewportSize({width,height:900}); await phone.goto(origin+'/ulaz7');
     for(const [label,path] of sections) {
       const menu=phone.getByRole('button',{name:'Administracijski meni',exact:true});
       assert.equal(await menu.getAttribute('aria-expanded'),'false');
@@ -419,7 +419,7 @@ let translationMode = 'success';
       await nav.getByRole('link',{name:label,exact:true}).tap(); await phone.waitForURL(origin+path);
       assert.equal(await phone.getByRole('button',{name:'Administracijski meni',exact:true}).getAttribute('aria-expanded'),'false'); await assertFits();
     }
-    await phone.goto(origin+'/admin/vijesti/'+translationId);
+    await phone.goto(origin+'/ulaz7/vijesti/'+translationId);
     await phone.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).tap();
     const translationDialog=await phone.getByRole('dialog').boundingBox(); assert.ok(translationDialog.x>=0&&translationDialog.x+translationDialog.width<=width+1); await assertFits();
     if(width===360) {
@@ -427,7 +427,7 @@ let translationMode = 'success';
       assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows,translationPublications);
       await phone.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:'EN',exact:true}).tap(); await phone.frameLocator('iframe').getByRole('heading',{name:afterTranslation.title.en,exact:true}).waitFor();
     } else await phone.getByRole('button',{name:'Odustani',exact:true}).tap();
-    await phone.goto(origin+'/admin/vijesti/nova');
+    await phone.goto(origin+'/ulaz7/vijesti/nova');
     await phone.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
     const choose=phone.waitForEvent('filechooser'); await phone.getByRole('button',{name:'Odaberi sliku',exact:true}).tap();
     await (await choose).setFiles({name:'phone-cover.jpg',mimeType:'image/jpeg',buffer:jpeg});
@@ -470,18 +470,18 @@ let translationMode = 'success';
     const previewTop=await phone.getByRole('region',{name:'Pregled nacrta',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
     const publishTop=await phone.getByRole('button',{name:'OBJAVI BS',exact:true}).evaluate(e=>e.getBoundingClientRect().top+window.scrollY);
     assert.ok(publishTop>previewTop,'preview before publication');
-    await phone.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).tap(); await phone.waitForURL(/\/admin\/vijesti\/[a-f0-9-]+\?saved=1$/);
+    await phone.getByRole('button',{name:'Kreiraj i sačuvaj nacrt',exact:true}).tap(); await phone.waitForURL(/\/ulaz7\/vijesti\/[a-f0-9-]+\?saved=1$/);
     const phoneId=phone.url().split('?')[0].split('/').pop(); const saved=(await db.query('select document from medresa_admin_articles where id=$1',[phoneId])).rows[0].document;
     assert.deepEqual(saved.blocks.map(b=>b.type),['text','image','text','image','image','subheading','text','quote','image']); assert.equal(saved.images.length,4);
     await phone.reload(); assert.equal(await phone.getByRole('list',{name:'Blokovi članka',exact:true}).getByRole('listitem').count(),9); await assertFits();
     if(process.env.MEDRESA_TEST_SCREENSHOT_DIR) await phone.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'editor-'+width+'.png'),fullPage:true});
   }
   // Keyboard closure and the preserved tablet/desktop navigation.
-  await phone.goto(origin+'/admin'); await phone.getByRole('button',{name:'Administracijski meni',exact:true}).tap();
+  await phone.goto(origin+'/ulaz7'); await phone.getByRole('button',{name:'Administracijski meni',exact:true}).tap();
   await phone.getByRole('navigation',{name:'Administracija',exact:true}).getByRole('link',{name:'Pregled',exact:true}).focus(); await phone.keyboard.press('Escape');
   assert.equal(await phone.getByRole('button',{name:'Administracijski meni',exact:true}).getAttribute('aria-expanded'),'false');
   for(const width of [768,1024,1440]) {
-    await page.setViewportSize({width,height:900}); await page.goto(origin+'/admin');
+    await page.setViewportSize({width,height:900}); await page.goto(origin+'/ulaz7');
     if(width<=900) await page.getByRole('button',{name:'Administracijski meni',exact:true}).click();
     assert.equal(await page.getByRole('navigation',{name:'Administracija',exact:true}).getByRole('link').count(),5);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);
@@ -499,7 +499,7 @@ let translationMode = 'success';
   await publicContext.close();
   await touchContext.close();
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
-  await page.goto(origin+'/admin'); assert.match(page.url(),/\/admin\/login$/);
+  await page.goto(origin+'/ulaz7'); assert.match(page.url(),/\/ulaz7\/login$/);
   assert.deepEqual(errors,[]);
   console.log('PASS: OpenAI translation API fixtures; BS/master and ordered images unchanged; atomic draft persistence; human review/independent SQ publication; manual overwrite confirmation/cancel; provider/invalid-output failure recovery; automatic locked Article preview; missing-key disabled action; translation dialogs at 360/390/412/430; public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);

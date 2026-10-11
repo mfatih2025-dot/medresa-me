@@ -1,11 +1,13 @@
 /** Language-neutral institutional facts and routes (source: medresa.me). */
+import { siteUrl } from "@/seo/config";
 
 export const site = {
   name: "Medresa „Mehmed Fatih“",
   shortName: "Medresa",
   /** Seat of the Medresa (Tuzi, Montenegro); never Podgorica. */
   place: "Tuzi",
-  url: "https://www.medresa.me",
+  /** The production address (src/seo/config.ts). */
+  url: siteUrl,
   eMedresa: "https://www.e-medresa.me/",
   logo: { src: "/brand/medresa-logo.png", width: 640, height: 640 },
   contact: {

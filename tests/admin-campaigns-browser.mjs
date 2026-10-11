@@ -42,7 +42,7 @@ const origin='http://localhost:3214';
     const res=await context.request.post(origin+'/api/admin/campaigns',{headers:{Origin:origin},data:body});assert.ok(res.ok(),await res.text());return (await res.json()).campaign;
   };
   try {
-    assert.ok([302,307].includes((await context.request.get(origin+'/admin/akcije',{maxRedirects:0})).status()));
+    assert.ok([302,307].includes((await context.request.get(origin+'/ulaz7/akcije',{maxRedirects:0})).status()));
     assert.equal((await context.request.get(origin+'/api/admin/campaigns')).status(),401);
     assert.equal((await context.request.post(origin+'/api/admin/campaigns',{headers:{Origin:origin},data:{}})).status(),401);
     assert.equal((await context.request.post(origin+'/api/admin/campaigns/assets',{headers:{Origin:origin,'Content-Type':'image/png'},data:png})).status(),401);
@@ -51,7 +51,7 @@ const origin='http://localhost:3214';
     await page.goto(origin+'/historijat');await page.waitForFunction(()=>document.fonts.status==='loaded');
     assert.equal(await dialog.count(),0);assert.equal(await current(),null);
     const publicBaseline=await page.locator('main').boundingBox();
-    await page.goto(origin+'/admin/akcije');await page.getByRole('heading',{name:'Akcije',exact:true}).waitFor();assert.ok((await page.locator('main').innerText()).includes('Trenutno nema akcija.'));
+    await page.goto(origin+'/ulaz7/akcije');await page.getByRole('heading',{name:'Akcije',exact:true}).waitFor();assert.ok((await page.locator('main').innerText()).includes('Trenutno nema akcija.'));
     await page.getByRole('button',{name:'Nova akcija',exact:true}).click();
     for (const width of [360,390,412,430]) { await page.setViewportSize({width,height:844}); assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Admin form overflow '+width); }
     await page.setViewportSize({width:390,height:844});
@@ -60,7 +60,7 @@ const origin='http://localhost:3214';
     await page.getByAltText('Odabrani poster').waitFor();await save();assert.equal(await current(),null);
     let first=(await adminRows())[0];const originalAsset=first.poster.id;assert.equal(Date.parse(first.startsAt),Date.parse('2000-01-01T15:00:00Z'),'Browser-local input persists as the correct UTC instant');
     assert.equal(createHash('sha256').update(await(await context.request.get(origin+first.poster.src)).body()).digest('hex'),createHash('sha256').update(png).digest('hex'));
-    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);for(const l of ['sq','en'])assert.equal((await(await context.request.get(origin+'/api/campaigns/current?locale='+l)).json()).campaign,null);await page.goto(origin+'/sq/historiku');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on SQ');await page.goto(origin+'/en/history');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on EN');await page.goto(origin+'/admin/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
+    await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);for(const l of ['sq','en'])assert.equal((await(await context.request.get(origin+'/api/campaigns/current?locale='+l)).json()).campaign,null);await page.goto(origin+'/sq/historiku');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on SQ');await page.goto(origin+'/en/history');await page.waitForTimeout(250);assert.equal(await dialog.count(),0,'BS active popup never appears on EN');await page.goto(origin+'/ulaz7/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await page.getByLabel('Tekst dugmeta').fill('SAZNAJ VIŠE');await save();first=(await adminRows())[0];assert.equal((await current()).id,first.id);
     await page.getByRole('button',{name:'Provjeri prikaz',exact:true}).first().click();await page.getByText('Akcija je spremna za prikaz nakon izbora jezika.',{exact:true}).waitFor();
     await page.goto(origin+'/historijat');await dialog.waitFor();await page.waitForFunction(()=>document.fonts.status==='loaded');
     assert.ok(!(await dialog.innerText()).includes(first.name));assert.equal(await dialog.locator('a').getAttribute('href'),'/upis?fixture=exact#destination');
@@ -84,12 +84,12 @@ const origin='http://localhost:3214';
     // Editing the same ID changes its version; new campaign is independently dismissible.
     first=await directSave(first,{ctaText:'Updated fixture CTA'});await page.goto(origin+'/historijat');await dialog.waitFor();await page.mouse.click(2,2);await dialog.waitFor({state:'detached'});
     // Poster replacement and removal keep original uploads/history private and intact.
-    await page.goto(origin+'/admin/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();
+    await page.goto(origin+'/ulaz7/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();
     const landscape=await sharp({create:{width:1200,height:600,channels:3,background:'#b39961'}}).png().toBuffer();
     await page.getByLabel('Odaberi sliku',{exact:true}).setInputFiles({name:'landscape-fixture.png',mimeType:'image/png',buffer:landscape});await page.getByAltText('Odabrani poster').waitFor();await save();first=(await adminRows())[0];assert.notEqual(first.poster.id,originalAsset);
     await page.goto(origin+'/historijat');await dialog.waitFor();await dialog.locator('img').evaluate(el=>el.decode());assert.ok(Math.abs((await dialog.locator('img').boundingBox()).width/(await dialog.locator('img').boundingBox()).height-2)<0.01);const exactHref=await dialog.locator('a').getAttribute('href'); await Promise.all([page.waitForURL(origin+exactHref),dialog.locator('a').click()]); assert.equal(page.url(),origin+exactHref);
     first=await directSave(first,{active:false});assert.equal(await current(),null);
-    await page.goto(origin+'/admin/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByRole('button',{name:'Ukloni',exact:true}).click();assert.equal(await page.getByAltText('Odabrani poster').count(),0);await save();first=(await adminRows())[0];assert.equal(first.poster,null);assert.equal(objects.size,2);
+    await page.goto(origin+'/ulaz7/akcije');await page.getByRole('button',{name:'Uredi',exact:true}).first().click();await page.getByRole('button',{name:'Ukloni',exact:true}).click();assert.equal(await page.getByAltText('Odabrani poster').count(),0);await save();first=(await adminRows())[0];assert.equal(first.poster,null);assert.equal(objects.size,2);
     await page.getByRole('button',{name:'Nova akcija',exact:true}).click();await page.getByLabel('Naziv akcije').fill('Second internal fixture');await page.getByLabel('Link',{exact:true}).fill('/donacije');await page.getByLabel('Odaberi sliku',{exact:true}).setInputFiles({name:'new-fixture.png',mimeType:'image/png',buffer:png});await page.getByAltText('Odabrani poster').waitFor();await fillTranslations();await page.getByLabel('Status',{exact:true}).selectOption('active');await save();
     let second=(await adminRows()).find(c=>c.id!==first.id);await page.goto(origin+'/historijat');await dialog.waitFor();assert.equal(await dialog.locator('a').getAttribute('href'),'/donacije');assert.equal((await current()).id,second.id);
     for (const [width,height] of [[600,1800],[800,800]]) {
@@ -116,7 +116,7 @@ const origin='http://localhost:3214';
     await page.goto(origin+'/sq/historiku');await dialog.waitFor();assert.equal((await dialog.locator('a').innerText()).replace(/\s+/g,' '),'SQ fixture →');assert.equal(await dialog.locator('a').getAttribute('href'),'/sq/regjistrimi');
     await dialog.getByRole('button').click();await dialog.waitFor({state:'detached'});await page.goto(origin+'/en/history');assert.equal(await dialog.count(),0,'Dismissal is shared across languages');
     second=await directSave(second,{ctaText:'New version fixture'});await page.reload();await dialog.waitFor();assert.equal(await dialog.locator('a').getAttribute('href'),'/en/admissions');await dialog.getByRole('button').click();
-    await page.goto(origin+'/admin/akcije');
+    await page.goto(origin+'/ulaz7/akcije');
     const target=page.locator('li').filter({has:page.getByRole('heading',{name:second.name,exact:true})});
     for(const width of [360,390,412,430,1440]) { await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);const box=await target.getByRole('button',{name:'Obriši',exact:true}).boundingBox();assert.ok(box.height>=44); }
     await target.getByRole('button',{name:'Obriši',exact:true}).click();const confirmation=page.getByRole('dialog',{name:'Obriši akciju'});await confirmation.waitFor();assert.ok((await confirmation.innerText()).includes(second.name));await confirmation.getByRole('button',{name:'Odustani'}).click();assert.equal((await adminRows()).length,2,'Cancel performs no deletion');

@@ -119,7 +119,7 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
   const views = periodViews(data.reports);
   const lastRefreshed = data.reports.map(r => r.lastSuccessAt).filter((value): value is string => !!value && Number.isFinite(Date.parse(value))).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
   const website = data.reports.find(r => r.provider === "website");
-  return <div className={styles.dashboard}><Shell active="/admin/analitika" title="Analitika" intro="Pregledi, publika i sadržaj.">
+  return <div className={styles.dashboard}><Shell active="/ulaz7/analitika" title="Analitika" intro="Pregledi, publika i sadržaj.">
     <div className={styles.toolbar}>
       <div className={styles.controls}><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div><button className={`${shared.primary} ${styles.refresh}`} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing ? "Osvježavam podatke…" : "Osvježi podatke"}</button></div>
       <p className={styles.refreshed}>Posljednje osvježeno: {date(lastRefreshed)}</p>

@@ -4,7 +4,7 @@ import { safeId } from "@/admin/contracts";
 import { protectPage } from "@/server/admin/auth";
 import { editorProps } from "@/server/admin/editor";
 export const getServerSideProps: GetServerSideProps<EditorProps> = async context => {
-  if (!protectPage(context)) return { redirect: { destination: "/admin/login", permanent: false } };
+  if (!protectPage(context)) return { redirect: { destination: "/ulaz7/login", permanent: false } };
   const id = context.params?.id;
   if (!safeId(id)) return { notFound: true };
   const props = await editorProps(id);

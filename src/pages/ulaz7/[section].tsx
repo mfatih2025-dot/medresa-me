@@ -19,7 +19,7 @@ import { listNews } from "@/server/admin/news";
 import { backendState } from "@/server/admin/supabase";
 type Props = { admissions: AdmissionsControl | null; results: ResultsLibrary | null; campaigns: CampaignLibrary | null; section: string; rows: NewsListRow[]; preview: ManagedArticle | null; backend: BackendState; analytics: AnalyticsDashboard | null };
 export const getServerSideProps: GetServerSideProps<Props> = async context => {
-  if (!protectPage(context)) return { redirect: { destination: "/admin/login", permanent: false } };
+  if (!protectPage(context)) return { redirect: { destination: "/ulaz7/login", permanent: false } };
   const section = String(context.params?.section);
   if (!["vijesti", "akcije", "rezultati", "analitika"].includes(section)) return { notFound: true };
   const library = section === "vijesti" ? await listNews() : { rows: [], backend: backendState() };

@@ -49,6 +49,13 @@
     --section-y: 5.75rem;
   }
 }
+/* Large desktop: the page grows with the screen instead of floating in the
+   middle of it (content 1456px at 1920, from 1296px). */
+@media (min-width: 1600px) {
+  :root {
+    --max: 100rem;
+  }
+}
 
 html {
   background: var(--color-ivory);
@@ -1166,4 +1173,138 @@ html[data-gateway] .gw {
   from {
     translate: 0 108%;
   }
+}
+
+/* ---------- Kućni red ----------
+   One document on a gold guide: number column · guide · text. Numbers are
+   quiet markers set on the text's first line; the measure stays a reading
+   measure at every width (the frame is offset, never stretched). */
+.kr-frame {
+  --kr-num: 2rem;
+  --kr-gap: 1rem;
+  max-width: 54rem;
+}
+.kr-guide {
+  left: calc(var(--kr-num) + var(--kr-gap));
+}
+.kr-rule {
+  grid-template-columns: var(--kr-num) minmax(0, 1fr);
+  column-gap: calc(var(--kr-gap) * 2 + 1px);
+  padding-bottom: 1.375rem;
+}
+.kr-rule:last-child {
+  padding-bottom: 0;
+}
+.kr-num {
+  font-size: 1rem;
+  line-height: 1.7rem;
+  letter-spacing: 0.02em;
+}
+.kr-tick {
+  top: 0.85rem;
+  left: calc(var(--kr-num) + var(--kr-gap) * 0.35);
+  width: calc(var(--kr-gap) * 0.65);
+}
+.kr-text {
+  font-size: 1.0625rem;
+  line-height: 1.7rem;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+@media (min-width: 768px) {
+  .kr-frame {
+    --kr-num: 3.25rem;
+    --kr-gap: 1.5rem;
+  }
+  .kr-rule {
+    padding-bottom: 1.75rem;
+  }
+  .kr-num {
+    font-size: 1.375rem;
+    line-height: 2rem;
+    text-align: right;
+  }
+  .kr-tick {
+    top: 1rem;
+  }
+  .kr-text {
+    font-size: 1.1875rem;
+    line-height: 2rem;
+  }
+}
+@media (min-width: 1024px) {
+  .kr-frame {
+    --kr-num: 4.5rem;
+    --kr-gap: 2rem;
+    margin-left: calc(100% / 12);
+  }
+  .kr-num {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+  }
+  .kr-tick {
+    top: 1.0625rem;
+  }
+  .kr-text {
+    font-size: 1.25rem;
+    line-height: 2.125rem;
+  }
+}
+/* The spread (see KucniRed.tsx): the frame sits in its own columns. */
+@media (min-width: 1280px) {
+  .kr-frame {
+    margin-left: 0;
+  }
+}
+
+/* Kućni red — the highlighter on rules 04 and 14.
+   Two backgrounds on one inline span, laid across its line fragments as a
+   single strip (box-decoration-break: slice), so the reveal runs along line 1,
+   then line 2, exactly as the text is wrapped at any width:
+     1. paper over everything not yet marked, with a soft ink-like leading edge
+     2. the stroke: a soft-gold band with slightly uneven edges, low on the line
+   With --kr-p at 0 the paper layer covers the stroke completely: the rule looks
+   exactly as it does unmarked. */
+.kr-mark {
+  --kr-p: 0;
+  --kr-edge: 1.1em;
+  --kr-at: calc(var(--kr-p) * (100% + var(--kr-edge)));
+  background-image:
+    linear-gradient(
+      to right,
+      rgb(251 248 241 / 0) calc(var(--kr-at) - var(--kr-edge)),
+      rgb(251 248 241 / 0.55) calc(var(--kr-at) - var(--kr-edge) * 0.4),
+      var(--color-paper) var(--kr-at)
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 24' preserveAspectRatio='none'%3E%3Cpath fill='%23e3c78f' fill-opacity='.62' d='M0 9.6C22 8.7 41 10.3 63 9.4s47-1.3 70 .2 44 .9 63-.5 31-.6 44 .5V22c-17 .9-36-.3-58 .6s-46 1.1-71-.2-43-.8-64 .4S12 22.9 0 22.4Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, repeat-x;
+  background-size:
+    100% 100%,
+    11em 100%;
+  background-position: 0 0;
+  -webkit-box-decoration-break: slice;
+  box-decoration-break: slice;
+}
+
+/* Kućni red — fail-safe visibility.
+   The text arrives through motion that starts from a hidden state written into
+   the server's HTML. If the page never becomes live (JavaScript blocked, failed
+   or very slow), these rules show it after 2.5s anyway: a CSS animation outranks
+   the inline hidden style. Header pieces (title, subtitle, rule) have entered
+   well before then, so theirs simply stays on. The rules' scroll entrances keep
+   their motion: the list gets [data-live] as soon as the page is live, which
+   turns this off for them (see RulesList). */
+@keyframes kr-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kr-head .line-mask > *,
+.kr-head .kr-sub,
+.kr-head .kr-headrule,
+.kr-list:not([data-live]) .kr-num,
+.kr-list:not([data-live]) .kr-text {
+  animation: kr-failsafe 0.01s 2.5s forwards;
 }

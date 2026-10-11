@@ -37,9 +37,9 @@ test("Admin overview retains authentication and no longer exposes setup diagnost
     "@/server/admin/auth": { protectPage: () => session },
     "@/server/admin/news": { listNews: async () => { reads++; return { backend: { state: "connected", writable: false } }; } },
   });
-  const page = pageLoader("src/pages/admin/index.tsx");
+  const page = pageLoader("src/pages/ulaz7/index.tsx");
   configure();
-  assert.deepEqual(await page.getServerSideProps({}), { redirect: { destination: "/admin/login", permanent: false } }); assert.equal(reads, 0);
+  assert.deepEqual(await page.getServerSideProps({}), { redirect: { destination: "/ulaz7/login", permanent: false } }); assert.equal(reads, 0);
   session = { user: "explicit-page-fixture" };
   assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, undefined);
   process.env.VERCEL_ENV = "production"; assert.equal((await page.getServerSideProps({})).props.diagnosticsAvailable, undefined);

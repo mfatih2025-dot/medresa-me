@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Privatni pregled članka", robots: { index: false, follow: false }, alternates: { canonical: null, languages: {} } };
 /** The actual locked renderer, not an approximation. Read-only existing articles in Phase 1. */
 export default async function AdminPreview({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string }> }) {
-  if (!verifySession((await cookies()).get(cookieName())?.value)) redirect("/admin/login");
+  if (!verifySession((await cookies()).get(cookieName())?.value)) redirect("/ulaz7/login");
   const { id } = await params;
   if (id === "editor") return <PreviewReceiver />;
   const { locale: requested } = await searchParams;

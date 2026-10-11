@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { tiuContent } from "@/content/tiu";
 import { Tiu } from "@/components/tiu/Tiu";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -13,5 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Takmičenja i uspjesi: the students' achievements, year by year. */
 export default async function Page({ params }: Props) {
-  return <Tiu locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="tiu" locale={locale} />
+      <Tiu locale={locale} />
+    </>
+  );
 }

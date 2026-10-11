@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { historijatContent } from "@/content/historijat";
 import { History } from "@/components/historijat/History";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -13,5 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Historijat: the history of the Medresa, told along its own timeline. */
 export default async function Page({ params }: Props) {
-  return <History locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="historijat" locale={locale} />
+      <History locale={locale} />
+    </>
+  );
 }

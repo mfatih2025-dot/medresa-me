@@ -18,7 +18,7 @@ const image=()=>sharp({create:{width:600,height:900,channels:3,background:'#123c
 test('campaign contract rejects executable destinations, unsafe assets, malformed schedules and active missing posters',()=>{
   validateCampaign(draft());
   for(const url of ['/upis','/donacije?akcija=1#info','https://example.org/path?q=1#exact'])assert.equal(validDestination(url),true);
-  for(const url of ['javascript:alert(1)','data:text/html,x','//evil.example','/\\evil.example','https://user:pass@example.org','/admin','/api/admin/login','/./admin','/%61dmin','/upis\n',' http://x','http://example.org',''])assert.equal(validDestination(url),false,url);
+  for(const url of ['javascript:alert(1)','data:text/html,x','//evil.example','/\\evil.example','https://user:pass@example.org','/admin','/ulaz7','/api/admin/login','/./admin','/%61dmin','/upis\n',' http://x','http://example.org',''])assert.equal(validDestination(url),false,url);
   for(const patch of [{active:true},{name:''},{name:'x'.repeat(161)},{content:{bs:{text:'',link:''}}},{revision:-1},{posterId:'bad'},{startsAt:'2026-02-31T12:00:00Z'},{startsAt:'2026-10-10T12:00:00.000Z',endsAt:'2026-10-10T11:00:00.000Z'}])assert.throws(()=>validateCampaign(draft(patch)));
 });
 test('manual status and schedule boundaries select just one campaign; no name in public projection',()=>{

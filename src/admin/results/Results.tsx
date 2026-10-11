@@ -40,7 +40,7 @@ export function Results({initial,admissions}:{initial:ResultsLibrary;admissions?
   finally{lock.current=false;setBusy(false);}
  };
  const draft=state?.drafts[locale],published=state?.published[locale]?.file,ready=!!state?.drafts[locale];
- return <Shell active="/admin/rezultati" title="Rezultati ispita" intro="Jedni rezultati · nezavisne jezičke objave.">
+ return <Shell active="/ulaz7/rezultati" title="Rezultati ispita" intro="Jedni rezultati · nezavisne jezičke objave.">
   {initial.message&&<p className={shared.notice} role="status">{initial.message}</p>}
   {message&&<p className={styles.notice} role="status">{message}</p>}
   <section className={styles.admissions} aria-label="Status upisa"><h2>STATUS UPISA</h2><div className={styles.actions} role="group" aria-label="OPEN / CLOSED">{(["open","closed"] as const).map(status=><button key={status} aria-pressed={admission?.status===status} className={admission?.status===status?shared.primary:shared.secondary} disabled={!admissions?.writable||!admission||statusBusy||busy} onClick={()=>void updateStatus(status)}>{status.toUpperCase()}</button>)}</div>{admissions?.message&&<p className={styles.context} role="status">{admissions.message}</p>}</section>

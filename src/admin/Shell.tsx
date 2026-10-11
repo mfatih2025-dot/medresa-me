@@ -5,11 +5,11 @@ import { useId, useRef, useState, type ReactNode } from "react";
 import styles from "./admin.module.css";
 
 export const navigation = [
-  { href: "/admin", label: "Dashboard", mobileLabel: "Pregled", mark: "overview" },
-  { href: "/admin/vijesti", label: "Vijesti", mobileLabel: "Vijesti", mark: "news" },
-  { href: "/admin/akcije", label: "Akcije", mobileLabel: "Akcije", mark: "campaign" },
-  { href: "/admin/rezultati", label: "Rezultati ispita", mobileLabel: "Rezultati", mark: "document" },
-  { href: "/admin/analitika", label: "Analitika", mobileLabel: "Analitika", mark: "analytics" },
+  { href: "/ulaz7", label: "Dashboard", mobileLabel: "Pregled", mark: "overview" },
+  { href: "/ulaz7/vijesti", label: "Vijesti", mobileLabel: "Vijesti", mark: "news" },
+  { href: "/ulaz7/akcije", label: "Akcije", mobileLabel: "Akcije", mark: "campaign" },
+  { href: "/ulaz7/rezultati", label: "Rezultati ispita", mobileLabel: "Rezultati", mark: "document" },
+  { href: "/ulaz7/analitika", label: "Analitika", mobileLabel: "Analitika", mark: "analytics" },
 ];
 export function Mark({ kind }: { kind: string }) {
   const paths: Record<string, ReactNode> = {
@@ -27,10 +27,10 @@ export function Shell({ active, title, intro, children, action }: { active: stri
   const menuButton = useRef<HTMLButtonElement>(null);
   const current = navigation.find(n => n.href === active) ?? navigation[0];
   return <div className={styles.shell}>
-    <Head><title>{title} · Medresa administracija</title></Head>
+    <Head><meta name="robots" content="noindex, nofollow" /><title>{title} · Medresa administracija</title></Head>
     <a className={styles.skip} href="#admin-main">Preskoči na sadržaj</a>
     <aside className={styles.sidebar}>
-      <Link className={styles.brand} href="/admin"><Image src="/brand/medresa-logo.png" alt="" width={44} height={44} /><span>Mehmed Fatih<small>Administracija</small></span></Link>
+      <Link className={styles.brand} href="/ulaz7"><Image src="/brand/medresa-logo.png" alt="" width={44} height={44} /><span>Mehmed Fatih<small>Administracija</small></span></Link>
       <span className={styles.navCaption}>Radni prostor</span>
       <button ref={menuButton} type="button" className={styles.mobileMenu} aria-label="Administracijski meni" aria-expanded={menuOpen} aria-controls={navId} onClick={() => setMenuOpen(v => !v)}><span><Mark kind={current.mark} />{current.mobileLabel}</span><span>Meni <span aria-hidden="true">{menuOpen ? "−" : "+"}</span></span></button>
       <nav id={navId} aria-label="Administracija" className={menuOpen ? styles.navigationOpen : undefined} onKeyDown={e => { if (e.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); } }}>{navigation.map(n => <Link key={n.href} href={n.href} onClick={() => setMenuOpen(false)} aria-current={active === n.href ? "page" : undefined} className={active === n.href ? styles.navActive : styles.navItem}><Mark kind={n.mark} /><span className={styles.desktopNavLabel}>{n.label}</span><span className={styles.mobileNavLabel}>{n.mobileLabel}</span></Link>)}</nav>

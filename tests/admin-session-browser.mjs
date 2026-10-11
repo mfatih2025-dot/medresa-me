@@ -59,12 +59,12 @@ try {
   const page = await context.newPage();
   const locked = await page.goto(origin + '/api/admin/diagnostics?connectivity=1');
   assert.equal(locked.status(), 401); assert.equal(reads, 0);
-  await page.goto(origin + '/admin/login');
+  await page.goto(origin + '/ulaz7/login');
   await page.getByLabel('Korisničko ime', { exact: true }).fill('browser-fixture');
   await page.getByLabel('Lozinka', { exact: true }).fill(password);
   const loginResponse = page.waitForResponse(r => r.url() === origin + '/api/admin/login');
   await page.getByRole('button', { name: 'Uđi u administraciju →', exact: true }).click();
-  assert.equal((await loginResponse).status(), 200); await page.waitForURL(origin + '/admin');
+  assert.equal((await loginResponse).status(), 200); await page.waitForURL(origin + '/ulaz7');
   const cookie = (await context.cookies()).find(c => c.name === '__Host-medresa-admin');
   assert.ok(cookie); assert.equal(cookie.path, '/'); assert.equal(cookie.domain, 'preview.example.test');
   assert.equal(cookie.httpOnly, true); assert.equal(cookie.secure, true); assert.equal(cookie.sameSite, 'Strict');
@@ -78,7 +78,7 @@ try {
   assert.equal((await crossSiteResponse).status(), 401); assert.equal(reads, beforeExternal);
 
   // The existing session remains valid. Internal maintenance still uses same-origin fetch.
-  await page.goto(origin + '/admin'); assert.equal(page.url(), origin + '/admin');
+  await page.goto(origin + '/ulaz7'); assert.equal(page.url(), origin + '/ulaz7');
   const beforeCheck = reads;
   const probeRequest = page.waitForRequest(r => r.url() === origin + '/api/admin/diagnostics?connectivity=1');
   const probeBody = await page.evaluate(() => fetch('/api/admin/diagnostics?connectivity=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()));
@@ -126,8 +126,8 @@ try {
   assert.equal(loggedOut.status(), 401); assert.equal(reads, beforeLogoutCheck);
   // Redirect follow-ups escape browser route interception for virtual HTTPS hosts.
   // Verify the real protected-page response through the localhost bridge instead.
-  const loggedOutPage = await realFetch(local + '/admin', { redirect: 'manual', headers: { Host: 'preview.example.test' } });
-  assert.ok([302, 307].includes(loggedOutPage.status)); assert.equal(loggedOutPage.headers.get('location'), '/admin/login');
+  const loggedOutPage = await realFetch(local + '/ulaz7', { redirect: 'manual', headers: { Host: 'preview.example.test' } });
+  assert.ok([302, 307].includes(loggedOutPage.status)); assert.equal(loggedOutPage.headers.get('location'), '/ulaz7/login');
   console.log('PASS: Strict cookie/same-origin diagnostic; missing key, URL normalization and HTTPS failures identified without secret values or provider requests; read-only probe; 360/390/412/430 px; unauthenticated and logged-out requests remain blocked. Local fixtures only.');
 } finally {
   await browser.close(); await new Promise(done => server.close(done)); await app.close(); globalThis.fetch = realFetch;

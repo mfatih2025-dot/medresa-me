@@ -108,12 +108,12 @@ const origin='http://localhost:3213';
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const snapshot=async(table,order)=>JSON.stringify((await db.query(`select * from ${table} order by ${order}`)).rows);
   const savedHistory=JSON.parse(await snapshot('medresa_analytics_sync_runs','id'));
-  assert.ok([302,307].includes((await context.request.get(origin+'/admin/analitika',{maxRedirects:0})).status()));
+  assert.ok([302,307].includes((await context.request.get(origin+'/ulaz7/analitika',{maxRedirects:0})).status()));
   assert.equal((await context.request.get(origin+'/api/admin/analytics')).status(),401);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:{period:'30',requestId:randomUUID()}})).status(),401);
   assert.equal((await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:process.env.MEDRESA_ADMIN_USER,password}})).status(),200);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:'https://evil.invalid'},data:{period:'30',requestId:randomUUID()}})).status(),403);
-  await page.goto(origin+'/admin/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
+  await page.goto(origin+'/ulaz7/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
   const clean=async()=>{
     const text=await page.locator('main').innerText();
     for(const removed of ['Posljednja osvježavanja','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
@@ -162,7 +162,7 @@ const origin='http://localhost:3213';
   const storedPeriods=(await db.query("select count(*) as count from medresa_analytics_reports where start_date<>$1",[first.dashboard.reports[0].range.start])).rows[0].count;assert.ok(storedPeriods>=16,'Older period snapshots must remain available');
   const calls=providerCalls.length;const repeated=await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:origin},data:firstRequest});assert.equal(repeated.status(),200);assert.equal(providerCalls.length,calls,'Idempotent request must not fetch providers again');
   await page.reload();await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
-  const inert=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await inert.addCookies(await context.cookies());const serverPage=await inert.newPage();await serverPage.goto(origin+'/admin/analitika');
+  const inert=await browser.newContext({viewport:{width:430,height:900},javaScriptEnabled:false});await inert.addCookies(await context.cookies());const serverPage=await inert.newPage();await serverPage.goto(origin+'/ulaz7/analitika');
   const leafText=p=>p.locator('main').evaluate(root=>{const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[];while(walker.nextNode()){const text=walker.currentNode.textContent.trim();if(text)out.push(text);}return out;});assert.deepEqual(await leafText(page),await leafText(serverPage),'Server/client analytics text must agree');await inert.close();
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
   for(const width of [768,1024,1440]) {await page.setViewportSize({width,height:1000});await fits(width);if(process.env.MEDRESA_TEST_SCREENSHOT_DIR){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(process.env.MEDRESA_TEST_SCREENSHOT_DIR,'analytics-'+width+'.png'),fullPage:false});}}

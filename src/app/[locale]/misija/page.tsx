@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { misijaContent } from "@/content/misija";
 import { Misija } from "@/components/misija/Misija";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -13,5 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Misija i vizija: the institution's statement of purpose, signed by the Reis. */
 export default async function Page({ params }: Props) {
-  return <Misija locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="misija" locale={locale} />
+      <Misija locale={locale} />
+    </>
+  );
 }

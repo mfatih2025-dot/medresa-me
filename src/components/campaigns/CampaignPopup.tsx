@@ -17,7 +17,7 @@ function accepted(value: unknown): value is PublicCampaign {
 export function CampaignPopup() {
   const pathname = usePathname();
   const locale = useLocale();
-  const privatePage = !pathname || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin-preview/");
+  const privatePage = !pathname || pathname === "/ulaz7" || pathname.startsWith("/ulaz7/") || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin-preview/");
   const [campaign, setCampaign] = useState<(PublicCampaign & { locale: typeof locale }) | null>(null), [gateway, setGateway] = useState(true);
   useEffect(() => {
     const root = document.documentElement;
