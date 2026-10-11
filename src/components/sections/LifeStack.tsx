@@ -102,6 +102,13 @@ const deck = [
  * slides out from under the green card at its own pace and settles at a slight
  * tilt, revealing more of itself. As it leaves, the layers drift apart in depth.
  * Scroll is only read, never held; everything is transform/opacity.
+ *
+ * No `will-change` here on purpose: it kept every photograph as three permanent
+ * GPU layers (frame, clip, scaled image). Phones evict such layers once they are
+ * far off screen and, with their transforms already at rest, may never repaint
+ * them on the way back: the four photographs vanished behind an intact green
+ * card. The browser promotes the layers by itself while they move; at rest they
+ * are ordinary painted content and always come back.
  */
 export function LifeStack({ dict }: { dict: Dictionary }) {
   const { life } = dict;
@@ -143,11 +150,11 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
 
           {/* The green card: the stack's top layer. */}
           <motion.div
-            className="absolute inset-x-[5%] top-[35%] z-10 will-change-transform md:inset-x-auto md:left-[22%] md:top-[27%] md:w-[56%] lg:left-[23%] lg:top-[34%] lg:w-[40%]"
+            className="absolute inset-x-[5%] top-[35%] z-10 md:inset-x-auto md:left-[22%] md:top-[27%] md:w-[56%] lg:left-[23%] lg:top-[34%] lg:w-[40%]"
             style={reduced ? undefined : { y: cardDrift }}
           >
             <motion.div
-              className="relative overflow-hidden rounded-[26px] bg-green-deep p-6 will-change-transform text-ivory shadow-[0_40px_80px_-36px_rgb(10_42_33/0.65),0_2px_6px_rgb(10_42_33/0.18)] min-[400px]:p-7 md:rounded-[30px] md:p-10 lg:rounded-[34px] lg:p-12"
+              className="relative overflow-hidden rounded-[26px] bg-green-deep p-6 text-ivory shadow-[0_40px_80px_-36px_rgb(10_42_33/0.65),0_2px_6px_rgb(10_42_33/0.18)] min-[400px]:p-7 md:rounded-[30px] md:p-10 lg:rounded-[34px] lg:p-12"
               style={reduced ? undefined : { y: cardY, scale: cardScale }}
             >
               <div
@@ -207,15 +214,15 @@ function Photo({
 
   return (
     <motion.div
-      className={`absolute will-change-transform ${d.place}`}
+      className={`absolute ${d.place}`}
       style={{ zIndex: z, ...(still ? {} : { y: drift }) }}
     >
       <motion.figure
-        className="relative h-full w-full overflow-hidden will-change-transform rounded-[20px] bg-sand shadow-[0_28px_56px_-30px_rgb(10_42_33/0.5),0_1px_3px_rgb(10_42_33/0.12)] [clip-path:inset(0_round_20px)] md:rounded-[24px] md:[clip-path:inset(0_round_24px)] lg:rounded-[28px] lg:[clip-path:inset(0_round_28px)]"
+        className="relative h-full w-full overflow-hidden rounded-[20px] bg-sand shadow-[0_28px_56px_-30px_rgb(10_42_33/0.5),0_1px_3px_rgb(10_42_33/0.12)] [clip-path:inset(0_round_20px)] md:rounded-[24px] md:[clip-path:inset(0_round_24px)] lg:rounded-[28px] lg:[clip-path:inset(0_round_28px)]"
         style={still ? { rotate: compact ? d.rest * 0.7 : d.rest } : { x, y, rotate }}
       >
         <motion.div
-          className="absolute inset-0 will-change-transform"
+          className="absolute inset-0"
           style={still ? undefined : { scale: inner }}
         >
           <Image
