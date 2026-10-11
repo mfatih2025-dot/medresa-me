@@ -57,7 +57,10 @@ export function localizedMetadata(
     title: { absolute: fullTitle },
     ...(desc ? { description: desc } : {}),
     alternates: { canonical: url, languages: { ...languages, "x-default": xDefault } },
-    ...(noindex || !indexable ? { robots: { index: false, follow: true } } : {}),
+    robots:
+      noindex || !indexable
+        ? { index: false, follow: true }
+        : { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: {
       title,
       ...(desc ? { description: desc } : {}),

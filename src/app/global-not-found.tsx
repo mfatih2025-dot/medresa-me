@@ -11,7 +11,7 @@ import { dictionaries } from "@/content";
  */
 export const metadata: Metadata = {
   title: `${dictionaries.bs.ui.notFound} · ${siteNames.bs}`,
-  robots: { index: false, follow: true },
+  robots: { index: false, follow: false },
 };
 
 export default function GlobalNotFound() {

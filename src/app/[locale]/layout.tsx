@@ -6,7 +6,7 @@ import { getDictionary } from "@/content";
 import { site } from "@/content/site";
 import { isLocale, locales } from "@/i18n/config";
 import { asLocale, siteNames } from "@/i18n/metadata";
-import { googleVerification, indexable, ogLocale, siteUrl } from "@/seo/config";
+import { googleVerification, ogLocale, siteUrl } from "@/seo/config";
 
 /**
  * The root layout, one per language: every page is served with <html lang>
@@ -21,7 +21,7 @@ export function generateStaticParams() {
 
 type Props = { children: ReactNode; params: Promise<{ locale: string }> };
 
-/** Defaults for every page in a language; each page sets its own title, description, canonical and alternates. */
+/** Defaults for every page in a language; each page sets its own title, description, canonical, alternates and robots. */
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const locale = asLocale((await params).locale);
   const { meta } = getDictionary(locale);
@@ -30,9 +30,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title: { default: meta.title, template: `%s · ${siteNames[locale]}` },
     description: meta.description,
     applicationName: siteNames[locale],
-    ...(indexable
-      ? { robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } }
-      : { robots: { index: false, follow: false } }),
+    // The fallback for anything without page metadata — the 404 pages. Every
+    // public page states its own directive (localizedMetadata in src/i18n/metadata.ts).
+    robots: { index: false, follow: false },
     openGraph: { siteName: siteNames[locale], locale: ogLocale[locale], type: "website" },
     twitter: { card: "summary_large_image" },
     icons: { icon: site.logo.src, apple: site.logo.src },
