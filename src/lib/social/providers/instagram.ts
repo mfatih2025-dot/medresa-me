@@ -3,7 +3,8 @@ import type { SocialPost } from "../types";
 
 /**
  * Instagram: the latest post of @medresacg, via the Instagram API with
- * Instagram Login (graph.instagram.com, scope instagram_business_basic).
+ * Facebook Login (graph.facebook.com, scope instagram_basic), resolving
+ * the professional account through the Medresa Page and its Page token.
  *
  * Server-only. The token is read from INSTAGRAM_ACCESS_TOKEN (Vercel env,
  * never NEXT_PUBLIC_) and is never logged, returned or sent to the browser.
@@ -13,7 +14,7 @@ import type { SocialPost } from "../types";
  * section falls back to its manual/profile content.
  */
 
-const API = "https://graph.instagram.com/v26.0";
+const API = "https://graph.facebook.com/v26.0";
 const FIELDS = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp";
 /** 30 minutes. */
 export const REVALIDATE = 1800;
@@ -37,11 +38,53 @@ function stillOf(m: Media): string | undefined {
   return m.media_url ?? m.thumbnail_url;
 }
 
+/** Keep account discovery server-side and separate from Facebook's feed. */
+async function linkedAccount(token: string): Promise<{ id: string; token: string }> {
+  const pageId = "578640758657974"; // Existing Medresa Page, not an Instagram ID.
+  const graph = async (path: string, credential: string) => {
+    const response = await fetch(`${API}/${path}&access_token=${encodeURIComponent(credential)}`, {
+      next: { revalidate: REVALIDATE, tags: ["instagram"] },
+    });
+    const body = await response.json();
+    if (!response.ok || body.error) {
+      console.warn(`[instagram] discovery failed: HTTP ${response.status}, code ${typeof body.error?.code === "number" ? body.error.code : "?"}`);
+      throw new Error("Instagram discovery failed");
+    }
+    return body;
+  };
+  let after: string | undefined;
+  const seen = new Set<string>();
+  for (let i = 0; i < 10; i++) {
+    const pages = await graph(`me/accounts?fields=id,access_token&limit=100${after ? `&after=${encodeURIComponent(after)}` : ""}`, token);
+    const page = Array.isArray(pages.data) ? pages.data.find((p: { id?: string }) => p.id === pageId) : undefined;
+    if (page) {
+      const credential = typeof page.access_token === "string" && page.access_token.trim() ? page.access_token : token;
+      const linked = await graph(`${pageId}?fields=instagram_business_account`, credential);
+      const id = linked.instagram_business_account?.id;
+      if (typeof id !== "string" || !/^\d{1,32}$/.test(id)) throw new Error("Instagram account not returned");
+      return { id, token: credential };
+    }
+    const cursor = pages.paging?.cursors?.after;
+    if (!pages.paging?.next || typeof cursor !== "string" || !cursor || seen.has(cursor)) break;
+    seen.add(cursor); after = cursor;
+  }
+  throw new Error("Medresa Page not returned");
+}
+
 export async function latestInstagramPost(): Promise<SocialPost | null> {
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
   if (!token) return null;
 
-  const url = `${API}/me/media?fields=${FIELDS}&limit=6&access_token=${encodeURIComponent(token)}`;
+  // Same Facebook Login credential model as the verified Meta integration.
+  // Resolve the linked account; never reuse an Instagram Login /me identity.
+  let account: { id: string; token: string };
+  try {
+    account = await linkedAccount(token);
+  } catch {
+    console.warn("[instagram] linked professional account unavailable");
+    return null;
+  }
+  const url = `${API}/${account.id}/media?fields=${FIELDS}&limit=6&access_token=${encodeURIComponent(account.token)}`;
   let body: { data?: Media[]; error?: { code?: number; type?: string } };
   try {
     const res = await fetch(url, { next: { revalidate: REVALIDATE, tags: ["instagram"] } });
