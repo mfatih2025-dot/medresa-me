@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { upisContent } from "@/content/upis";
 import { Upis } from "@/components/upis/Upis";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -16,5 +17,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Upis i prijemni: the admission status and its documents. */
 export default async function Page({ params }: Props) {
-  return <Upis locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="upis" locale={locale} />
+      <Upis locale={locale} />
+    </>
+  );
 }

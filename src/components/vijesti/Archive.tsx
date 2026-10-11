@@ -553,6 +553,8 @@ export function Archive({
       </header>
 
       <div className="wrap mt-10 space-y-14 md:hidden">
+        {/* Later pages open with stories (h3): name the page for the outline (screen readers only). */}
+        {page > 1 && <h2 className="sr-only">{t.pageTitle(page)}</h2>}
         {blocks.map((b, k) => {
           switch (b.kind) {
             case "lead":

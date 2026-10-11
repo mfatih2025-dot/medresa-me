@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { articlesOnPage } from "@/content/vijesti";
 import { newsUi } from "@/content/vijesti/ui";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 import { Archive } from "@/components/vijesti/Archive";
 
 type Props = { params: Promise<{ locale: string }> };
@@ -15,5 +16,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Vijesti: the newest stories, led by the latest; older pages at /vijesti/2, /vijesti/3… */
 export default async function VijestiPage({ params }: Props) {
   const locale = asLocale((await params).locale);
-  return <Archive locale={locale} page={1} items={articlesOnPage(1)} />;
+  return (
+    <>
+      <PageJsonLd id="vijesti" locale={locale} />
+      <Archive locale={locale} page={1} items={articlesOnPage(1)} />
+    </>
+  );
 }

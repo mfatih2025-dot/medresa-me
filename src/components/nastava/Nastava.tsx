@@ -113,9 +113,9 @@ export function Nastava({ locale }: { locale: Locale }) {
       {/* ---------- The two pillars ---------- */}
       <section aria-label={n.pillarsLead} className="wrap mt-16 md:mt-28">
         <Reveal y={14}>
-          <p className="display hist-text max-w-[20em] text-[clamp(1.375rem,1.1rem+1.1vw,2rem)] font-normal leading-[1.25] tracking-[-0.012em] text-green">
+          <h2 className="display hist-text max-w-[20em] text-[clamp(1.375rem,1.1rem+1.1vw,2rem)] font-normal leading-[1.25] tracking-[-0.012em] text-green">
             {n.pillarsLead}
-          </p>
+          </h2>
         </Reveal>
 
         <div className="relative mt-6 pb-14 md:mt-8 md:grid md:grid-cols-12 md:pb-20">

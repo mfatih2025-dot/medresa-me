@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { oiuContent } from "@/content/oiu";
 import { Oiu } from "@/components/oiu/Oiu";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -13,5 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Objekat i uslovi: the building and its spaces, in photographs. */
 export default async function Page({ params }: Props) {
-  return <Oiu locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="oiu" locale={locale} />
+      <Oiu locale={locale} />
+    </>
+  );
 }

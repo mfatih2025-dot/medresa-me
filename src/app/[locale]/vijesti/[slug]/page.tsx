@@ -8,15 +8,14 @@ import {
   articlePath,
   articles,
   articlesOnPage,
-  excerpt,
   pageCount,
-  photoOf,
-  imageOf,
   yearOf,
 } from "@/content/vijesti";
 import { newsUi } from "@/content/vijesti/ui";
 import { locales, type Locale } from "@/i18n/config";
-import { asLocale, localizedMetadata } from "@/i18n/metadata";
+import { asLocale } from "@/i18n/metadata";
+import { breadcrumbs, JsonLd } from "@/seo/jsonld";
+import { newsArchiveMetadata, newsArticleJsonLd, newsArticleMetadata } from "@/seo/news";
 import { Archive } from "@/components/vijesti/Archive";
 import { Article } from "@/components/vijesti/Article";
 
@@ -44,20 +43,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const n = pageNumber(slug);
   if (n !== null && n >= 2) {
     const paths = Object.fromEntries(locales.map((x) => [x, archivePath(x, n)])) as Record<Locale, string>;
-    return localizedMetadata(paths, locale, {
-      title: newsUi[locale].pageTitle(n),
-      description: newsUi[locale].description,
-    });
+    return newsArchiveMetadata(locale, n, paths);
   }
   const a = articleBySlug(slug, locale);
   if (!a) return {};
-  const img = photoOf(a) ?? imageOf(a);
-  return localizedMetadata(articleAlternates(a), locale, {
-    title: a[locale].title,
-    description: excerpt(a[locale], 180),
-    publishedTime: a.date,
-    ...(img ? { image: { url: img.src, width: img.width, height: img.height, alt: img.alt[locale] } } : {}),
-  });
+  return newsArticleMetadata(a, locale, articleAlternates(a));
 }
 
 export default async function NewsSubPage({ params }: Props) {
@@ -69,7 +59,15 @@ export default async function NewsSubPage({ params }: Props) {
     if (n < 1 || n > pageCount) notFound();
     const prev = articlesOnPage(n - 1);
     return (
-      <Archive locale={locale} page={n} items={articlesOnPage(n)} prevYear={yearOf(prev[prev.length - 1])} />
+      <>
+        <JsonLd
+          data={breadcrumbs(locale, [
+            { name: newsUi[locale].title, path: archivePath(locale) },
+            { name: newsUi[locale].pageTitle(n), path: archivePath(locale, n) },
+          ])}
+        />
+        <Archive locale={locale} page={n} items={articlesOnPage(n)} prevYear={yearOf(prev[prev.length - 1])} />
+      </>
     );
   }
   const a = articleBySlug(slug, locale);
@@ -78,5 +76,10 @@ export default async function NewsSubPage({ params }: Props) {
     if (other) permanentRedirect(articlePath(other, locale));
     notFound();
   }
-  return <Article a={a} locale={locale} />;
+  return (
+    <>
+      <JsonLd data={newsArticleJsonLd(a, locale, articleAlternates(a))} />
+      <Article a={a} locale={locale} />
+    </>
+  );
 }

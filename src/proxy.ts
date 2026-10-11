@@ -1,6 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LOCALE_COOKIE, isLocale } from "@/i18n/config";
 import { isPageId, pageBySlug, parsePath, slugs, translatePath } from "@/i18n/routes";
+import { gonePaths } from "@/seo/legacy";
+
+/** A short page for an address the old site had and the new one deliberately does not. */
+function gone() {
+  return new NextResponse(
+    `<!doctype html><html lang="bs"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>410 · Medresa „Mehmed Fatih“</title></head><body><p>Ova stranica više ne postoji. <a href="/">Medresa „Mehmed Fatih“</a></p></body></html>`,
+    { status: 410, headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex" } },
+  );
+}
 
 /*
  * Locale routing (see src/i18n/config.ts and src/i18n/routes.ts).
@@ -22,6 +31,10 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const parts = pathname.split("/");
   const first = parts[1];
+
+  // Pages of the old site's theme with no counterpart: 410 Gone (see src/seo/legacy.ts).
+  const own = isLocale(first) ? parts[2] : first;
+  if (own && gonePaths.includes(own)) return gone();
 
   if (isLocale(first)) {
     const seg = parts[2];
@@ -68,6 +81,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Pages only: not Next internals, the image optimiser, or files (anything with a dot).
-  matcher: ["/((?!_next/|api/|.*\\..*).*)"],
+  // Pages only: not Next internals, APIs, the files under /public (images/, brand/) or the
+  // generated robots.txt, sitemap.xml and manifest. Other addresses with a dot (an old
+  // /wp-login.php, /xmlrpc.php …) are routed too, so they get the site's own 404.
+  matcher: [
+    "/((?!_next/|api/|images/|brand/|robots.txt|sitemap.xml|manifest.webmanifest|favicon.ico).*)",
+  ],
 };

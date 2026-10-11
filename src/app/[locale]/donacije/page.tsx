@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { donacijeContent } from "@/content/donacije";
 import { Donacije } from "@/components/donacije/Donacije";
 import { asLocale, pageMetadata } from "@/i18n/metadata";
+import { PageJsonLd } from "@/seo/jsonld";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -13,5 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Donacije: why supporting the Medresa matters, and how to do it. */
 export default async function Page({ params }: Props) {
-  return <Donacije locale={asLocale((await params).locale)} />;
+  const locale = asLocale((await params).locale);
+  return (
+    <>
+      <PageJsonLd id="donacije" locale={locale} />
+      <Donacije locale={locale} />
+    </>
+  );
 }
