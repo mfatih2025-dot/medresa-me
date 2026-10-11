@@ -89,7 +89,7 @@ const origin='http://localhost:3213';
         assert.equal(u.hostname,'api.vercel.com','Website uses the official Vercel host');
         const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
         if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_local_fixture'});
-        assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+        assert.equal(u.searchParams.get('filter'),"environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')");
         const by=u.searchParams.get('by');
         if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
         if(by==='day') return json({data:[]});

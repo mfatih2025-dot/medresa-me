@@ -46,14 +46,13 @@ sends medresa.me to www.medresa.me.
 No new OAuth callback is introduced: YouTube continues to use the existing refresh
 credential and Meta continues the already verified Page/account discovery flows.
 
-## Deliberately unchanged Analytics source scope
+## Website Analytics traffic scope
 
-This is an application-deployment-guard change only. The verified Website provider
-still requests `environment eq 'preview'` and excludes `/admin*`, exactly as before.
-Production Admin can access the same Analytics dashboard/history and sync providers,
-but this does not switch Website measurement to Production traffic or change its
-stored history. A separate decision is needed before changing that query or mixing
-traffic scopes in the shared analytics tables. No live sync is run by this change.
+Both approved Admin deployments measure Production website traffic only. The Vercel
+filter excludes `/admin*` and `/ulaz7*`. Apply
+`202610110001_website_analytics_scope.sql` once before release: it separates new
+Production snapshots from retained Preview history without deleting or changing metrics.
+Other providers retain their existing storage and behavior. No live sync was run locally.
 
 ## Release gate
 

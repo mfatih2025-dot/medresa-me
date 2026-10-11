@@ -106,7 +106,7 @@ test('Vercel uses official Preview aggregates, direct unique totals, no Producti
   globalThis.fetch=async(input,init)=>{
     const u=new URL(input); requests.push(u); assert.equal(new Headers(init.headers).get('Authorization'),'Bearer fixture-vercel-private');
     if(u.pathname.startsWith('/v9/projects/')) return json({id:'prj_verified_fixture',name:'medresa-me'});
-    assert.equal(u.pathname,'/v1/query/web-analytics/visits/aggregate'); assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+    assert.equal(u.pathname,'/v1/query/web-analytics/visits/aggregate'); assert.equal(u.searchParams.get('filter'),"environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')");
     // Reproduce the identified live rejection, never an assumed maximum range.
     if(u.searchParams.get('limit')==='200') return json({error:{code:'bad_request',message:"Invalid query parameter 'limit'"}},400);
     assert.equal(u.searchParams.get('limit'),'10','Use the documented Vercel default without changing traffic scope');
@@ -133,7 +133,7 @@ test('Website daily query stays in each selected period and the successful selec
     globalThis.fetch=async(input)=>{const u=new URL(input);requests.push(u);return u.pathname.startsWith('/v9/')?json({name:'medresa-me',id:'prj_fixture'}):json({data:[]});};
     const r=await collectProvider('website',period,now,new AbortController().signal,row=>observations.push(row));
     const expected=new URL('https://api.vercel.com/v1/query/web-analytics/visits/aggregate');
-    expected.search=new URLSearchParams({projectId:'prj_fixture',slug:'mmf16',since:r.range.start+'T00:00:00Z',until:r.range.end+'T23:59:59.999Z',by:'environment',limit:'10',filter:"environment eq 'preview' and not startswith(requestPath, '/admin')"}).toString();
+    expected.search=new URLSearchParams({projectId:'prj_fixture',slug:'mmf16',since:r.range.start+'T00:00:00Z',until:r.range.end+'T23:59:59.999Z',by:'environment',limit:'10',filter:"environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')"}).toString();
     assert.equal(requests[1].href,expected.href);
     const daily=requests.find(u=>u.searchParams.get('by')==='day');
     assert.equal(daily.searchParams.get('since'),expected.searchParams.get('since'));assert.equal(daily.searchParams.get('until'),expected.searchParams.get('until'));
@@ -200,7 +200,7 @@ test('Website optional HTTP 400 queries keep direct current totals and report th
   globalThis.fetch=async(input)=>{
     const u=new URL(input);assert.equal(u.hostname,'api.vercel.com');
     if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_fixture'});
-    assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+    assert.equal(u.searchParams.get('filter'),"environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')");
     const by=u.searchParams.get('by');
     if(by==='day'||by==='referrerHostname'||u.searchParams.get('until').slice(0,10)<range.start) return json({error:{code:'bad_request',message:'private-vercel-diagnostic-fixture raw response'}},400);
     if(by==='environment') return json({data:[{environment:'preview',pageviews:0,visitors:7}]});
@@ -811,7 +811,7 @@ test('Website-only service sync calls only Vercel, persists and reloads real-sha
       assert.equal(u.hostname,'api.vercel.com','No Meta/YouTube request is allowed in a Website-only sync');
       if(u.pathname.startsWith('/v9/projects/')) return json({name:'medresa-me',id:'prj_fixture'});
       assert.equal(u.pathname,'/v1/query/web-analytics/visits/aggregate');
-      assert.equal(u.searchParams.get('filter'),"environment eq 'preview' and not startswith(requestPath, '/admin')");
+      assert.equal(u.searchParams.get('filter'),"environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')");
       const by=u.searchParams.get('by');
       if(by==='environment') return json({data:[{environment:'preview',pageviews:42,visitors:9}]});
       if(by==='day') return json({error:{message:'local-vercel-fixture raw error'}},400);
@@ -842,7 +842,7 @@ test('Website-only service sync calls only Vercel, persists and reloads real-sha
   } finally {await db.close();}
 });
 
-test('missing provider-sync migration stops before provider calls; existing full refresh still works', async () => {
+test('missing Website traffic-scope migration stops Website and full refresh before provider calls', async () => {
   credentials();process.env.VERCEL_ANALYTICS_TOKEN='local-vercel-fixture';
   const db=await database({providerSync:false});try {
     globalThis.fetch=restFixture(db);const calls=[];
@@ -851,10 +851,10 @@ test('missing provider-sync migration stops before provider calls; existing full
       timezones:{website:'UTC',instagram:'UTC',facebook:'America/Los_Angeles',youtube:'America/Los_Angeles'},
       collectProvider:async(p,period,date)=>{calls.push(p);return reports(period,date).find(r=>r.provider===p);},
     }})('src/server/admin/analytics/service');
-    await assert.rejects(service.synchronize('7',randomUUID(),'website'),e=>e.status===503 && e.message.includes('pojedinačne izvore'));
+    await assert.rejects(service.synchronize('7',randomUUID(),'website'),e=>e.status===503 && e.message.includes('202610110001_website_analytics_scope.sql'));
     assert.deepEqual(calls,[]);assert.equal((await db.query('select count(*)::int n from medresa_analytics_sync_runs')).rows[0].n,0);
-    const result=await service.synchronize('7',randomUUID());assert.equal(result.dashboard.storage,'ready');
-    assert.deepEqual(calls,['website','instagram','facebook','youtube']);
+    await assert.rejects(service.synchronize('7',randomUUID()),e=>e.status===503);
+    assert.deepEqual(calls,[]);
   }finally{await db.close();}
 });
 
@@ -902,5 +902,32 @@ test('dashboard reads partial PostgreSQL snapshots without sync, shows period he
     }
     assert.equal(load('src/admin/analytics/views').periodViews((await service.dashboard('today',now)).reports).total,null);
     assert.equal(JSON.stringify((await db.query('select * from medresa_analytics_daily order by provider,day')).rows),before);
+  } finally {await db.close();}
+});
+
+test('Website Production scope preserves existing Preview snapshots and never blends their totals', async () => {
+  credentials();
+  const db=await database({providerSync:false});
+  try {
+    const {readFileSync}=await import('node:fs');
+    await db.exec(readFileSync('supabase/migrations/202610090001_analytics_provider_sync.sql','utf8'));
+    const original=reports();original[0].source='Vercel Web Analytics · Preview projekta';
+    const first=randomUUID();await begin(db,first);await finish(db,first,original);
+    const before=(await db.query("select report from medresa_analytics_reports where provider='website'")).rows;
+    await db.exec(readFileSync('supabase/migrations/202610110001_website_analytics_scope.sql','utf8'));
+    assert.deepEqual((await db.query("select report from medresa_analytics_reports where provider='website' and traffic_scope='preview'")).rows,before);
+    const socialBefore=(await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider")).rows;
+    await releaseCooldown(db);const next=randomUUID();await begin(db,next,'7','website');
+    const production=reports()[0];production.totals={pageviews:21};production.daily=production.daily.map(d=>({...d,metrics:{pageviews:3}}));
+    await finish(db,next,[production]);
+    const totals=(await db.query("select traffic_scope,report->'totals' as totals from medresa_analytics_reports where provider='website' order by traffic_scope")).rows;
+    assert.deepEqual(totals,[{traffic_scope:'preview',totals:{pageviews:70}},{traffic_scope:'production',totals:{pageviews:21}}]);
+    assert.deepEqual((await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider")).rows,socialBefore);
+    Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-fixture'});globalThis.fetch=restFixture(db);
+    const {dashboard}=load('src/server/admin/analytics/service');
+    const actual=(await dashboard('7',now)).reports.find(r=>r.provider==='website');
+    assert.equal(actual.totals.pageviews,21);
+    assert.ok(actual.daily.every(d=>d.metrics.pageviews===3));
+    assert.equal((await db.query("select count(*)::int n from medresa_analytics_daily where provider='website' and traffic_scope='preview'")).rows[0].n,7);
   } finally {await db.close();}
 });

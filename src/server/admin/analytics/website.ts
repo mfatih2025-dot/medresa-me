@@ -62,7 +62,7 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   async function aggregate(name: Exclude<WebsiteRequest, "project">, range: Range, limit = 10) {
     const by = websiteRequestDimensions[name];
     const u = new URL("https://api.vercel.com/v1/query/web-analytics/visits/aggregate");
-    u.search = new URLSearchParams({ projectId: project.id as string, slug: "mmf16", since: range.start + "T00:00:00Z", until: range.end + "T23:59:59.999Z", by, limit: String(limit), filter: "environment eq 'preview' and not startswith(requestPath, '/admin')" }).toString();
+    u.search = new URLSearchParams({ projectId: project.id as string, slug: "mmf16", since: range.start + "T00:00:00Z", until: range.end + "T23:59:59.999Z", by, limit: String(limit), filter: "environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')" }).toString();
     const body = await request(name, u, range);
     if (!Array.isArray(body.data) || body.data.some(row => !row || typeof row !== "object" || Array.isArray(row))) throw new ProviderFailure("error", "invalid_response");
     return body.data as Record<string, unknown>[];

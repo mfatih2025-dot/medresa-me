@@ -23,7 +23,10 @@ export async function database({ providerSync = true } = {}) {
   const db = new PGlite();
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
   for (const migration of ['202610070001_admin_news','202610080002_publication_integrity','202610080003_locale_publication','202610080004_analytics_history']) await db.exec(readFileSync(`supabase/migrations/${migration}.sql`, 'utf8'));
-  if (providerSync) await db.exec(readFileSync('supabase/migrations/202610090001_analytics_provider_sync.sql', 'utf8'));
+  if (providerSync) {
+    await db.exec(readFileSync('supabase/migrations/202610090001_analytics_provider_sync.sql', 'utf8'));
+    await db.exec(readFileSync('supabase/migrations/202610110001_website_analytics_scope.sql', 'utf8'));
+  }
   return db;
 }
 export async function call(db, name, args) {
@@ -51,7 +54,7 @@ export function restFixture(db) {
       if (init.method && init.method !== 'GET') throw new Error('Direct table writes forbidden');
       const args=[],clauses=[];
       for (const [k,v] of url.searchParams) {
-        if (['provider','start_date','end_date','timezone','day'].includes(k)) {
+        if (['provider','start_date','end_date','timezone','day','traffic_scope'].includes(k)) {
           const op = v.startsWith('eq.') ? '=' : v.startsWith('gte.') ? '>=' : null;
           if (op) { args.push(v.slice(v.indexOf('.')+1)); clauses.push(`${k}${op}$${args.length}`); }
         }

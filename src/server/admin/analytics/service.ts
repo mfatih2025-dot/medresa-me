@@ -70,6 +70,11 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
     result.reports = await Promise.all(result.reports.map(async base => {
       const query = new URLSearchParams({ provider: `eq.${base.provider}`, start_date: `eq.${base.range.start}`, end_date: `eq.${base.range.end}`, timezone: `eq.${base.timezone}`, select: "report", limit: "1" });
       const snapshots = new URLSearchParams({ provider: `eq.${base.provider}`, timezone: `eq.${base.timezone}`, day: `gte.${base.previousRange.start}`, and: `(day.lte.${base.todayDate})`, select: "day,metrics,complete", order: "day.asc", limit: "200" });
+      // Never blend retained Preview snapshots into Production Website measurements.
+      if (base.provider === "website") {
+        query.set("traffic_scope", "eq.production");
+        snapshots.set("traffic_scope", "eq.production");
+      }
       try {
         const [rows, savedDays] = await Promise.all([database(`/rest/v1/medresa_analytics_reports?${query}`).then(r => r.json()), database(`/rest/v1/medresa_analytics_daily?${snapshots}`).then(r => r.json())]);
         let r = Array.isArray(rows) && rows[0]?.report ? sanitizedReport(rows[0].report, base) : base;
@@ -98,6 +103,15 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   previewConfiguration(true);
   if (provider !== undefined && !providers.includes(provider)) throw new AdminError(422, "Izvor analitike nije ispravan.");
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) throw new AdminError(422, "Zahtjev za osvježavanje nije ispravan.");
+  // Fail closed before collecting or persisting a new traffic scope on an old schema.
+  if (provider === undefined || provider === "website") {
+    try {
+      await database("/rest/v1/medresa_analytics_reports?select=traffic_scope&limit=1");
+      await database("/rest/v1/medresa_analytics_daily?select=traffic_scope&limit=1");
+    } catch {
+      throw new AdminError(503, "Primijenite migraciju 202610110001_website_analytics_scope.sql prije osvježavanja Website podataka.");
+    }
+  }
   let claim: { acquired: boolean; runId: string; outcome: string };
   try { claim = await call("medresa_analytics_begin_sync", { p_id: id, p_period: period, ...(provider ? { p_provider: provider } : {}) }); }
   catch { throw new AdminError(503, provider ? "Osvježavanje pojedinačnog izvora nije spremno. Provjerite Preview migraciju analitike za pojedinačne izvore." : "Historija analitike nije spremna. Provjerite Preview analitičku migraciju."); }
