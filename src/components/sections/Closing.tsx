@@ -23,14 +23,21 @@ export function Closing({ dict }: { dict: Dictionary }) {
   const ref = useRef<HTMLElement>(null);
   const { reduced, compact } = useMotionProfile();
 
+  // Every scroll reading here re-measures when the page's height changes: content
+  // above settling after the last scroll event must not leave this section's
+  // progress stale (that held the frame below half-open with the letter in view).
+  const live = { trackContentSize: true };
   // Photograph: unchanged mapping over the section's whole pass through the viewport.
-  const pass = useScrollProgress(ref, ["start end", "end start"]);
+  const pass = useScrollProgress(ref, ["start end", "end start"], live);
   // Opening "frame": the same inset reveal as before, done with transforms instead of
   // clip-path (which repaints every frame): the frame scales open from the inset size
   // while its contents are counter-scaled, so the photograph itself is not distorted.
+  // It opens from the section's bottom edge (origin-bottom): the inset shows at the
+  // top and sides as the section enters, and the photograph's lower edge is always
+  // the section's own, so it can never fall across the signature.
   const inset = compact ? { x: 0.05, y: 0.1 } : { x: 0.1, y: 0.14 };
   const frameX = useTransform(pass, [0, 0.38], [1 - 2 * inset.x, 1], { clamp: true });
-  const frameY = useTransform(pass, [0, 0.38], [1 - 2 * inset.y, 1], { clamp: true });
+  const frameY = useTransform(pass, [0, 0.38], [1 - inset.y, 1], { clamp: true });
   const counterX = useTransform(frameX, (v) => 1 / v);
   const counterY = useTransform(frameY, (v) => 1 / v);
   const scale = useTransform(pass, [0, 0.6], [1.22, 1.04]);
@@ -42,9 +49,9 @@ export function Closing({ dict }: { dict: Dictionary }) {
   const openingRef = useRef<HTMLDivElement>(null);
   const secondRef = useRef<HTMLDivElement>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
-  const openingIn = useStep(useScrollProgress(openingRef, ["start end", "start 62%"]), 0, 1);
-  const secondIn = useStep(useScrollProgress(secondRef, ["start end", "start 66%"]), 0, 1);
-  const signatureIn = useStep(useScrollProgress(signatureRef, ["start end", "start 74%"]), 0, 1);
+  const openingIn = useStep(useScrollProgress(openingRef, ["start end", "start 62%"], live), 0, 1);
+  const secondIn = useStep(useScrollProgress(secondRef, ["start end", "start 66%"], live), 0, 1);
+  const signatureIn = useStep(useScrollProgress(signatureRef, ["start end", "start 74%"], live), 0, 1);
   const steps = reduced
     ? { opening: done, second: done, signature: done }
     : { opening: openingIn, second: secondIn, signature: signatureIn };
@@ -53,11 +60,11 @@ export function Closing({ dict }: { dict: Dictionary }) {
     <section ref={ref} aria-labelledby="director-title" className="relative bg-green-deep text-ivory">
       <div className="relative isolate overflow-hidden">
         <motion.div
-          className="absolute inset-0 -z-10 overflow-hidden will-change-transform"
+          className="absolute inset-0 -z-10 origin-bottom overflow-hidden will-change-transform"
           style={reduced ? undefined : { scaleX: frameX, scaleY: frameY }}
         >
           <motion.div
-            className="absolute inset-0 will-change-transform"
+            className="absolute inset-0 origin-bottom will-change-transform"
             style={reduced ? undefined : { scaleX: counterX, scaleY: counterY }}
           >
             <motion.div

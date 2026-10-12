@@ -4,6 +4,15 @@ import { useMotionValue, useMotionValueEvent, useScroll, type MotionValue } from
 import { useEffect, type RefObject } from "react";
 
 type Offset = NonNullable<Parameters<typeof useScroll>[0]>["offset"];
+type Options = {
+  /**
+   * Re-measure whenever the page's height changes, not only on scroll and
+   * resize. For layouts that must never be read from stale positions: content
+   * above (fonts, images, live data) can settle and move the target with no
+   * scroll event at all, leaving its progress where it was.
+   */
+  trackContentSize?: boolean;
+};
 
 /**
  * Scroll progress of `target` as a plain MotionValue.
@@ -15,8 +24,9 @@ type Offset = NonNullable<Parameters<typeof useScroll>[0]>["offset"];
 export function useScrollProgress(
   target: RefObject<HTMLElement | null>,
   offset: Offset,
+  options: Options = {},
 ): MotionValue<number> {
-  const { scrollYProgress } = useScroll({ target, offset });
+  const { scrollYProgress } = useScroll({ target, offset, ...options });
   const progress = useMotionValue(0);
   useMotionValueEvent(scrollYProgress, "change", (v) => progress.set(v));
   useEffect(() => {
