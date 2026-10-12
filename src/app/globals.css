@@ -631,6 +631,39 @@ button,
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+/* Where the hero's mountain ridge meets the mihrab's lines, in screen pixels: the
+   photograph's own crop (object-fit: cover, as positioned in Hero.tsx) applied to
+   the ridge's height in the image (1627×1080) at the lines' position. One image
+   pixel is max(width / 1627, height / 1080) on screen. The lines fade out just
+   above it, so they rise from behind the ridge and never cross the building. */
+.hero-arch-box {
+  /* phones: photograph from 11svh down, bottom-aligned; ridge at y≈245 */
+  --ridge: calc(100svh - 835 * max(100vw / 1627, 89svh / 1080));
+  --fade: 3.5rem;
+}
+@media (min-width: 48rem) {
+  .hero-arch-box {
+    /* tablets: from 12svh down, bottom-aligned; ridge at y≈196 */
+    --ridge: calc(100svh - 884 * max(100vw / 1627, 88svh / 1080));
+  }
+}
+@media (min-width: 64rem) {
+  .hero-arch-box {
+    /* desktop: full frame at 62% vertical position; ridge at y≈193. The sky above
+       it is short here, so the lines dissolve a little way into the mountain's
+       upper slope instead (still far above the building). */
+    --ridge: calc(62svh - 476.6 * max(100vw / 1627, 100svh / 1080) + 6svh);
+    --fade: 3.5rem;
+  }
+}
+.hero-arch {
+  /* the box starts 0.5rem from the top of the hero */
+  mask-image: linear-gradient(
+    180deg,
+    #000 calc(var(--ridge) - 0.75rem - var(--fade)),
+    transparent calc(var(--ridge) - 0.75rem)
+  );
+}
 /* The mihrab outline: hairlines in pale gold, drawn upward once (pathLength=1). */
 .hero-arch path {
   fill: none;

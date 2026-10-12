@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bodoni_Moda } from "next/font/google";
+import { Bodoni_Moda, Newsreader } from "next/font/google";
 import { motion, useReducedMotion, useTransform } from "framer-motion";
 import { useRef, type CSSProperties } from "react";
 import type { Dictionary } from "@/content";
@@ -20,6 +20,15 @@ const display = Bodoni_Moda({
   subsets: ["latin", "latin-ext"],
   axes: ["opsz"],
   variable: "--font-hero",
+  display: "swap",
+});
+
+/* The admissions label: Newsreader (SIL OFL), an editorial text serif with an
+   optical-size axis, calmer and more legible than the Didone at card size. */
+const label = Newsreader({
+  subsets: ["latin", "latin-ext"],
+  axes: ["opsz"],
+  variable: "--font-hero-label",
   display: "swap",
 });
 
@@ -64,7 +73,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
     <section
       ref={ref}
       aria-labelledby="hero-title"
-      className={`hero-frame ${display.variable} relative isolate overflow-hidden bg-[linear-gradient(180deg,#a9c6de_0%,#c9dbe8_14%,#e6ecef_26%,#dfe8ee_40%)]`}
+      className={`hero-frame ${display.variable} ${label.variable} relative isolate overflow-hidden bg-[linear-gradient(180deg,#a9c6de_0%,#c9dbe8_14%,#e6ecef_26%,#dfe8ee_40%)]`}
       style={{ height: "max(36rem, 100svh)" }}
     >
       {/* The photograph, full bleed: the architecture fills the lower frame. */}
@@ -102,17 +111,15 @@ export function Hero({ dict }: { dict: Dictionary }) {
         className="absolute inset-x-0 bottom-0 -z-10 h-[38%] bg-[linear-gradient(0deg,rgb(8_26_22/0.4)_0%,rgb(8_26_22/0)_100%)]"
       />
 
-      {/* The mihrab outline: two concentric pointed arches, hairline, fading downward. */}
+      {/* The mihrab outline: two concentric pointed arches, hairline. Its crown rises
+          behind the clear header; its lines end at the mountain ridge of the photograph
+          (see .hero-arch-box), so it never crosses the building. */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute right-[-14%] top-[clamp(7.5rem,15svh,9rem)] -z-10 h-[46svh] w-[58%] md:right-[-6%] md:top-[clamp(10rem,15svh,12rem)] md:w-[44%] lg:right-[9%] lg:top-[clamp(7.5rem,13svh,9.5rem)] lg:h-[52svh] lg:w-[24%]"
+        className="hero-arch-box pointer-events-none absolute right-[-14%] top-2 -z-10 h-[46svh] w-[58%] md:right-[-6%] md:w-[44%] lg:right-[9%] lg:h-[52svh] lg:w-[24%]"
         style={still ? undefined : { y: lineY }}
       >
-        <svg
-          viewBox="0 0 400 640"
-          preserveAspectRatio="xMidYMin meet"
-          className="hero-arch h-full w-full [mask-image:linear-gradient(180deg,#000_45%,transparent_92%)]"
-        >
+        <svg viewBox="0 0 400 640" preserveAspectRatio="xMidYMin meet" className="hero-arch h-full w-full">
           <path d="M40 640 V300 A320 320 0 0 1 200 22.9 A320 320 0 0 1 360 300 V640" pathLength={1} />
           <path d="M66 640 V300 A268 268 0 0 1 200 68 A268 268 0 0 1 334 300 V640" pathLength={1} />
         </svg>
@@ -120,8 +127,9 @@ export function Hero({ dict }: { dict: Dictionary }) {
 
       {/* Identity (MEDRESA, the name on two lines, the signature) above, the
           admissions results at the foot of the same column. */}
-      <div className="absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] top-[clamp(8rem,16.5svh,10rem)] flex flex-col md:bottom-[clamp(2rem,5svh,3rem)] md:top-[clamp(11rem,17svh,13.5rem)] lg:bottom-[clamp(1.75rem,4svh,2.75rem)] lg:top-[clamp(9.5rem,20svh,12.5rem)]">
-        <h1 id="hero-title" className="w-fit max-w-full">
+      <div className="absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] top-[clamp(7.25rem,15svh,9rem)] flex flex-col md:bottom-[clamp(2rem,5svh,3rem)] md:top-[clamp(10rem,15.5svh,12.5rem)] lg:bottom-[clamp(1.75rem,4svh,2.75rem)] lg:top-[clamp(8.75rem,18.5svh,11.5rem)]">
+        {/* MEDRESA, the name and the signature are scaled as one composition (93%). */}
+        <h1 id="hero-title" className="w-fit max-w-full origin-top-left scale-[0.93]">
           <motion.span className="block" style={still ? undefined : { y: lineY, opacity: lineOpacity }}>
             <span className="hero-in flex items-center gap-3 md:gap-4" style={enter(0.15)}>
               <span aria-hidden className="h-px w-9 bg-gold md:w-14 lg:w-16" />
@@ -189,7 +197,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
                 <span className="block text-[0.6875rem] font-medium uppercase tracking-[0.2em] text-gold-soft md:text-xs">
                   {hero.admissions.kicker}
                 </span>
-                <span className="mt-1 line-clamp-2 font-[family-name:var(--font-hero)] text-[0.9375rem] font-medium leading-[1.15] text-ivory min-[380px]:text-[1.0625rem] min-[410px]:text-[1.125rem] min-[428px]:text-[1.1875rem] md:text-[1.5rem] lg:text-[clamp(1.375rem,0.9rem+0.55vw,1.625rem)]">
+                <span className="mt-1 line-clamp-2 font-[family-name:var(--font-hero-label)] text-[0.9375rem] font-medium leading-[1.15] text-ivory min-[380px]:text-[1.0625rem] min-[410px]:text-[1.125rem] min-[428px]:text-[1.1875rem] md:text-[1.5rem] lg:text-[clamp(1.375rem,0.9rem+0.55vw,1.625rem)]">
                   {hero.admissions.label}
                 </span>
               </span>
