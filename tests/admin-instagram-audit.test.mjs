@@ -30,10 +30,31 @@ test('fresh audit captures three raw account views totals, matches UTC windows, 
   })('src/server/admin/analytics/instagramAudit');
   const out=await instagramAudit(true,now);
   assert.equal(requests.length,3);assert.equal(out.freshMeta.aggregatedValue,36);assert.equal(out.freshMeta.differenceFromSaved,6);
+  assert.ok(Number.isFinite(Date.parse(out.freshMeta.respondedAt)));
   assert.equal(out.report.savedAggregatedValue,30);assert.equal(out.report.displayedValueSource,'saved_period_total');assert.equal(out.freshMetaUsedForDisplayedValue,false);
   assert.equal(Number(requests[0].since)*1000,Date.parse('2026-07-21'));assert.equal(Number(requests[2].until)*1000,Date.parse('2026-10-19'));
   for(let i=0;i<3;i++){assert.equal(Number(requests[i].until)-Number(requests[i].since),30*86400);if(i)assert.equal(requests[i].since,requests[i-1].until);}
   assert.equal(JSON.stringify(r),before);for(const secret of ['synthetic-user-secret','synthetic-page-secret','must-not-return'])assert.ok(!JSON.stringify(out).includes(secret));
+});
+
+test('temporary in-Admin display uses a numeric/date allowlist and stays absent unless explicitly enabled',async()=>{
+  const {instagramAudit}=auditLoader(report(),async()=>({data:[{name:'views',period:'day',total_value:{value:0}}]}))('src/server/admin/analytics/instagramAudit');
+  process.env.INSTAGRAM_ACCESS_TOKEN='synthetic-user-secret';
+  const response=await instagramAudit(true,now);response.secret='must-not-return';response.freshMeta.headers={Authorization:'must-not-return'};
+  const {instagramAuditView}=moduleLoader()('src/admin/analytics/instagramAuditView');
+  const view=instagramAuditView(response);
+  assert.equal(view['FRESH META VALUE'].value,0);assert.equal(view['SAVED ADMIN VALUE'].value,30);
+  assert.equal(view['SAVED ADMIN VALUE'].provenance,'saved_period_total');assert.equal(view.startDate,'2026-07-21');assert.equal(view.endDate,'2026-10-18');assert.equal(view.timezone,'UTC');
+  assert.ok(!JSON.stringify(view).includes('must-not-return'));
+  assert.throws(()=>instagramAuditView({...response,persisted:true}));
+  assert.throws(()=>instagramAuditView({...response,report:{...response.report,metric:'reach'}}));
+  const {default:React}=await import('react');const {renderToStaticMarkup}=await import('react-dom/server');
+  const css=new Proxy({},{get:(_,name)=>String(name)});
+  const load=moduleLoader({'../Shell':{Shell:({children})=>React.createElement('main',null,children)},'../admin.module.css':{default:css},'./analytics.module.css':{default:css},'./InstagramAuditControl':{InstagramAuditControl:()=>React.createElement('button',null,'Instagram 90d diagnostic')}});
+  const {Analytics}=load('src/admin/analytics/Dashboard');
+  const initial={period:'90',generatedAt:now.toISOString(),reports:[],storage:'ready',writable:false,sync:{running:false,runId:null},history:[]};
+  assert.ok(!renderToStaticMarkup(React.createElement(Analytics,{initial})).includes('Instagram 90d diagnostic'));
+  assert.ok(renderToStaticMarkup(React.createElement(Analytics,{initial,instagramDiagnosticEnabled:true})).includes('Instagram 90d diagnostic'));
 });
 test('daily fallback and unavailable provenance remain honest; malicious fields/errors cannot enter diagnostic',async()=>{
   const r=report();r.totalCoverage.views.basis='daily';r.daily=[{date:'2026-10-18',metrics:{views:30},complete:true}];

@@ -48,9 +48,9 @@ export async function instagramAudit(fresh = false, now = new Date()) {
   const output = projectInstagramAudit(report, saved.generatedAt);
   const freshMeta: {
     requested: boolean; status: string; metric: string; metricType: string; period: string;
-    checkedAt: string | null; rawValues: { startDate: string; endDate: string; value: number | null }[];
+    checkedAt: string | null; respondedAt: string | null; rawValues: { startDate: string; endDate: string; value: number | null }[];
     aggregatedValue: number | null; differenceFromSaved: number | null; reason: string | null;
-  } = { requested: fresh, status: "not_requested", metric, metricType: "total_value", period: "day", checkedAt: null, rawValues: [], aggregatedValue: null, differenceFromSaved: null, reason: null };
+  } = { requested: fresh, status: "not_requested", metric, metricType: "total_value", period: "day", checkedAt: null, respondedAt: null, rawValues: [], aggregatedValue: null, differenceFromSaved: null, reason: null };
   if (fresh) {
     freshMeta.checkedAt = now.toISOString();
     freshMeta.status = "unavailable";
@@ -81,6 +81,7 @@ export async function instagramAudit(fresh = false, now = new Date()) {
       freshMeta.aggregatedValue = total;
       freshMeta.differenceFromSaved = output.report.savedAggregatedValue === null ? null : total - output.report.savedAggregatedValue;
       freshMeta.status = "success";
+      freshMeta.respondedAt = new Date().toISOString();
     } catch (error) {
       freshMeta.reason = error instanceof ProviderFailure && reasonNames.includes(error.reason) ? error.reason : "invalid_response";
     }

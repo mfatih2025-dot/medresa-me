@@ -80,7 +80,7 @@ const origin='http://localhost:3213';
       if(u.pathname.endsWith('/media')) return json({data:[]});
       if(u.searchParams.get('metric_type')==='time_series') return json({data:[]});
       const metric=u.searchParams.get('metric');
-      return json({data:[{name:metric,total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
+      return json({data:[{name:metric,period:'day',total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
     }
     if(new URL(address).hostname==='api.vercel.com') {
       const u=new URL(address);
@@ -114,11 +114,26 @@ const origin='http://localhost:3213';
   assert.equal((await context.request.post(origin+'/api/admin/login',{headers:{Origin:origin},data:{user:process.env.MEDRESA_ADMIN_USER,password}})).status(),200);
   assert.equal((await context.request.post(origin+'/api/admin/analytics/sync',{headers:{Origin:'https://evil.invalid'},data:{period:'30',requestId:randomUUID()}})).status(),403);
   await page.goto(origin+'/ulaz7/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
+  // Temporary diagnostic runs inside the existing authenticated page, GET-only.
+  const auditBefore=await Promise.all(['medresa_analytics_reports','medresa_analytics_daily','medresa_analytics_sync_runs','medresa_analytics_provider_state'].map(table=>snapshot(table,table==='medresa_analytics_sync_runs'?'id':table==='medresa_analytics_daily'?'provider,day':'provider')));
+  const callsBeforeAudit=providerCalls.length,syncBeforeAudit=syncRequests;
+  const auditResponse=page.waitForResponse(r=>r.url()===origin+'/api/admin/analytics?period=90&diagnostic=instagram&fresh=1');
+  const auditButton=page.getByRole('button',{name:'Instagram 90d diagnostic',exact:true});
+  assert.ok((await auditButton.boundingBox()).height>=44);await auditButton.tap();
+  const audited=await auditResponse;assert.equal(audited.status(),200);assert.equal(audited.request().method(),'GET');
+  const safeAudit=await audited.json();assert.equal(safeAudit.report.savedAggregatedValue,900);assert.equal(safeAudit.freshMeta.aggregatedValue,0);
+  const auditOutput=page.getByLabel('Instagram 90d diagnostic result',{exact:true});await auditOutput.waitFor();
+  const shownAudit=JSON.parse(await auditOutput.innerText());assert.equal(shownAudit['FRESH META VALUE'].value,0);assert.equal(shownAudit['SAVED ADMIN VALUE'].value,900);assert.equal(shownAudit['SAVED ADMIN VALUE'].provenance,'saved_period_total');
+  assert.ok(shownAudit['FRESH META VALUE'].responseTimestamp);assert.equal(syncRequests,syncBeforeAudit);assert.ok(providerCalls.slice(callsBeforeAudit).every(p=>p==='instagram'));
+  const auditAfter=await Promise.all(['medresa_analytics_reports','medresa_analytics_daily','medresa_analytics_sync_runs','medresa_analytics_provider_state'].map(table=>snapshot(table,table==='medresa_analytics_sync_runs'?'id':table==='medresa_analytics_daily'?'provider,day':'provider')));
+  assert.deepEqual(auditAfter,auditBefore,'Read-only diagnostic changed stored analytics');
+  for(const width of [360,390,412,430]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1));}
+  await page.reload();await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
   const clean=async()=>{
     const text=await page.locator('main').innerText();
     for(const removed of ['Posljednja osvježavanja','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
     for(const name of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Provjeri Preview vezu']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
-    assert.equal(await page.locator('main pre').count(),0);assert.ok(!text.includes('NaN')&&!text.includes('Infinity'));
+    assert.equal(await page.locator('main pre:not([aria-label="Instagram 90d diagnostic result"])').count(),0);assert.ok(!text.includes('NaN')&&!text.includes('Infinity'));
   };
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics overflow '+width);
@@ -131,7 +146,7 @@ const origin='http://localhost:3213';
   assert.equal(await page.getByRole('button',{name:'30 dana',exact:true}).getAttribute('aria-pressed'),'true');
   for(const width of [360,390,412,430]) {
     await page.setViewportSize({width,height:900});await fits(width);
-    await page.evaluate(()=>window.scrollTo(0,0));const summary=await page.getByRole('list',{name:'Pregledi po platformi'}).boundingBox();assert.ok(summary.y+summary.height<=844,'All four platform totals must be immediately visible '+width);
+    await page.evaluate(()=>window.scrollTo(0,0));const summary=await page.getByRole('list',{name:'Pregledi po platformi'}).boundingBox();const temporaryHeight=await page.getByRole('region',{name:'Privremena Instagram dijagnostika'}).evaluate(el=>{const s=getComputedStyle(el);return el.getBoundingClientRect().height+parseFloat(s.marginTop)+parseFloat(s.marginBottom);});assert.ok(summary.y+summary.height-temporaryHeight<=844,'Platform hierarchy changed beyond the temporary diagnostic control '+width);
     for(const name of ['7 dana','Danas','Juče','60 dana','90 dana','30 dana']) {
       const response=page.waitForResponse(r=>r.url().includes('/api/admin/analytics?period='));await page.getByRole('button',{name,exact:true}).tap();await response;await page.waitForFunction(()=>document.querySelector('[aria-busy="false"]'));await fits(width);
       assert.equal(await page.getByTestId('period-views').textContent(),({'7 dana':'280',Danas:'0','Juče':'20','60 dana':'2.400','90 dana':'3.600','30 dana':'1.200'})[name]);
