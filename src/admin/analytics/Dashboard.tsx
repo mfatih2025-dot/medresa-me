@@ -6,6 +6,7 @@ import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type Provider, type ProviderReport, type Ranked } from "./model";
 import { formatYouTube } from "./formatYouTube";
 import { periodViews } from "./views";
+import { YouTubeDiagnosticControl } from "./YouTubeDiagnosticControl";
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
@@ -138,7 +139,7 @@ export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
       {website && <section className={styles.mainTrend} aria-label="Pregledi stranica · Website"><Trend key={`overview-${website.range.start}-${website.range.end}`} report={website} metric="pageviews" /></section>}
       <section id="daily-overview" className={styles.daily}><header className={styles.sectionHead}><div><p className={shared.eyebrow}>DNEVNI PREGLED</p><h2>Danas / Juče</h2></div></header><p className={styles.context}>Danas do sada · juče cijeli dan. — označava nedostupne podatke.</p><div className={styles.dailyGrid}>{data.reports.map(r => <article key={r.provider}><div className={styles.dailyProvider}><h3>{providerLabels[r.provider]}</h3><span>Danas</span></div>{primaryMetrics[r.provider].slice(0, 3).map(k => <DailyMetric key={k} report={r} metric={k} />)}{(r.provider === "instagram" || r.provider === "facebook") && <DailyMetric report={r} metric="followerChange" />}{r.provider === "youtube" && <p className={styles.context}>YouTube dnevni podaci mogu kasniti.</p>}<small>{r.timezone}</small></article>)}</div></section>
       {data.reports.map(r => <Source key={r.provider} report={r} />)}
-      <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>STATUS IZVORA</p><h2>Stanje izvora</h2><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><small>Osvježeno: {date(r.lastSuccessAt)}</small></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku. Status se automatski ažurira.</p>}</section>
+      <section id="sync-status" className={styles.source}><p className={shared.eyebrow}>STATUS IZVORA</p><h2>Stanje izvora</h2><ul className={styles.providers}>{data.reports.map(r => <li key={r.provider}><strong>{providerLabels[r.provider]}</strong><span className={styles.state} data-state={r.state}>{stateLabels[r.state]}</span><small>Osvježeno: {date(r.lastSuccessAt)}</small></li>)}</ul>{data.sync.running && <p className={styles.notice}>Osvježavanje je u toku. Status se automatski ažurira.</p>}<YouTubeDiagnosticControl period={period} /></section>
     </div>
   </Shell></div>;
 }

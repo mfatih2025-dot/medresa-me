@@ -146,3 +146,7 @@
   .chart { margin:20px 0; }
   .providers li>small { grid-column:1/-1; }
 }
+
+.youtubeDiagnostic { margin-top:16px; min-width:0; }
+.youtubeDiagnostic>button { min-height:44px; }
+.youtubeDiagnosticOutput { max-width:100%; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.6; color:var(--admin-green); }
