@@ -1,5 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import type { Localized } from "@/i18n/types";
+// Relative (not "@/"): next.config loads this module through src/seo/legacy.ts.
+import { generationPathFor, generationSlugFor, generationSlugWord } from "./alumni-routes";
 /**
  * Alumni — medresa.me/alumni: its title, introduction and the generations,
  * each with the pano published on its own generation page.
@@ -368,3 +370,30 @@ const sq: Localized<typeof bs> = {
 export const alumniContent: Record<Locale, Localized<typeof bs>> = { bs, sq, en };
 /** The Bosnian master text (kept for existing callers). */
 export const alumni = bs;
+
+/* Each generation's own page (/alumni/generacija-vii …): see ./alumni-routes. */
+
+/** „generacija-vii“: the generation's slug in a language. */
+export const generationSlug = (g: Generation, locale: Locale) => generationSlugFor(g.roman, locale);
+
+/** „/alumni/generacija-vii“, „/sq/alumni/gjenerata-vii“: the generation's page in a language. */
+export const generationPath = (g: Generation, locale: Locale) => generationPathFor(g.roman, locale);
+
+/** The generation's page in every language (canonical and hreflang alternates). */
+export const generationPaths = (g: Generation) =>
+  Object.fromEntries(
+    (Object.keys(generationSlugWord) as Locale[]).map((l) => [l, generationPath(g, l)]),
+  ) as Record<Locale, string>;
+
+/**
+ * The generation a slug names: in this language (`exact`), or in another
+ * language's form (sent on to this language's slug). Null for anything else.
+ */
+export function generationBySlug(slug: string, locale: Locale): { generation: Generation; exact: boolean } | null {
+  for (const g of generations) {
+    if (generationSlug(g, locale) === slug) return { generation: g, exact: true };
+    for (const l of Object.keys(generationSlugWord) as Locale[])
+      if (generationSlug(g, l) === slug) return { generation: g, exact: false };
+  }
+  return null;
+}

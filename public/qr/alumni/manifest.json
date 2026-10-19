@@ -1,0 +1,123 @@
+{
+  "site": "https://www.medresa.me",
+  "version": 6,
+  "errorCorrection": "H",
+  "quietZone": 4,
+  "style": {
+    "logoModules": 10,
+    "clearRadius": 6.1,
+    "moduleRadius": 0,
+    "finderRadius": [
+      0,
+      0,
+      0
+    ]
+  },
+  "generations": [
+    {
+      "generation": "I",
+      "number": 1,
+      "url": "https://www.medresa.me/alumni/generacija-i",
+      "master": "masters/generacija-i",
+      "badge": "badges/generacija-i"
+    },
+    {
+      "generation": "II",
+      "number": 2,
+      "url": "https://www.medresa.me/alumni/generacija-ii",
+      "master": "masters/generacija-ii",
+      "badge": "badges/generacija-ii"
+    },
+    {
+      "generation": "III",
+      "number": 3,
+      "url": "https://www.medresa.me/alumni/generacija-iii",
+      "master": "masters/generacija-iii",
+      "badge": "badges/generacija-iii"
+    },
+    {
+      "generation": "IV",
+      "number": 4,
+      "url": "https://www.medresa.me/alumni/generacija-iv",
+      "master": "masters/generacija-iv",
+      "badge": "badges/generacija-iv"
+    },
+    {
+      "generation": "V",
+      "number": 5,
+      "url": "https://www.medresa.me/alumni/generacija-v",
+      "master": "masters/generacija-v",
+      "badge": "badges/generacija-v"
+    },
+    {
+      "generation": "VI",
+      "number": 6,
+      "url": "https://www.medresa.me/alumni/generacija-vi",
+      "master": "masters/generacija-vi",
+      "badge": "badges/generacija-vi"
+    },
+    {
+      "generation": "VII",
+      "number": 7,
+      "url": "https://www.medresa.me/alumni/generacija-vii",
+      "master": "masters/generacija-vii",
+      "badge": "badges/generacija-vii"
+    },
+    {
+      "generation": "VIII",
+      "number": 8,
+      "url": "https://www.medresa.me/alumni/generacija-viii",
+      "master": "masters/generacija-viii",
+      "badge": "badges/generacija-viii"
+    },
+    {
+      "generation": "IX",
+      "number": 9,
+      "url": "https://www.medresa.me/alumni/generacija-ix",
+      "master": "masters/generacija-ix",
+      "badge": "badges/generacija-ix"
+    },
+    {
+      "generation": "X",
+      "number": 10,
+      "url": "https://www.medresa.me/alumni/generacija-x",
+      "master": "masters/generacija-x",
+      "badge": "badges/generacija-x"
+    },
+    {
+      "generation": "XI",
+      "number": 11,
+      "url": "https://www.medresa.me/alumni/generacija-xi",
+      "master": "masters/generacija-xi",
+      "badge": "badges/generacija-xi"
+    },
+    {
+      "generation": "XII",
+      "number": 12,
+      "url": "https://www.medresa.me/alumni/generacija-xii",
+      "master": "masters/generacija-xii",
+      "badge": "badges/generacija-xii"
+    },
+    {
+      "generation": "XIII",
+      "number": 13,
+      "url": "https://www.medresa.me/alumni/generacija-xiii",
+      "master": "masters/generacija-xiii",
+      "badge": "badges/generacija-xiii"
+    },
+    {
+      "generation": "XIV",
+      "number": 14,
+      "url": "https://www.medresa.me/alumni/generacija-xiv",
+      "master": "masters/generacija-xiv",
+      "badge": "badges/generacija-xiv"
+    },
+    {
+      "generation": "XV",
+      "number": 15,
+      "url": "https://www.medresa.me/alumni/generacija-xv",
+      "master": "masters/generacija-xv",
+      "badge": "badges/generacija-xv"
+    }
+  ]
+}

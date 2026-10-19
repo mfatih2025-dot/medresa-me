@@ -99,10 +99,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Pages only: not Next internals, APIs, the files under /public (images/, brand/) or the
+  // Pages only: not Next internals, APIs, the files under /public (images/, brand/, qr/) or the
   // generated robots.txt, sitemap.xml and manifest. Other addresses with a dot (an old
   // /wp-login.php, /xmlrpc.php …) are routed too, so they get the site's own 404.
   matcher: [
-    "/((?!_next/|api/|images/|brand/|robots.txt|sitemap.xml|manifest.webmanifest|favicon.ico).*)",
+    "/((?!_next/|api/|images/|brand/|qr/|robots.txt|sitemap.xml|manifest.webmanifest|favicon.ico).*)",
   ],
 };

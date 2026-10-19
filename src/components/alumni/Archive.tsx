@@ -36,19 +36,21 @@ const roman = (g: Generation, label: string) => `${label} ${g.roman}`;
 const id = (g: Generation) => `generacija-${g.number}`;
 const two = (n: number) => String(n).padStart(2, "0");
 
-/** Heading: „Generacija“ small, the numeral large; reads as „Generacija VIII“. */
-function Heading({
+/** Heading: „Generacija“ small, the numeral large; reads as „Generacija VIII“ (h1 on its own page). */
+export function Heading({
   g,
+  as: Tag = "h3",
   align = "left",
   className = "",
 }: {
   g: Generation;
+  as?: "h1" | "h3";
   align?: "left" | "right";
   className?: string;
 }) {
   const a = useA();
   return (
-    <h3 id={`${id(g)}-h`} className={`text-green ${align === "right" ? "text-right" : ""} ${className}`}>
+    <Tag id={`${id(g)}-h`} className={`text-green ${align === "right" ? "text-right" : ""} ${className}`}>
       <span className="flex items-baseline gap-3 text-[0.8125rem] tracking-[0.18em] text-gold-deep uppercase md:text-[0.875rem]">
         <span aria-hidden className="tabular-nums tracking-[0.08em] text-ink-soft/80">
           {two(g.number)}
@@ -58,12 +60,12 @@ function Heading({
       <span className="display mt-2 block text-[clamp(3.25rem,2rem+5.4vw,7.5rem)] leading-[0.86] tracking-[-0.035em]">
         <Emerge>{g.roman}</Emerge>
       </span>
-    </h3>
+    </Tag>
   );
 }
 
 /** „Otvori pano“ — the source's link text, as the quiet action under each pano. */
-function OpenLabel({
+export function OpenLabel({
   g,
   onOpen,
   className = "",

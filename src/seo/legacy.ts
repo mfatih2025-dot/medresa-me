@@ -1,6 +1,6 @@
-import { generations } from "../content/alumni";
 import { locales, type Locale } from "../i18n/config";
 import { pathFor, type PageId } from "../i18n/routes";
+import { generationPath, generations } from "../content/alumni";
 
 /*
  * The old WordPress medresa.me → the new site, as permanent (301) redirects.
@@ -94,15 +94,15 @@ export function legacyRedirects(): Redirect[] {
     for (const p of pages) {
       out.push({ source: `${prefix(l)}${p.from}`, destination: pathFor(p.to, l), statusCode: 301 });
     }
-    // „e-medresa“ was a page about the school's e-learning platform: the platform itself.
-    out.push({ source: `${prefix(l)}/e-medresa`, destination: "https://www.e-medresa.me/", statusCode: 301 });
     // Each generation's page on the old site (/generacija/generacija1/,
-    // /generacija/generacija-xv-otvori-pano/ …, recorded in src/content/alumni.ts) →
-    // that generation's own place on the Alumni page.
+    // /generacija/generacija-xv-otvori-pano/ …, recorded per generation in
+    // src/content/alumni.ts) → that generation's page here.
     for (const g of generations) {
       const old = new URL(g.source.page).pathname.replace(/\/$/, "");
-      out.push({ source: `${prefix(l)}${old}`, destination: `${pathFor("alumni", l)}#generacija-${g.number}`, statusCode: 301 });
+      out.push({ source: `${prefix(l)}${old}`, destination: generationPath(g, l), statusCode: 301 });
     }
+    // „e-medresa“ was a page about the school's e-learning platform: the platform itself.
+    out.push({ source: `${prefix(l)}/e-medresa`, destination: "https://www.e-medresa.me/", statusCode: 301 });
   }
   for (const s of sitemaps) out.push({ source: s, destination: "/sitemap.xml", statusCode: 301 });
   return out;

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:admin": "node --test --test-isolation=none tests/admin-foundation.test.mjs tests/admin-phase2.test.mjs tests/admin-database.test.mjs tests/admin-publication-integrity.test.mjs tests/admin-locale-publication.test.mjs tests/public-news.test.mjs tests/admin-translation.test.mjs tests/admin-analytics.test.mjs tests/admin-campaigns.test.mjs tests/admin-results.test.mjs tests/admin-independent-locales.test.mjs tests/admin-admissions-status.test.mjs tests/production-backend.test.mjs",
+    "test:admin": "node --test --test-isolation=none tests/admin-foundation.test.mjs tests/admin-phase2.test.mjs tests/admin-database.test.mjs tests/admin-publication-integrity.test.mjs tests/admin-locale-publication.test.mjs tests/public-news.test.mjs tests/admin-translation.test.mjs tests/admin-analytics.test.mjs tests/admin-campaigns.test.mjs tests/admin-results.test.mjs tests/admin-independent-locales.test.mjs tests/admin-admissions-status.test.mjs tests/production-backend.test.mjs tests/alumni-generations.test.mjs",
+    "qr:alumni": "node scripts/alumni-qr/generate.mjs && node scripts/alumni-qr/verify.mjs",
     "test:admin:browser": "node tests/admin-browser.mjs",
     "test:analytics:browser": "node tests/admin-analytics-browser.mjs",
     "test:campaigns:browser": "node tests/admin-campaigns-browser.mjs",
@@ -31,8 +32,12 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.8",
+    "jsqr": "^1.4.0",
+    "opentype.js": "^1.3.4",
     "playwright": "^1.62.1",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "zxing-wasm": "^3.1.6"
   }
 }

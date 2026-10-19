@@ -3,12 +3,15 @@
 import { usePathname } from "next/navigation";
 import { localeNames, locales, rememberLocale, type Locale } from "@/i18n/config";
 import { translatePath } from "@/i18n/routes";
+import { generationPathIn } from "@/content/alumni-routes";
 
 /**
  * BS · SQ · EN in the header menu: real links to the same page in each
  * language, through the route map (/upis → /en/admissions, /sq/historiku →
  * /historijat), remembering the choice before leaving. Pages below a route (news articles) are matched
- * through their hreflang alternates. The current language is marked, not only coloured.
+ * through their hreflang alternates. An Alumni generation's page links straight to the same
+ * generation (/alumni/generacija-vii → /en/alumni/generation-vii), even before scripts run.
+ * The current language is marked, not only coloured.
  */
 export function LanguageSwitch({ label }: { label: string }) {
   const pathname = usePathname() || "/";
@@ -25,7 +28,7 @@ export function LanguageSwitch({ label }: { label: string }) {
             </span>
           )}
           <a
-            href={translatePath(pathname, l)}
+            href={generationPathIn(pathname, l) ?? translatePath(pathname, l)}
             hrefLang={l}
             lang={l}
             aria-current={l === current ? "true" : undefined}

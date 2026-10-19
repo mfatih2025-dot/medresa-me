@@ -3,12 +3,14 @@ import { locales, type Locale } from "@/i18n/config";
 import { alternatesFor, pageIds } from "@/i18n/routes";
 import { archivePath, type NewsArticle } from "@/content/vijesti";
 import { publicNews } from "@/server/public/news";
+import { generationPaths, generations } from "@/content/alumni";
 import { absoluteUrl } from "@/seo/config";
 
 /*
  * Every public, indexable URL in its languages, each listing its equivalents
  * as alternates (hreflang): the homepage and the 13 pages, the news archive
- * pages, and every published article with its photographs.
+ * pages, each Alumni generation's page with its pano, and every published
+ * article with its photographs.
  *
  * Only published content is listed. A news article contributes one URL per
  * language it is published in (`paths`); a draft or an unpublished language
@@ -48,11 +50,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const archive = Array.from({ length: maxPages - 1 }, (_, k) =>
     entries(Object.fromEntries(locales.filter((_, i) => k + 2 <= feeds[i].pageCount).map(l => [l, archivePath(l, k + 2)])), { changeFrequency: "weekly" }),
   ).flat();
+  const alumni = generations.flatMap((g) =>
+    entries(generationPaths(g), { changeFrequency: "yearly", images: [absoluteUrl(g.pano.src)] }),
+  );
   const news = (await publishedNews()).flatMap(({ article, paths, locale }) =>
     entries(paths, {
       lastModified: article.date,
       ...(article.photos.length ? { images: article.photos.map((p) => absoluteUrl(p.src)) } : {}),
     }).filter(entry => entry.url === absoluteUrl(paths[locale]!)),
   );
-  return [...pages, ...archive, ...news];
+  return [...pages, ...alumni, ...archive, ...news];
 }
