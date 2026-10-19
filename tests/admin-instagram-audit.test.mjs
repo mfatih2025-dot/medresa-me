@@ -73,7 +73,7 @@ test('wrong metric, wrong period, empty/malformed values and upstream errors are
     const out=await instagramAudit(true,now);assert.equal(out.freshMeta.aggregatedValue,null);assert.equal(out.freshMeta.status,'unavailable');assert.ok(!JSON.stringify(out).includes('token-not-a-number'));
   }
 });
-test('existing endpoint authenticates first, remains GET-only/no-store/noindex, and limits diagnostic to Preview/90 days',async()=>{
+test('existing endpoint authenticates first, remains GET-only/no-store/noindex, and limits diagnostic to approved deployments/90 days',async()=>{
   Object.assign(process.env,{VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'codex/admin-panel',MEDRESA_ADMIN_USER:'fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128),MEDRESA_ADMIN_SESSION_SECRET:'synthetic-session-secret-at-least-32-characters',MEDRESA_ADMIN_ORIGIN:'https://preview.example'});
   let calls=0,normalCalls=0;
   const load=moduleLoader({'@/server/admin/analytics/common':{previewConfiguration(){}},'@/server/admin/analytics/instagramAudit':{instagramAudit:async fresh=>{calls++;return {fresh,persisted:false};}},'@/server/admin/analytics/service':{dashboard:async()=>{normalCalls++;return {reports:[]};}}});
@@ -85,6 +85,9 @@ test('existing endpoint authenticates first, remains GET-only/no-store/noindex, 
   const ok=await request(query,cookies);assert.equal(ok.code,200);assert.equal(ok.body.fresh,true);assert.match(ok.headers['Cache-Control'],/no-store/);assert.match(ok.headers['X-Robots-Tag'],/noindex, nofollow/);
   assert.equal((await request(query,cookies,'POST')).code,405);
   assert.equal((await request({...query,period:'30'},cookies)).code,422);assert.equal((await request({...query,fresh:['1']},cookies)).code,422);
-  process.env.VERCEL_ENV='production';process.env.VERCEL_GIT_COMMIT_REF='main';assert.equal((await request(query,cookies)).code,404);
-  assert.equal((await request({period:'90'},cookies)).code,200);assert.equal(normalCalls,1);assert.equal(calls,1);
+  process.env.VERCEL_ENV='production';process.env.VERCEL_GIT_COMMIT_REF='main';assert.equal((await request(query,cookies)).code,200);
+  assert.equal((await request(query)).code,401);
+  process.env.VERCEL_ENV='preview';process.env.VERCEL_GIT_COMMIT_REF='unapproved-branch';assert.equal((await request(query,cookies)).code,404);
+  process.env.VERCEL_GIT_COMMIT_REF='codex/admin-panel';
+  assert.equal((await request({period:'90'},cookies)).code,200);assert.equal(normalCalls,1);assert.equal(calls,2);
 });

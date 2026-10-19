@@ -3,7 +3,7 @@ import shared from "../admin.module.css";
 import styles from "./analytics.module.css";
 import { instagramAuditView } from "./instagramAuditView";
 
-/** Temporary Preview-only control; uses the existing Analytics session and GET API. */
+/** Temporary authenticated control; uses the existing Analytics session and GET API. */
 export function InstagramAuditControl() {
   const running = useRef(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
