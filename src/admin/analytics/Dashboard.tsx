@@ -6,7 +6,6 @@ import { comparison, days } from "./period";
 import { providerLabels, metricLabels, periods, stateLabels, reasonLabels, type AnalyticsDashboard, type Metric, type Period, type Provider, type ProviderReport, type Ranked } from "./model";
 import { formatYouTube } from "./formatYouTube";
 import { periodViews } from "./views";
-import { InstagramAuditControl } from "./InstagramAuditControl";
 
 const periodLabels: Record<Period, string> = { today: "Danas", yesterday: "Juče", "7": "7 dana", "30": "30 dana", "60": "60 dana", "90": "90 dana" };
 const primaryMetrics: Record<ProviderReport["provider"], Metric[]> = { website: ["visits", "visitors", "pageviews"], instagram: ["views", "reach", "interactions", "followerChange", "profileActivity"], facebook: ["views", "reach", "interactions", "followerChange"], youtube: ["views", "watchMinutes", "subscriberChange"] };
@@ -77,7 +76,7 @@ function DailyMetric({ report, metric }: { report: ProviderReport; metric: Metri
     <div className={styles.dailyNumbers}><strong>{formatFor(report.provider, today)}</strong><div className={styles.dailyYesterday}><span>Juče {formatFor(report.provider, yesterday)}</span><Change current={today} previous={yesterday} partial provider={report.provider} /></div></div>
   </div>;
 }
-export function Analytics({ initial, instagramDiagnosticEnabled = false }: { initial: AnalyticsDashboard; instagramDiagnosticEnabled?: boolean }) {
+export function Analytics({ initial }: { initial: AnalyticsDashboard }) {
   const [data, setData] = useState(initial), [period, setPeriod] = useState(initial.period);
   const [loading, setLoading] = useState(false), [syncing, setSyncing] = useState(false), [message, setMessage] = useState("");
   const serial = useRef(0), syncingRef = useRef(false), periodRef = useRef(period);
@@ -125,7 +124,6 @@ export function Analytics({ initial, instagramDiagnosticEnabled = false }: { ini
       <div className={styles.controls}><div className={styles.periods} role="group" aria-label="Period analitike">{periods.map(p => <button key={p} type="button" aria-pressed={period === p} disabled={syncing} onClick={() => select(p)}>{periodLabels[p]}</button>)}</div><button className={`${shared.primary} ${styles.refresh}`} onClick={() => sync()} disabled={syncing || loading || data.sync.running || !data.writable || data.storage !== "ready"}>{syncing ? "Osvježavam podatke…" : "Osvježi podatke"}</button></div>
       <p className={styles.refreshed}>Posljednje osvježeno: {date(lastRefreshed)}</p>
     </div>
-    {instagramDiagnosticEnabled && <InstagramAuditControl />}
     {message && <p className={styles.notice} role="status">{message}</p>}
     {data.storage !== "ready" && <p className={styles.notice} role="status">Historija analitike trenutno nije dostupna.</p>}
 

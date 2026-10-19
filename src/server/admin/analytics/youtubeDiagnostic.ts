@@ -22,6 +22,10 @@ export async function youtubeJson(url: URL | string, init: RequestInit, signal: 
     // The common Meta classifier treats all HTTP 400s as unsupported metrics.
     // Google validation errors alone do not prove an unsupported metric.
     if (request !== "oauth" && failure.reason === "unsupported_metric" && result.httpStatus === 400) failure = new ProviderFailure("error", "invalid_response");
-    result.reason = failure.reason; throw failure;
+    result.reason = failure.reason;
+    // Fixed enums/statuses only: no URLs, headers, tokens, descriptions or raw errors.
+    // Available during the normal refresh as well as provider-scoped maintenance.
+    console.warn("medresa.youtube.request.failed", { request: result.request, httpStatus: result.httpStatus, reason: result.reason, googleReason: result.googleReason, googleStatus: result.googleStatus, code: result.code });
+    throw failure;
   } finally { if (diagnostic && diagnostic.requests.length < 10) diagnostic.requests.push(result); }
 }
