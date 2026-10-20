@@ -101,22 +101,25 @@ export async function latestInstagramPost(): Promise<SocialPost | null> {
     return null;
   }
 
-  // Newest first; take the first item that has a usable still image and link.
+  // Select by publication time, never by image availability or response order.
+  // A Reel without a still keeps its own link/date/caption and uses the existing
+  // SocialFeed image fallback, rather than silently showing an older post.
   const media = Array.isArray(body.data) ? body.data : [];
-  for (const m of media) {
-    const src = stillOf(m);
-    if (!src || !m.permalink || !m.timestamp) continue;
-    if (!/^https:\/\/(www\.)?instagram\.com\//.test(m.permalink)) continue;
-    return {
-      kind: "post",
-      platform: "instagram",
-      url: m.permalink,
-      date: m.timestamp,
-      text: m.caption ?? "",
-      media: { src, alt: "Najnovija objava Medrese „Mehmed Fatih“ na Instagramu" },
-      source: "meta",
-    };
+  const newest = media
+    .filter((m) => m && typeof m.permalink === "string" && /^https:\/\/(www\.)?instagram\.com\//.test(m.permalink) && typeof m.timestamp === "string" && Number.isFinite(Date.parse(m.timestamp)))
+    .sort((a, b) => Date.parse(b.timestamp!) - Date.parse(a.timestamp!))[0];
+  if (!newest) {
+    if (media.length === 0) console.warn("[instagram] no media returned");
+    return null;
   }
-  if (media.length === 0) console.warn("[instagram] no media returned");
-  return null;
+  const src = stillOf(newest);
+  return {
+    kind: "post",
+    platform: "instagram",
+    url: newest.permalink!,
+    date: newest.timestamp!,
+    text: newest.caption ?? "",
+    media: src ? { src, alt: "Najnovija objava Medrese „Mehmed Fatih“ na Instagramu" } : undefined,
+    source: "meta",
+  };
 }
