@@ -5,6 +5,7 @@ import { discoverInstagramFacebook, instagramGraph } from "./instagramDiagnostic
 import type { InstagramDiagnostic } from "@/admin/analytics/instagramTest";
 import type { FacebookDiagnostic } from "@/admin/analytics/facebookTest";
 import { facebookAccessDiagnostic, facebookGraph } from "./facebookDiagnostic";
+import { instagramDailyViews } from "./instagramDailyViews";
 // Existing feed credentials and official account: no second login or token store.
 const FACEBOOK_PAGE_ID = "578640758657974";
 export const instagramConfigured = () => !!process.env.INSTAGRAM_ACCESS_TOKEN?.trim();
@@ -36,7 +37,7 @@ function finish(report: ProviderReport, now: Date) {
   }
   return result;
 }
-export async function instagram(period: Period, now: Date, signal: AbortSignal, diagnostic?: InstagramDiagnostic) {
+export async function instagram(period: Period, now: Date, signal: AbortSignal, diagnostic?: InstagramDiagnostic, savedDays: readonly Daily[] = []) {
   const report = blank("instagram", period, now, "UTC", instagramConfigured());
   if (diagnostic) diagnostic.tokenPresent = instagramConfigured();
   if (!instagramConfigured()) return report;
@@ -88,6 +89,17 @@ export async function instagram(period: Period, now: Date, signal: AbortSignal, 
       const date = dayAt(new Date(Date.parse(v.end_time) - 1), "UTC"), value = number(v.value);
       if (date >= slice.start && date <= slice.end && value !== null) daily.set(date, { date, metrics: { reach: value }, complete: date < report.todayDate });
     }
+  }
+  // Retain each real one-day views measurement so all period selectors can use
+  // history, even when no exact aggregate report exists for today's date range.
+  const fresh = [report.today, report.yesterday].filter((d): d is Daily => d !== null);
+  const views = await instagramDailyViews(report.range, report.todayDate, params => query(`${id}/insights`, params), signal, savedDays, fresh, (reason, permission) => {
+    report.warnings.push(reason);
+    if (permission) { report.state = "permission_required"; report.reason = reason; }
+  });
+  for (const row of views) {
+    const previous = daily.get(row.date);
+    daily.set(row.date, { ...row, metrics: { ...previous?.metrics, ...row.metrics } });
   }
   report.daily = [...daily.values()].sort((a, b) => a.date.localeCompare(b.date));
   try {

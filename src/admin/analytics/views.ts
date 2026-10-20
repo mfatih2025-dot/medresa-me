@@ -15,5 +15,5 @@ export function periodViews(reports: readonly Pick<ProviderReport, "provider" | 
   });
   const available = sources.filter(source => source.value !== null);
   const sum = available.reduce((total, source) => total + source.value!, 0);
-  return { total: available.length && Number.isFinite(sum) ? sum : null, sources, coverage: available.length };
+  return { total: available.length && Number.isFinite(sum) ? sum : null, sources, coverage: available.length, incomplete: available.some(source => !source.history || source.history.partial) };
 }

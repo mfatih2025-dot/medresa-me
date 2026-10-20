@@ -43,7 +43,7 @@ test('Finished Analytics renders real report fields without visible refresh hist
   const html=renderToStaticMarkup(React.createElement(Analytics,{initial}));
   for(const removed of ['Posljednja osvježavanja','Uspješno','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','token','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly']) assert.ok(!html.includes(removed),removed+' remains in normal UI');
   assert.equal((html.match(/Osvježi podatke/g)||[]).length,1);
-  for(const kept of ['UKUPNO PREGLEDA','280','Dostupni izvori: 4/4','DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','Posljednje osvježeno:','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
+  for(const kept of ['UKUPNO DOSTUPNIH PREGLEDA','280','Dostupni izvori: 4/4','DNEVNI PREGLED','Website','Instagram','Facebook','YouTube','Posljednje osvježeno:','Danas','Juče','7 dana','30 dana','60 dana','90 dana','70','35','—']) assert.ok(html.includes(kept),kept+' missing');
   assert.ok(html.includes('aria-pressed="true"'));assert.ok(html.includes('Povezano'));
   const unavailable=renderToStaticMarkup(React.createElement(Analytics,{initial:{...initial,storage:'migration_required',writable:false}}));
   assert.ok(unavailable.includes('Historija analitike trenutno nije dostupna.'));assert.ok(!unavailable.includes('migracij'));assert.ok(unavailable.includes('disabled=""'));

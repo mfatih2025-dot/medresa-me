@@ -1,4 +1,4 @@
-import { providers, reasonNames, type AnalyticsDashboard, type Period, type Provider, type ProviderReport } from "@/admin/analytics/model";
+import { providers, reasonNames, type AnalyticsDashboard, type Daily, type Period, type Provider, type ProviderReport } from "@/admin/analytics/model";
 import { shiftDay, validDay } from "@/admin/analytics/period";
 import { AdminError } from "@/admin/contracts";
 import { supabaseRequest } from "../supabase";
@@ -80,8 +80,10 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
         let r = Array.isArray(rows) && rows[0]?.report ? sanitizedReport(rows[0].report, base) : base;
         if (Array.isArray(savedDays)) {
           r = { ...r, daily: savedDays.filter(d => validDay(d.day)).map(d => ({ date: d.day, metrics: metrics(d.metrics), complete: d.complete === true && d.day < base.todayDate })) };
-          r.today = r.today ?? r.daily.find(d => d.date === base.todayDate) ?? null;
-          r.yesterday = r.yesterday ?? r.daily.find(d => d.date === new Date(Date.parse(base.todayDate) - 86400000).toISOString().slice(0, 10)) ?? null;
+          // Daily rows are shared across period refreshes; an exact period report
+          // can hold an older overview from a different refresh on this same day.
+          r.today = r.daily.find(d => d.date === base.todayDate) ?? r.today ?? null;
+          r.yesterday = r.daily.find(d => d.date === shiftDay(base.todayDate, -1)) ?? r.yesterday ?? null;
           // Reconstruct available measured days, not an all-days-or-nothing total.
           // Exact saved period totals win; partial daily coverage stays explicit.
           const current = storedTotals(base.provider, base.range, r.totals, r.daily);
@@ -122,7 +124,16 @@ export async function synchronize(period: Period, id: string, provider?: Provide
   const facebookDiagnostic = provider === "facebook" ? newFacebookDiagnostic() : undefined;
   const youtubeDiagnostic = provider === "youtube" ? newYouTubeDiagnostic() : undefined;
   const reports = await Promise.all((provider ? [provider] : providers).map(async p => {
-    const r = await collectProvider(p, period, now, signal, provider === "website" ? result => { websiteRequests.push(result); } : undefined, instagramDiagnostic, facebookDiagnostic, youtubeDiagnostic);
+    let instagramHistory: Daily[] = [];
+    if (p === "instagram") {
+      const range = blank(p, period, now, timezones[p], configurations[p]()).range;
+      const query = new URLSearchParams({ provider: "eq.instagram", timezone: "eq.UTC", day: `gte.${range.start}`, and: `(day.lte.${range.end})`, select: "day,metrics,complete", limit: "100" });
+      try {
+        const saved = await database(`/rest/v1/medresa_analytics_daily?${query}`).then(r => r.json());
+        if (Array.isArray(saved)) instagramHistory = saved.filter(d => validDay(d.day)).map(d => ({ date: d.day, metrics: metrics(d.metrics), complete: d.complete === true }));
+      } catch { /* Missing cache never fabricates coverage; collect measured API data. */ }
+    }
+    const r = await collectProvider(p, period, now, signal, provider === "website" ? result => { websiteRequests.push(result); } : undefined, instagramDiagnostic, facebookDiagnostic, youtubeDiagnostic, instagramHistory);
     // Include daily overview in history; duplicate dates are merged deterministically.
     const daily = new Map(r.daily.map(d => [d.date, d]));
     for (const d of [r.today, r.yesterday]) if (d && Object.values(d.metrics).some(v => typeof v === "number")) daily.set(d.date, { ...d, metrics: { ...daily.get(d.date)?.metrics, ...d.metrics } });

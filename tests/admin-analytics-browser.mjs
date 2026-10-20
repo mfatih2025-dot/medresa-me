@@ -80,7 +80,7 @@ const origin='http://localhost:3213';
       if(u.pathname.endsWith('/media')) return json({data:[]});
       if(u.searchParams.get('metric_type')==='time_series') return json({data:[]});
       const metric=u.searchParams.get('metric');
-      return json({data:[{name:metric,total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
+      return json({data:[{name:metric,period:'day',total_value:metric==='follows_and_unfollows'?{breakdowns:[{results:[{dimension_values:['FOLLOW'],value:0},{dimension_values:['UNFOLLOW'],value:0}]}]}:{value:0}}]});
     }
     if(new URL(address).hostname==='api.vercel.com') {
       const u=new URL(address);
