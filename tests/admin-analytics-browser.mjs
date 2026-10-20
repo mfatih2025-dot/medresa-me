@@ -116,10 +116,13 @@ const origin='http://localhost:3213';
   await page.goto(origin+'/ulaz7/analitika');await page.getByRole('heading',{name:'Analitika',exact:true}).waitFor();
   const clean=async()=>{
     const text=await page.locator('main').innerText();
+    assert.equal(await page.getByRole('button',{name:'YouTube diagnostic',exact:true}).count(),0);
+    assert.equal(await page.getByLabel('YouTube diagnostic result',{exact:true}).count(),0);
     for(const removed of ['Posljednja osvježavanja','Test Website','Test Instagram','Test Facebook','Test YouTube','Preview','HTTP','OAuth','Potrebne dozvole','Historijski baseline','Javni tracker','read_insights','instagram_manage_insights','youtube.readonly','Detalji greške','Provjeri status']) assert.ok(!text.includes(removed),removed+' remains in normal UI');
     for(const name of ['Test Website','Test Instagram','Test Facebook','Test YouTube','Provjeri Preview vezu']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
     assert.equal(await page.locator('main pre').count(),0);assert.ok(!text.includes('NaN')&&!text.includes('Infinity'));
   };
+  assert.equal((await context.request.get(origin+'/api/admin/analytics/youtube-diagnostic?period=30')).status(),404);
   const fits=async(width)=>{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'Analytics overflow '+width);
     for(const name of ['Danas','Juče','7 dana','30 dana','60 dana','90 dana','Osvježi podatke']) {const box=await page.getByRole('button',{name,exact:true}).boundingBox();assert.ok(box.height>=44&&box.width>=44,name+' touch target '+width);}
@@ -152,6 +155,8 @@ const origin='http://localhost:3213';
   delay=true;const firstPromise=refresh();await page.getByRole('button',{name:'Osvježavam podatke…',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Osvježavam podatke…',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'7 dana',exact:true}).isDisabled(),true);
   const {body:first,request:firstRequest}=await firstPromise;
   assert.equal(syncRequests,1);assert.ok(first.dashboard.reports.every(r=>r.state==='connected'),JSON.stringify(first.dashboard.reports.map(r=>({provider:r.provider,state:r.state,reason:r.reason}))));
+  assert.equal(await page.locator('#sync-status [data-state="connected"]').count(),4);
+  assert.equal((await page.locator('#sync-status').innerText()).match(/Povezano/g)?.length,4);
   assert.equal(first.dashboard.history.find(r=>r.id===first.runId).outcome,'success');
   for(const provider of ['api.vercel.com','instagram','facebook','oauth2.googleapis.com','youtubeanalytics.googleapis.com']) assert.ok(providerCalls.includes(provider),provider+' was not invoked by normal refresh');
   assert.equal(first.dashboard.reports[0].totals.pageviews,42);assert.equal(first.dashboard.reports[0].totals.visitors,9);assert.equal(first.dashboard.reports[1].current.followers,17);assert.equal(first.dashboard.reports[2].current.followers,23);assert.equal(first.dashboard.reports[3].current.subscribers,31);assert.equal(first.dashboard.reports[3].totals.views,30);assert.equal(first.dashboard.reports[3].totals.watchMinutes,15);
@@ -175,22 +180,6 @@ const origin='http://localhost:3213';
   await releaseCooldown(db);const externalId=randomUUID();await begin(db,externalId,'30');await page.reload();assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);
   const requestsBefore=syncRequests,providerReadsBefore=providerCalls.length;await finish(db,externalId,first.dashboard.reports.map(report => { const stored = { ...report }; delete stored.totalCoverage; delete stored.previousCoverage; return stored; }));await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Osvježi podatke'&&!b.disabled),{},{timeout:15000});assert.equal(syncRequests,requestsBefore);assert.equal(providerCalls.length,providerReadsBefore);
   for(const width of [360,390,412,430]) {await page.setViewportSize({width,height:900});await fits(width);}
-  // Temporary read-only control: same authenticated browser, Google only, no sync or saved writes.
-  outage=false;youtubeDenied=true;
-  const diagnosticTables=['medresa_analytics_reports','medresa_analytics_daily','medresa_analytics_sync_runs','medresa_analytics_provider_state'];
-  const diagnosticSnapshot=()=>Promise.all(diagnosticTables.map(table=>snapshot(table,table==='medresa_analytics_sync_runs'?'id':table==='medresa_analytics_daily'?'provider,day':table==='medresa_analytics_reports'?'provider,start_date,end_date':'provider')));
-  const savedBeforeDiagnostic=await diagnosticSnapshot(),syncBeforeDiagnostic=syncRequests,callsBeforeDiagnostic=providerCalls.length;
-  assert.equal((await(await browser.newContext()).request.get(origin+'/api/admin/analytics/youtube-diagnostic?period=30')).status(),401);
-  const diagnosticButton=page.getByRole('button',{name:'YouTube diagnostic',exact:true});assert.ok((await diagnosticButton.boundingBox()).height>=44);
-  const diagnosticResponse=page.waitForResponse(r=>r.url()===origin+'/api/admin/analytics/youtube-diagnostic?period=30');await diagnosticButton.tap();
-  const diagnostic=await diagnosticResponse;assert.equal(diagnostic.status(),200);assert.equal(diagnostic.request().method(),'GET');
-  const diagnosticOutput=page.getByLabel('YouTube diagnostic result',{exact:true});await diagnosticOutput.waitFor();
-  const diagnosticShown=JSON.parse(await diagnosticOutput.innerText());assert.equal(diagnosticShown.failedStage,'oauth');assert.equal(diagnosticShown.httpStatus,400);assert.equal(diagnosticShown.googleErrorCode,'invalid_grant');assert.equal(diagnosticShown.refreshTokenExchangeSucceeded,false);assert.equal(diagnosticShown.channelDiscoverySucceeded,false);assert.equal(diagnosticShown.analyticsRequestSucceeded,false);
-  assert.equal(syncRequests,syncBeforeDiagnostic);assert.deepEqual(await diagnosticSnapshot(),savedBeforeDiagnostic);assert.ok(providerCalls.slice(callsBeforeDiagnostic).every(host=>host==='oauth2.googleapis.com'));
-  for(const marker of ['private-youtube','raw-private','YOUTUBE_REFRESH_TOKEN','Authorization'])assert.ok(!(await diagnosticOutput.innerText()).includes(marker));
-  for(const width of [360,390,412,430]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1));}
-  youtubeDenied=false;const successfulDiagnostic=page.waitForResponse(r=>r.url().includes('/analytics/youtube-diagnostic?'));await diagnosticButton.tap();await successfulDiagnostic;await page.waitForFunction(()=>{const el=document.querySelector('[aria-label="YouTube diagnostic result"]');return !!el&&JSON.parse(el.textContent).analyticsRequestSucceeded===true;});
-  assert.deepEqual(await diagnosticSnapshot(),savedBeforeDiagnostic);assert.equal(syncRequests,syncBeforeDiagnostic);
   missingSchema=true;await page.reload();await page.getByText('Historija analitike trenutno nije dostupna.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Osvježi podatke',exact:true}).isDisabled(),true);await clean();
   const secretMarkers=[process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.MEDRESA_ADMIN_PASSWORD_HASH,process.env.MEDRESA_ADMIN_SESSION_SECRET,process.env.VERCEL_ANALYTICS_TOKEN,process.env.INSTAGRAM_ACCESS_TOKEN,process.env.FACEBOOK_PAGE_ACCESS_TOKEN,process.env.YOUTUBE_OAUTH_CLIENT_SECRET,process.env.YOUTUBE_REFRESH_TOKEN,'private-youtube-access-browser-fixture','local-instagram-page-browser-fixture','local-facebook-page-browser-fixture','raw-private-provider-response','raw-private-youtube-response'];
   for(const marker of secretMarkers) assert.ok(!JSON.stringify([first,partial,failed]).includes(marker)&&!(await page.content()).includes(marker),'Secret/raw error exposed');
