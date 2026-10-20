@@ -83,6 +83,23 @@ async function instagram() {
   const disc = bd.business_discovery as Json | undefined;
   const discMedia = disc?.media as Json | undefined;
   out.businessDiscovery_volonterimehmedfatih = bd.error ? { error: bd.error } : list(discMedia ?? {}).map((m): Row => ({ id: str(m.id), media_type: str(m.media_type), media_product_type: str(m.media_product_type), timestamp: str(m.timestamp), permalink: str(m.permalink), caption: excerpt(m.caption) }));
+
+  // Collaborator checks, each in its own request so one refused field cannot hide the others.
+  const names = (v: unknown) => (Array.isArray((v as Json | undefined)?.data) ? ((v as Json).data as Json[]).map((c) => str(c.username) ?? str(c.id)).join(",") : v === undefined ? "(field absent)" : JSON.stringify(v).slice(0, 120));
+  const collab: Json = {};
+  // a. does the collaborators field work at all, on @medresacg's own media?
+  const own = await get(`/${igId}/media?fields=${encodeURIComponent("id,timestamp,collaborators")}&limit=3`, pageToken);
+  collab.ownMedia_collaborators = own.error ? { error: own.error } : list(own).map((m) => ({ id: str(m.id), timestamp: str(m.timestamp), collaborators: names(m.collaborators) }));
+  // b. the partner's media through business discovery, with collaborators
+  const bdc = await get(`/${igId}?fields=${encodeURIComponent("business_discovery.username(volonterimehmedfatih){media.limit(3){id,timestamp,permalink,collaborators}}")}`, pageToken);
+  collab.businessDiscovery_collaborators = bdc.error ? { error: bdc.error } : list(((bdc.business_discovery as Json | undefined)?.media as Json) ?? {}).map((m) => ({ id: str(m.id), timestamp: str(m.timestamp), permalink: str(m.permalink), collaborators: names(m.collaborators) }));
+  // c. the co-authored Reel read directly by its media ID
+  const reel = await get(`/17899207035672441?fields=${encodeURIComponent("id,timestamp,permalink,username,collaborators")}`, pageToken);
+  collab.reelById = reel.error ? { error: reel.error } : { id: str(reel.id), timestamp: str(reel.timestamp), permalink: str(reel.permalink), username: str(reel.username), collaborators: names(reel.collaborators) };
+  // d. is there any endpoint listing collaboration posts of ANY account for @medresacg?
+  const invites = await get(`/${igId}/collaboration_invites?limit=10`, pageToken);
+  collab.collaborationInvites = invites.error ? { error: invites.error } : { count: list(invites).length, sample: list(invites).slice(0, 3).map((i) => ({ media_id: str(i.media_id), owner: str(i.media_owner_username), status: str(i.status) })) };
+  out.collaboratorCheck = collab;
   return out;
 }
 
