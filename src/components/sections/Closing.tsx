@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion, useMotionValue, useTransform, type MotionValue } from "framer-motion";
-import { useRef, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -49,12 +49,25 @@ export function Closing({ dict }: { dict: Dictionary }) {
   const openingRef = useRef<HTMLDivElement>(null);
   const secondRef = useRef<HTMLDivElement>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
-  const openingIn = useStep(useScrollProgress(openingRef, ["start end", "start 62%"], live), 0, 1);
-  const secondIn = useStep(useScrollProgress(secondRef, ["start end", "start 66%"], live), 0, 1);
-  const signatureIn = useStep(useScrollProgress(signatureRef, ["start end", "start 74%"], live), 0, 1);
+  const openingP = useScrollProgress(openingRef, ["start end", "start 62%"], live);
+  const secondP = useScrollProgress(secondRef, ["start end", "start 66%"], live);
+  const signatureP = useScrollProgress(signatureRef, ["start end", "start 74%"], live);
+  const openingIn = useStep(openingP, 0, 1);
+  const secondIn = useStep(secondP, 0, 1);
+  const signatureIn = useStep(signatureP, 0, 1);
+  // The letter is readable first: each part is shown as is until its reveal can be trusted.
+  const armed = {
+    opening: useTrustedReveal(openingP, openingRef, 0.62),
+    second: useTrustedReveal(secondP, secondRef, 0.66),
+    signature: useTrustedReveal(signatureP, signatureRef, 0.74),
+  };
   const steps = reduced
     ? { opening: done, second: done, signature: done }
-    : { opening: openingIn, second: secondIn, signature: signatureIn };
+    : {
+        opening: armed.opening ? openingIn : done,
+        second: armed.second ? secondIn : done,
+        signature: armed.signature ? signatureIn : done,
+      };
 
   return (
     <section ref={ref} aria-labelledby="director-title" className="relative bg-green-deep text-ivory">
@@ -145,6 +158,66 @@ export function Closing({ dict }: { dict: Dictionary }) {
   );
 }
 
+/**
+ * Whether a part of the letter may be driven by its scroll reveal. Until then — and for good,
+ * should the scroll measurement ever disagree with the page — the part is simply shown, so the
+ * letter is never hidden by a script that has not run, a measurement that has not arrived, or
+ * one that has gone stale (server HTML, slow hydration, a phone's changing viewport).
+ *
+ * A part is armed only when that changes nothing on screen: while it is outside the viewport,
+ * or once its measured progress is complete. Scrolling down from above, the parts are armed
+ * long before they arrive, so the reveal plays exactly as designed.
+ */
+function useTrustedReveal(p: MotionValue<number>, ref: RefObject<HTMLElement | null>, end: number) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let on = false;
+    let broken = false;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      if (broken) return;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      if (!vh) return;
+      const r = el.getBoundingClientRect();
+      const v = p.get();
+      if (!on) {
+        if (r.top >= vh || r.bottom <= 0 || v >= 0.999) {
+          on = true;
+          setArmed(true);
+        }
+        return;
+      }
+      // Where the part really is: well into its reveal on screen, but measured as not begun.
+      const expected = Math.min(1, Math.max(0, (vh - r.top) / (vh * (1 - end))));
+      if (expected >= 0.75 && v < 0.25) {
+        broken = true;
+        setArmed(false);
+      }
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    // After the first measurement (the next frame), then on every scroll, resize and progress change.
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      schedule();
+    });
+    const unsubscribe = p.on("change", schedule);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsubscribe();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [p, ref, end]);
+  return armed;
+}
+
 /** 0 → 1 over a stretch of a progress value, eased out so each step settles softly. */
 function useStep(p: MotionValue<number>, from: number, to: number) {
   return useTransform(p, [from, to], [0, 1], { ease: (t) => 1 - (1 - t) ** 3 });
@@ -165,7 +238,9 @@ function Step({
   // Blur only from tablet up, and only while arriving: removed entirely at rest.
   const filter = useTransform(p, (v) => (compact || v >= 1 ? "none" : `blur(${(1 - v) * 4}px)`));
   return (
-    <motion.div ref={ref} className="will-change-[transform,opacity]" style={{ opacity: p, y, filter }}>
+    // No permanent will-change: three always-promoted text layers over the photograph's own
+    // layers add GPU memory on phones, where undrawn layer tiles cut text out of the letter.
+    <motion.div ref={ref} style={{ opacity: p, y, filter }}>
       {children}
     </motion.div>
   );
