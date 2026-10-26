@@ -1,11 +1,13 @@
+import { generations } from "../content/alumni";
 import { locales, type Locale } from "../i18n/config";
 import { pathFor, type PageId } from "../i18n/routes";
 
 /*
  * The old WordPress medresa.me → the new site, as permanent (301) redirects.
  * Audited against the old site's own sitemaps (post-, page-, category-sitemap.xml
- * and the theme's taxonomy sitemaps, October 2026). Every old URL goes to its
- * closest real equivalent — never everything to the homepage.
+ * and the theme's taxonomy sitemaps), its REST API (posts, pages, media) and the
+ * links its pages publish (generation pages, theme demo entries), October 2026.
+ * Every old URL goes to its closest real equivalent — never everything to the homepage.
  *
  * Already handled elsewhere (no entry needed here):
  *   /upis/, /historijat/ … all 13 page URLs     same slugs on the new site (Next drops
@@ -67,6 +69,25 @@ export const gonePaths = [
   "team-category",
   "rt-research-category",
   "rt-program-category",
+  // The theme's demo entries behind those categories (English placeholder programmes,
+  // research and staff: /rt-program/american-literature/, /teams/jennifer-aarons/ …)
+  // and the shop's account page — linked from the old pages, none of them Medresa content.
+  "rt-program",
+  "rt-research",
+  "teams",
+  "my-account",
+];
+
+/**
+ * Documents uploaded to the old site, where the new site has the same subject on a page
+ * (the new site keeps no copies of the files themselves). Audited October 2026.
+ */
+const documents: { from: string; to: PageId; locale: Locale }[] = [
+  // „Konkurs za prijem učenika i učenica u I razred … 2026/2027“ (and its Albanian version)
+  { from: "/wp-content/uploads/2026/05/KONKURS-2026-2027.pdf", to: "upis", locale: "bs" },
+  { from: "/wp-content/uploads/2026/05/KONKURS-2026-2027-ALB.pdf", to: "upis", locale: "sq" },
+  // „Spisak kandidata primljenih u prvi razred … 2026/27“: the results, published on Upis
+  { from: "/wp-content/uploads/2026/06/2026-06-22-14-06.pdf", to: "upis", locale: "bs" },
 ];
 
 type Redirect = { source: string; destination: string; statusCode: 301 };
@@ -81,7 +102,15 @@ export function legacyRedirects(): Redirect[] {
     }
     // „e-medresa“ was a page about the school's e-learning platform: the platform itself.
     out.push({ source: `${prefix(l)}/e-medresa`, destination: "https://www.e-medresa.me/", statusCode: 301 });
+    // Each generation's page on the old site (/generacija/generacija1/,
+    // /generacija/generacija-xv-otvori-pano/ …, recorded in src/content/alumni.ts) →
+    // that generation's own place on the Alumni page.
+    for (const g of generations) {
+      const old = new URL(g.source.page).pathname.replace(/\/$/, "");
+      out.push({ source: `${prefix(l)}${old}`, destination: `${pathFor("alumni", l)}#generacija-${g.number}`, statusCode: 301 });
+    }
   }
+  for (const d of documents) out.push({ source: d.from, destination: pathFor(d.to, d.locale), statusCode: 301 });
   for (const s of sitemaps) out.push({ source: s, destination: "/sitemap.xml", statusCode: 301 });
   return out;
 }
