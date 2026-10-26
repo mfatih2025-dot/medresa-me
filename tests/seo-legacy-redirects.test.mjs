@@ -20,10 +20,8 @@ test('every old generation page (bs/sq/en) goes to its own generation on the Alu
   assert.ok(redirects.every(r=>r.destination!=='/'||/^\/(sq\/|en\/)?home$/.test(r.source)||r.source==='/home'),'only /home goes to the homepage');
 });
 
-test('old documents go to the page that now carries their subject; the theme demo entries are gone (410)',()=>{
-  assert.equal(to('/wp-content/uploads/2026/05/KONKURS-2026-2027.pdf'),'/upis');
-  assert.equal(to('/wp-content/uploads/2026/05/KONKURS-2026-2027-ALB.pdf'),'/sq/regjistrimi');
-  assert.equal(to('/wp-content/uploads/2026/06/2026-06-22-14-06.pdf'),'/upis');
+test('no old upload is redirected (the new site has no copy of the results document); the theme demo entries are gone (410)',()=>{
+  assert.ok(redirects.every(r=>!r.source.startsWith('/wp-content/')),'no /wp-content/ redirects');
   for(const p of ['rt-program','rt-research','teams','my-account'])assert.ok(gonePaths.includes(p),p);
   const sources=redirects.map(r=>r.source);
   assert.equal(new Set(sources).size,sources.length,'no duplicate redirect sources');

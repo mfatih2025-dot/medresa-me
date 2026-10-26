@@ -78,17 +78,11 @@ export const gonePaths = [
   "my-account",
 ];
 
-/**
- * Documents uploaded to the old site, where the new site has the same subject on a page
- * (the new site keeps no copies of the files themselves). Audited October 2026.
+/*
+ * Old uploads (/wp-content/uploads/…) are not redirected. The one relevant document, the
+ * entrance exam results (2026/06/2026-06-22-14-06.pdf), would be redirected only to the
+ * same document on the new site, and the new site has no such file (audited October 2026).
  */
-const documents: { from: string; to: PageId; locale: Locale }[] = [
-  // „Konkurs za prijem učenika i učenica u I razred … 2026/2027“ (and its Albanian version)
-  { from: "/wp-content/uploads/2026/05/KONKURS-2026-2027.pdf", to: "upis", locale: "bs" },
-  { from: "/wp-content/uploads/2026/05/KONKURS-2026-2027-ALB.pdf", to: "upis", locale: "sq" },
-  // „Spisak kandidata primljenih u prvi razred … 2026/27“: the results, published on Upis
-  { from: "/wp-content/uploads/2026/06/2026-06-22-14-06.pdf", to: "upis", locale: "bs" },
-];
 
 type Redirect = { source: string; destination: string; statusCode: 301 };
 
@@ -110,7 +104,6 @@ export function legacyRedirects(): Redirect[] {
       out.push({ source: `${prefix(l)}${old}`, destination: `${pathFor("alumni", l)}#generacija-${g.number}`, statusCode: 301 });
     }
   }
-  for (const d of documents) out.push({ source: d.from, destination: pathFor(d.to, d.locale), statusCode: 301 });
   for (const s of sitemaps) out.push({ source: s, destination: "/sitemap.xml", statusCode: 301 });
   return out;
 }

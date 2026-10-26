@@ -1,20 +1,20 @@
 # SEO migracija: stari WordPress medresa.me → novi Next.js/Vercel
 
-Audit pripremljen na razvojnoj grani `claude/seo-migration-audit`, oktobar 2026. Produkcija, DNS i dizajn nisu mijenjani.
+Audit na razvojnoj grani `claude/seo-migration-audit`, oktobar 2026. Produkcija, DNS i dizajn nisu mijenjani.
 
 ## Izvori starih URL-ova
 
-1. **Sitemap starog sajta** (All in One SEO): `/sitemap.xml` → `post-`, `page-`, `category-`, `team-category-`, `rt-research-category-`, `rt-program-category-`, `tribe_events_cat-sitemap.xml`, uključujući `hreflang` alternative za `/sq/` i `/en/`.
-2. **WordPress REST API** starog sajta: sve javne objave (17), stranice (32) i mediji (510 javnih, od toga 5 PDF-ova).
-3. **Linkovi koje stari sajt sam objavljuje**: stranice generacija (`/generacija/…`) i demo unosi teme (`/rt-program/…`, `/rt-research/…`, `/teams/…`), kojih nema u sitemap-u ni u REST-u.
+1. **Sitemap starog sajta** (All in One SEO, `/sitemap.xml` i svi podređeni), sa `hreflang` alternativama `/sq/` i `/en/`.
+2. **WordPress REST API**: sve javne objave (17), stranice (32) i mediji (510 javnih).
+3. **Linkovi koje stari sajt sam objavljuje**: stranice generacija (`/generacija/…`) i demo unosi teme, kojih nema u sitemap-u ni u REST-u.
 
 Uzeti su samo URL-ovi koje stari server vraća sa **HTTP 200**. Nijedan URL nije izmišljen.
 
-## Rezultat
+## Stranice, vijesti i PDF dokumenti: 409 starih URL-ova
 
-**Ukupno pronađeno: 409 starih URL-ova** (bs 143 · sq 133 · en 133).
+bs 143 · sq 133 · en 133
 
-| Vrsta | Ukupno | Tačan ekvivalent | Ista tema | Vanjski | 410 Gone | Neriješeno |
+| Vrsta | Ukupno | Tačan ekvivalent | Ista tema | Vanjski | 410 Gone | Bez preusmjeravanja |
 |---|---|---|---|---|---|---|
 | Vijesti | 51 | 51 | 0 | 0 | 0 | 0 |
 | Stranice | 95 | 50 | 6 | 3 | 36 | 0 |
@@ -22,42 +22,53 @@ Uzeti su samo URL-ovi koje stari server vraća sa **HTTP 200**. Nijedan URL nije
 | Kategorije | 12 | 0 | 12 | 0 | 0 | 0 |
 | Paginacija vijesti | 9 | 0 | 9 | 0 | 0 | 0 |
 | Događaji (Events Calendar) | 21 | 0 | 6 | 0 | 15 | 0 |
-| PDF dokumenti | 5 | 0 | 3 | 0 | 0 | 2 |
 | Demo sadržaj teme | 171 | 0 | 0 | 0 | 171 | 0 |
-| **Ukupno** | **409** | **146** | **36** | **3** | **222** | **2** |
+| PDF dokumenti | 5 | 0 | 0 | 0 | 0 | 5 |
+| **Ukupno** | **409** | **146** | **33** | **3** | **222** | **5** |
 
-- **Tačan ekvivalent** (146): ista stranica, isti članak ili ista generacija, u istom jeziku. Od toga 6 adresa postoji nepromijenjeno; ostale idu preko 301/308.
-- **Ista tema** (36): stari sadržaj nema posebnu stranicu na novom sajtu (kategorije, paginacija, PDF), pa vodi na stranicu koja nosi tu temu. Nikad na naslovnu.
-- **410 Gone** (222): stranice bez Medresa sadržaja (demo programi/istraživanja/osoblje teme, prodavnica, registracije, Events šabloni). Pretraživači ih brišu iz indeksa.
+- **Tačan ekvivalent** (146): ista stranica, isti članak ili ista generacija, u istom jeziku. 6 adresa postoji nepromijenjeno; **140** idu preko 301/308.
+- **Ista tema** (33): stare kategorije, paginacija, kategorija događaja „alumni“ i stare stranice za uplatu/donatore → arhiva vijesti, Alumni, Donacije. Nikad naslovna.
+- **Vanjski** (3): stranica o e-learning platformi → e-medresa.me.
+- **410 Gone** (222): stranice bez Medresa sadržaja (demo programi/istraživanja/osoblje teme, prodavnica, registracije, Events šabloni).
+- Na naslovnu vode samo naslovna i `/home/` (njena druga kopija).
 
-Na naslovnu vode samo naslovna i `/home/`, njena druga kopija na starom sajtu.
+**Ukupno preusmjeravanja na ispravnu adresu: 176** (140 tačnih + 33 tematskih + 3 vanjska).
 
-## Neriješeno (2)
+### PDF dokumenti
 
-| Stari URL | Šta je | Zašto nema preusmjeravanja |
-|---|---|---|
-| `/wp-content/uploads/2024/08/Spisak1.pdf` | Spisak kandidata primljenih u I razred 2025/2026 (sken, 3 str.) | Nema tog dokumenta ni stranice za prošlu godinu. Odluka: postaviti PDF na novi sajt ili prihvatiti 404/410. |
-| `/wp-content/uploads/2024/07/pdf_files.pdf` | **Nije PDF: fajl počinje sa `<?php`** (PHP kod podmetnut kao PDF na starom sajtu) | Ne treba preusmjeravati. **Sigurnosno: preporučujem da se fajl odmah ukloni sa starog servera i provjeri WordPress.** |
+Jedini relevantni stari PDF je **Rezultati prijemnog ispita** (`/wp-content/uploads/2026/06/2026-06-22-14-06.pdf`, sken „Spisak kandidata primljenih u prvi razred … 2026/27“, 2 str.).
 
-## Napomene
+- **Novi sajt nema isti dokument**, pa preusmjeravanja nema. Fajl koji novi sajt servira kao rezultate (`/api/results/bs|sq|en`, dugme na stranici Upis) je **jednostrana slika pečata Medrese** (logo iz Adobe Illustratora, 2013), a ne spisak primljenih. To je sadržaj otpremljen kroz Admin i treba ga zamijeniti stvarnim dokumentom. Kad novi sajt bude imao isti dokument, preusmjeravanje se dodaje jednim redom u `src/seo/legacy.ts`.
+- Ostali stari PDF-ovi (konkurs 2026/27 bs/alb, spisak 2025/26) nisu dio migracije i nemaju preusmjeravanje.
+- `/wp-content/uploads/2024/07/pdf_files.pdf` **nije PDF: fajl počinje sa `<?php`** (PHP kod podmetnut kao PDF na starom serveru). Preporuka: ukloniti ga i provjeriti WordPress.
 
-- **Generacije** vode na mjesto svake generacije na stranici Alumni (`/alumni#generacija-N`, `/sq/alumni#…`, `/en/alumni#…`), jer trenutni `main` nema posebne stranice generacija. Kada se uvede neobjavljeni Alumni commit `6fd7466`, koji ima stranicu za svaku generaciju, njegova preusmjeravanja treba da zamijene ova (preklapaju se u `src/seo/legacy.ts`).
-- **Dokumenti:** novi sajt ne čuva kopije starih PDF-ova. Konkurs 2026/27 (bs, alb) i spisak primljenih 2026/27 vode na Upis (`/upis`, `/sq/regjistrimi`), gdje su trenutni rezultati i PDF. Ako je bitno da stari linkovi i dalje otvaraju same dokumente, PDF-ove treba postaviti na novi sajt.
-- **Privatnost:** spiskovi primljenih (2025/26 i 2026/27) sadrže imena maloljetnika i javno su indeksirani na starom sajtu. Vrijedi odlučiti da li ih treba zadržati javno.
-- **Slike:** 510 slika iz `/wp-content/uploads/` nije preusmjereno; novi sajt ima svoje kopije pod drugim adresama. To je očekivano i ne utiče na stranice.
-- **Lanac preusmjeravanja:** stari URL-ovi sa kosom crtom na kraju idu u dva koraka (308 uklanja kosu crtu, pa 301). Google to prati bez gubitka. Optimizacija u jedan korak je moguća, ali nije neophodna.
+## Ostali stari mediji (zasebna provjera)
+
+Svih 510 javnih medijskih fajlova starog sajta (`/wp-content/uploads/…`) je provjereno: 498 slika (427 rasterskih, 66 SVG, 5 HEIC), 5 PDF, 2 video i 5 `.txt` log-fajlova plugina.
+
+- Na istoj adresi novi sajt ne servira nijedan (510 × 404). Novi sajt ima svoje kopije pod `/images/…`.
+- **114 starih slika ima istu sliku na novom sajtu** (potvrđeno po sadržaju, ne po imenu: galerija, panoi generacija, slike vijesti, fotografije objekta, potpis reisa, logo fonda). Poklapanje po imenu fajla nije pouzdano: od 49 slika istog imena samo 3 su ista slika.
+- Za medije **nisu dodata preusmjeravanja**. Ako se želi očuvati pozicija slika u Google Images, 114 potvrđenih parova je spremno u `media-check.csv` i mogu se dodati kao 301.
+- Ostalih 313 rasterskih slika, SVG ikone teme, HEIC, video i log-fajlovi nemaju ekvivalent.
 
 ## Tehnički SEO novog sajta
 
 Provjereno na svih 93 odredišnih stranica:
 
-- **canonical**: na samu stranicu, `https://www.medresa.me`, 93/93.
+- **canonical** na samu stranicu (`https://www.medresa.me`): 93/93.
 - **hreflang** bs/sq/en/x-default sa samoreferencom: 93/93; uzajamnost: 0 grešaka.
-- **sitemap.xml**: 96 URL-ova sa hreflang alternativama; sva odredišta su u njemu. Stari sitemap-ovi (`/sitemap_index.xml`, `/post-sitemap.xml` …) vode na `/sitemap.xml`.
-- **robots.txt**: `Allow: /`, zatvoreni `/admin`, `/ulaz7`, `/api/` (osim slika vijesti), `Sitemap: https://www.medresa.me/sitemap.xml`. Stranice imaju `index, follow`.
+- **sitemap.xml**: 96 URL-ova sa hreflang alternativama; sva odredišta su u njemu. Stari sitemap-ovi vode na `/sitemap.xml`.
+- **robots.txt**: `Allow: /`; zatvoreni su `/admin`, `/ulaz7` i `/api/` (osim slika vijesti); `Sitemap: https://www.medresa.me/sitemap.xml`.
+- **Meta robots**: stranice imaju `index, follow`.
+
+## Napomene
+
+- **Generacije** vode na mjesto svake generacije na stranici Alumni (`/alumni#generacija-N`, `/sq/alumni#…`, `/en/alumni#…`), jer `main` nema posebne stranice generacija. Kada se uvede neobjavljeni Alumni commit `6fd7466` (stranica za svaku generaciju), njegova preusmjeravanja treba da zamijene ova (preklapaju se u `src/seo/legacy.ts`).
+- **Lanac preusmjeravanja**: stari URL-ovi sa kosom crtom na kraju idu u dva koraka (308 uklanja kosu crtu, pa 301). Google to prati bez gubitka.
 
 ## Fajlovi
 
-- `docs/seo-migration/url-map.csv`: svih 409 starih URL-ova sa novom adresom, stvarnim lancem statusa, kvalitetom podudaranja i napomenom.
-- `src/seo/legacy.ts`: nova pravila (generacije, dokumenti, 410 za demo sadržaj teme i `my-account`).
-- `tests/seo-legacy-redirects.test.mjs`: regresioni test za nova pravila.
+- `docs/seo-migration/url-map.csv`: 409 starih URL-ova, sa novom adresom, stvarnim lancem statusa, kvalitetom podudaranja i napomenom.
+- `docs/seo-migration/media-check.csv`: 510 starih medijskih URL-ova, sa statusom na novom sajtu i istim fajlom na novom sajtu gdje postoji.
+- `src/seo/legacy.ts`: pravila za generacije i 410 za demo sadržaj teme i `my-account`. Za PDF-ove nema pravila.
+- `tests/seo-legacy-redirects.test.mjs`: regresioni test.
