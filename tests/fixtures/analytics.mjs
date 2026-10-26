@@ -6,6 +6,7 @@ export const now = new Date('2026-10-08T18:00:00Z');
 export const previewRef = 'safsijrhxbefgcahvsvm';
 export const providerHost = `https://${previewRef}.supabase.co`;
 export const fixtureEnvironment = {
+  MEDRESA_ANALYTICS_WEB_TRACKING_SINCE: '2026-01-01T00:00:00.000Z',
   VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'codex/admin-panel', SUPABASE_URL: providerHost,
   MEDRESA_SUPABASE_PROJECT_REF: previewRef, SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_local-analytics-fixture', MEDRESA_SUPABASE_WRITE_ENABLED: 'true',
 };
@@ -26,6 +27,7 @@ export async function database({ providerSync = true } = {}) {
   if (providerSync) {
     await db.exec(readFileSync('supabase/migrations/202610090001_analytics_provider_sync.sql', 'utf8'));
     await db.exec(readFileSync('supabase/migrations/202610110001_website_analytics_scope.sql', 'utf8'));
+    await db.exec(readFileSync('supabase/migrations/202610260001_canonical_website_analytics.sql', 'utf8'));
   }
   return db;
 }
@@ -44,6 +46,7 @@ export function restFixture(db) {
     const json = (b, status=200) => new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json'}});
     try {
       const name = url.pathname.split('/').pop();
+      if (name === "medresa_analytics_canonical_ready") { await db.query("select medresa_analytics_canonical_ready()"); return json(true); }
       if (url.pathname.startsWith('/rest/v1/rpc/')) {
         const b = JSON.parse(init.body);
         if (name === 'medresa_analytics_begin_sync') return json(await begin(db,b.p_id,b.p_period,b.p_provider));

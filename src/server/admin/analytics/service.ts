@@ -1,3 +1,4 @@
+import { WEBSITE_SCOPE } from "@/admin/analytics/publicTraffic";
 import { providers, reasonNames, type AnalyticsDashboard, type Daily, type Period, type Provider, type ProviderReport } from "@/admin/analytics/model";
 import { shiftDay, validDay } from "@/admin/analytics/period";
 import { AdminError } from "@/admin/contracts";
@@ -69,11 +70,11 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
     result.storage = "ready";
     result.reports = await Promise.all(result.reports.map(async base => {
       const query = new URLSearchParams({ provider: `eq.${base.provider}`, start_date: `eq.${base.range.start}`, end_date: `eq.${base.range.end}`, timezone: `eq.${base.timezone}`, select: "report", limit: "1" });
-      const snapshots = new URLSearchParams({ provider: `eq.${base.provider}`, timezone: `eq.${base.timezone}`, day: `gte.${base.previousRange.start}`, and: `(day.lte.${base.todayDate})`, select: "day,metrics,complete", order: "day.asc", limit: "200" });
+      const snapshots = new URLSearchParams({ provider: `eq.${base.provider}`, timezone: `eq.${base.timezone}`, day: `gte.${base.previousRange.start}`, and: `(day.lte.${base.todayDate})`, select: "day,metrics,complete,fetched_at", order: "day.asc", limit: "200" });
       // Never blend retained Preview snapshots into Production Website measurements.
       if (base.provider === "website") {
-        query.set("traffic_scope", "eq.production");
-        snapshots.set("traffic_scope", "eq.production");
+        query.set("traffic_scope", `eq.${WEBSITE_SCOPE}`);
+        snapshots.set("traffic_scope", `eq.${WEBSITE_SCOPE}`);
       }
       try {
         const [rows, savedDays] = await Promise.all([database(`/rest/v1/medresa_analytics_reports?${query}`).then(r => r.json()), database(`/rest/v1/medresa_analytics_daily?${snapshots}`).then(r => r.json())]);
@@ -93,7 +94,15 @@ export async function dashboard(period: Period, now = new Date()): Promise<Analy
           if (r.reason === "not_synced" && Object.values(current.totals).some(v => typeof v === "number")) r.reason = null;
         }
         const state = states.find(s => s.provider === base.provider);
-        if (state) { r.state = validStates.includes(state.state) ? state.state : "error"; r.reason = reasonNames.includes(state.reason) ? state.reason : null; r.lastSuccessAt = state.last_success_at; r.lastAttemptAt = state.last_attempt_at; }
+        if (state && (base.provider !== "website" || rows?.length || savedDays?.length || state.state !== "connected")) { r.state = validStates.includes(state.state) ? state.state : "error"; r.reason = reasonNames.includes(state.reason) ? state.reason : null; r.lastSuccessAt = base.provider === "website" && !rows?.length && !savedDays?.length ? null : state.last_success_at; r.lastAttemptAt = state.last_attempt_at; }
+        if (base.provider === "website") {
+          // Provider state is shared with retained scopes. Only canonical rows
+          // prove that this domain's saved measurements were refreshed.
+          const dates = [rows?.[0]?.report?.lastSuccessAt, ...(Array.isArray(savedDays) ? savedDays.map(d => d.fetched_at) : [])]
+            .filter((value): value is string => typeof value === "string" && Number.isFinite(Date.parse(value)));
+          const latest = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+          r.lastSuccessAt = latest ? new Date(latest).toISOString() : null;
+        }
         if (!configurations[base.provider]()) { r.state = "not_configured"; r.reason = "not_configured"; }
         return r;
       } catch { return { ...base, state: "temporarily_unavailable", reason: "provider_unavailable" }; }
@@ -110,8 +119,9 @@ export async function synchronize(period: Period, id: string, provider?: Provide
     try {
       await database("/rest/v1/medresa_analytics_reports?select=traffic_scope&limit=1");
       await database("/rest/v1/medresa_analytics_daily?select=traffic_scope&limit=1");
+      await database("/rest/v1/rpc/medresa_analytics_canonical_ready", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     } catch {
-      throw new AdminError(503, "Primijenite migraciju 202610110001_website_analytics_scope.sql prije osvježavanja Website podataka.");
+      throw new AdminError(503, "Primijenite migracije 202610110001_website_analytics_scope.sql i 202610260001_canonical_website_analytics.sql prije osvježavanja Website podataka.");
     }
   }
   let claim: { acquired: boolean; runId: string; outcome: string };

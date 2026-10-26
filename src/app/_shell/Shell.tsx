@@ -1,4 +1,5 @@
 import { backendDeploymentSupported } from "@/server/backendDeployment";
+import { PublicAnalytics } from "@/components/analytics/PublicAnalytics";
 import { CampaignPopup } from "@/components/campaigns/CampaignPopup";
 import { Kanit } from "next/font/google";
 import type { ReactNode } from "react";
@@ -57,6 +58,7 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
         <main id="main">{children}</main>
         <Footer dicts={chrome} />
         <Gateway />
+        {process.env.VERCEL_ENV === "production" && <PublicAnalytics />}
         {backendDeploymentSupported() && <CampaignPopup />}
       </body>
     </html>

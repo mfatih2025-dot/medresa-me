@@ -770,7 +770,7 @@ test('single-provider database scope is idempotent, atomic and preserves other p
     await assert.rejects(finish(db,full,[changed]),/Invalid analytics reports/);
     await finish(db,full,reports());
     const funcs=(await db.query("select proname,prosecdef,proconfig,has_function_privilege('anon',oid,'EXECUTE') browser,has_function_privilege('authenticated',oid,'EXECUTE') authenticated,has_function_privilege('service_role',oid,'EXECUTE') server from pg_proc where proname like 'medresa_analytics_%'")).rows;
-    assert.equal(funcs.length,4);assert.ok(funcs.every(f=>!f.prosecdef&&!f.browser&&!f.authenticated&&f.server&&f.proconfig.includes('search_path=public, pg_temp')));
+    assert.equal(funcs.length,5);assert.ok(funcs.every(f=>!f.prosecdef&&!f.browser&&!f.authenticated&&f.server&&f.proconfig.includes('search_path=public, pg_temp')));
     await assert.rejects(begin(db,randomUUID(),'7','bad-provider'),/Invalid analytics provider/);
   } finally {await db.close();}
 });
@@ -918,7 +918,7 @@ test('Website Production scope preserves existing Preview snapshots and never bl
     assert.deepEqual((await db.query("select report from medresa_analytics_reports where provider='website' and traffic_scope='preview'")).rows,before);
     const socialBefore=(await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider")).rows;
     await releaseCooldown(db);const next=randomUUID();await begin(db,next,'7','website');
-    const production=reports()[0];production.totals={pageviews:21};production.daily=production.daily.map(d=>({...d,metrics:{pageviews:3}}));
+    const production=reports()[0];production.source='Vercel Web Analytics · Production projekta';production.totals={pageviews:21};production.daily=production.daily.map(d=>({...d,metrics:{pageviews:3}}));
     await finish(db,next,[production]);
     const totals=(await db.query("select traffic_scope,report->'totals' as totals from medresa_analytics_reports where provider='website' order by traffic_scope")).rows;
     assert.deepEqual(totals,[{traffic_scope:'preview',totals:{pageviews:70}},{traffic_scope:'production',totals:{pageviews:21}}]);
@@ -926,8 +926,17 @@ test('Website Production scope preserves existing Preview snapshots and never bl
     Object.assign(process.env,{VERCEL_ANALYTICS_TOKEN:'local-fixture'});globalThis.fetch=restFixture(db);
     const {dashboard}=load('src/server/admin/analytics/service');
     const actual=(await dashboard('7',now)).reports.find(r=>r.provider==='website');
-    assert.equal(actual.totals.pageviews,21);
-    assert.ok(actual.daily.every(d=>d.metrics.pageviews===3));
+    assert.equal(actual.totals.pageviews,undefined,'Project-wide data is not canonical-domain evidence');
+    await db.exec(readFileSync('supabase/migrations/202610260001_canonical_website_analytics.sql','utf8'));
+    await releaseCooldown(db);const canonicalId=randomUUID();await begin(db,canonicalId,'7','website');
+    const canonical={...production,source:'Vercel Web Analytics · www.medresa.me'};await finish(db,canonicalId,[canonical]);
+    const actualCanonical=(await dashboard('7',now)).reports.find(r=>r.provider==='website');
+    assert.equal(actualCanonical.totals.pageviews,21);
+    await db.query("update medresa_analytics_provider_state set last_success_at='2099-01-01T00:00:00Z' where provider='website'");
+    assert.equal((await dashboard('7',now)).reports.find(r=>r.provider==='website').lastSuccessAt,canonical.lastSuccessAt,'Project-wide refresh metadata is not proof of a canonical refresh');
+    assert.deepEqual((await db.query("select traffic_scope,report->'totals' as totals from medresa_analytics_reports where provider='website' and traffic_scope<>'production_canonical' order by traffic_scope")).rows,totals);
+    assert.deepEqual((await db.query("select * from medresa_analytics_reports where provider<>'website' order by provider")).rows,socialBefore);
+    assert.ok(actualCanonical.daily.every(d=>d.metrics.pageviews===3));
     assert.equal((await db.query("select count(*)::int n from medresa_analytics_daily where provider='website' and traffic_scope='preview'")).rows[0].n,7);
   } finally {await db.close();}
 });
