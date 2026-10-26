@@ -1,3 +1,5 @@
+> Production tracking update: see [production-analytics-tracking.md](production-analytics-tracking.md) for the canonical-only SDK, required cutover ENV and additive history migration. The older Preview-only setup notes below describe the initial installation.
+
 # Admin Analytics · Preview only
 
 Route: `/admin/analitika`. Reads and refreshes require the existing Admin session; refresh additionally requires the configured Admin Origin. Public components, public CSS, News/translation/auth implementations and existing social-feed providers are unchanged.

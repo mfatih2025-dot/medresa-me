@@ -1,3 +1,4 @@
+import { WEBSITE_SOURCE } from "@/admin/analytics/publicTraffic";
 import { backendDeploymentSupported } from "@/server/backendDeployment";
 // Only authenticated API routes / getServerSideProps import this server module.
 import { AdminError } from "@/admin/contracts";
@@ -24,7 +25,7 @@ export function metrics(value: unknown): Metrics {
 }
 export function blank(provider: Provider, period: Period, now: Date, timezone: string, configured: boolean): ProviderReport {
   const r = ranges(period, now, timezone);
-  return { provider, state: configured ? "temporarily_unavailable" : "not_configured", reason: configured ? "not_synced" : "not_configured", source: provider === "website" ? "Vercel Web Analytics · Production projekta" : provider === "youtube" ? "YouTube Data / Analytics API" : "Meta Graph API v26.0", timezone, range: r.current, previousRange: r.previous, todayDate: r.today, totals: {}, previousTotals: {}, current: {}, daily: [], today: null, yesterday: null, breakdowns: { pages: [], referrers: [], devices: [], countries: [] }, topContent: [], warnings: [], requiredPermissions: [], fetchedAt: null, lastSuccessAt: null, lastAttemptAt: null, trackingStart: null, historicalBaseline: null, cumulative: {} };
+  return { provider, state: configured ? "temporarily_unavailable" : "not_configured", reason: configured ? "not_synced" : "not_configured", source: provider === "website" ? WEBSITE_SOURCE : provider === "youtube" ? "YouTube Data / Analytics API" : "Meta Graph API v26.0", timezone, range: r.current, previousRange: r.previous, todayDate: r.today, totals: {}, previousTotals: {}, current: {}, daily: [], today: null, yesterday: null, breakdowns: { pages: [], referrers: [], devices: [], countries: [] }, topContent: [], warnings: [], requiredPermissions: [], fetchedAt: null, lastSuccessAt: null, lastAttemptAt: null, trackingStart: null, historicalBaseline: null, cumulative: {} };
 }
 const credentialNames = ["INSTAGRAM_ACCESS_TOKEN", "FACEBOOK_PAGE_ACCESS_TOKEN", "VERCEL_ANALYTICS_TOKEN", "YOUTUBE_OAUTH_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN", "SUPABASE_SERVICE_ROLE_KEY", "MEDRESA_ADMIN_SESSION_SECRET", "MEDRESA_ADMIN_PASSWORD_HASH", "OPENAI_API_KEY"];
 export function safeText(value: unknown, extraSecrets: string[] = []): string {

@@ -35,6 +35,15 @@ export function vercelRejection(body: Record<string, unknown>): VercelRejection 
 export async function website(period: Period, now: Date, signal: AbortSignal, observe?: (result: WebsiteRequestResult) => void) {
   const report = blank("website", period, now, "UTC", websiteConfigured());
   if (!websiteConfigured()) return report;
+  // Hostname is not a supported Vercel aggregate filter. Only the canonical
+  // production tracker collects after this operator-verified cutover instant.
+  const trackingSince = process.env.MEDRESA_ANALYTICS_WEB_TRACKING_SINCE;
+  if (!trackingSince || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(trackingSince)
+    || !Number.isFinite(Date.parse(trackingSince)) || Date.parse(trackingSince) > now.getTime()
+    || new Date(trackingSince).toISOString() !== trackingSince.replace(/Z$/, trackingSince.includes(".") ? "Z" : ".000Z")) {
+    throw new ProviderFailure("temporarily_unavailable", "tracking_unavailable");
+  }
+  const cutoff = new Date(trackingSince).toISOString();
   const token = process.env.VERCEL_ANALYTICS_TOKEN!;
   async function request(request: WebsiteRequest, url: URL | string, range: Range | null = null) {
     let httpStatus: number | null = null, reason: WebsiteRequestResult["reason"] = null;
@@ -60,9 +69,25 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   if (project.name !== "medresa-me" || typeof project.id !== "string") throw new ProviderFailure("error", "project_mismatch");
   // Use Vercel's documented default (10); the former 200 was rejected by the live API.
   async function aggregate(name: Exclude<WebsiteRequest, "project">, range: Range, limit = 10) {
+    const end = range.end + "T23:59:59.999Z";
+    if (Date.parse(end) < Date.parse(cutoff)) {
+      observe?.({ request: name, range, httpStatus: null, reason: "no_data" });
+      return [];
+    }
+    const start = range.start + "T00:00:00Z";
+    // A day-grouped query rounds since to a day boundary. Skip the partial
+    // cutover day here; exact today/yesterday aggregates retain its measured part.
+    const midnight = cutoff.slice(0, 10) + "T00:00:00.000Z";
+    const boundary = name === "daily" && cutoff !== midnight
+      ? shiftDay(cutoff.slice(0, 10), 1) + "T00:00:00.000Z" : cutoff;
+    const since = Date.parse(start) < Date.parse(boundary) ? boundary : start;
+    if (Date.parse(since) > Date.parse(end)) {
+      observe?.({ request: name, range, httpStatus: null, reason: "no_data" });
+      return [];
+    }
     const by = websiteRequestDimensions[name];
     const u = new URL("https://api.vercel.com/v1/query/web-analytics/visits/aggregate");
-    u.search = new URLSearchParams({ projectId: project.id as string, slug: "mmf16", since: range.start + "T00:00:00Z", until: range.end + "T23:59:59.999Z", by, limit: String(limit), filter: "environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')" }).toString();
+    u.search = new URLSearchParams({ projectId: project.id as string, slug: "mmf16", since, until: end, by, limit: String(limit), filter: "environment eq 'production' and not startswith(requestPath, '/admin') and not startswith(requestPath, '/ulaz7')" }).toString();
     const body = await request(name, u, range);
     if (!Array.isArray(body.data) || body.data.some(row => !row || typeof row !== "object" || Array.isArray(row))) throw new ProviderFailure("error", "invalid_response");
     return body.data as Record<string, unknown>[];
@@ -100,7 +125,7 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   ]);
   report.totals = total(current); report.previousTotals = total(previous);
   report.today = { date: report.todayDate, metrics: total(today), complete: false };
-  report.yesterday = { date: yesterdayDate, metrics: total(yesterday), complete: true };
+  report.yesterday = { date: yesterdayDate, metrics: total(yesterday), complete: Date.parse(yesterdayDate + "T00:00:00Z") >= Date.parse(cutoff) };
   report.daily = daily.flatMap(row => {
     const date = typeof row.timestamp === "string" && Number.isFinite(Date.parse(row.timestamp)) ? dayAt(new Date(row.timestamp), "UTC") : null;
     return date ? [{ date, metrics: { pageviews: number(row.pageviews), visitors: number(row.visitors) }, complete: date < report.todayDate }] : [];
@@ -118,8 +143,9 @@ export async function website(period: Period, now: Date, signal: AbortSignal, ob
   // Never use visits/count: that endpoint reads Production only. No inferred baseline.
   const start = process.env.MEDRESA_ANALYTICS_WEB_TRACKING_START;
   if (validDay(start) && start <= report.todayDate) {
-    report.trackingStart = start;
-    try { report.cumulative = total(await aggregate("cumulative", { start, end: report.todayDate })); }
+    const canonicalStart = start < cutoff.slice(0, 10) ? cutoff.slice(0, 10) : start;
+    report.trackingStart = canonicalStart;
+    try { report.cumulative = total(await aggregate("cumulative", { start: canonicalStart, end: report.todayDate })); }
     catch { report.warnings.push("retention_limit"); }
   }
   if (!Object.values(report.totals).some(v => v !== null)) report.warnings.push("no_data");
