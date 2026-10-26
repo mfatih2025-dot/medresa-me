@@ -6,6 +6,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { MAX_PDF_BYTES, PDF_CHUNK_BYTES, resultLocales, resultDownload, type ResultAsset, type ResultState, type ResultsLibrary } from "@/admin/results/model";
 import { supabaseConfiguration, supabaseRequest } from "../supabase";
 import { pdfDigest, validatePdf } from "./pdf";
+import { pdfManagementEnabled, requirePdfManagement, PDF_MAINTENANCE_MESSAGE } from "./maintenance";
 const BUCKET = "medresa-results-preview";
 export function resultsConfiguration(write = false) {
   const c = supabaseConfiguration();
@@ -53,11 +54,12 @@ export async function readResults(): Promise<ResultState> {
  return {revision:s.revision,drafts,published};
 }
 export async function listResults(): Promise<ResultsLibrary> {
-  try { const c = resultsConfiguration(); let channelsReady = true; try { await request("/rest/v1/medresa_results_locale_heads?select=locale&limit=1"); } catch { channelsReady = false; } return { ready: true, writable: c.writable && channelsReady, message: !channelsReady ? "Za nezavisnu objavu PDF-a primijenite Preview migraciju 202610100004_independent_locale_channels.sql." : c.writable ? null : "Rezultati su dostupni samo za čitanje.", state: await readResults() }; }
+  try { const c = resultsConfiguration(); let channelsReady = true; try { await request("/rest/v1/medresa_results_locale_heads?select=locale&limit=1"); } catch { channelsReady = false; } return { ready: true, writable: c.writable && channelsReady && pdfManagementEnabled(), message: !pdfManagementEnabled() ? PDF_MAINTENANCE_MESSAGE : !channelsReady ? "Za nezavisnu objavu PDF-a primijenite Preview migraciju 202610100004_independent_locale_channels.sql." : c.writable ? null : "Rezultati su dostupni samo za čitanje.", state: await readResults() }; }
   catch { return { ready: false, writable: false, message: "Rezultati još nijesu povezani. Provjerite Preview migraciju za rezultate.", state: null }; }
 }
 function revision(value: unknown): asserts value is number { if (!Number.isSafeInteger(value) || (value as number) < 0 || (value as number) > 9007199254740990) throw new AdminError(422, "Verzija rezultata nije ispravna."); }
 export async function beginUpload(value: unknown, actor: string) {
+  requirePdfManagement();
   resultsConfiguration(true); const v = value as { locale: Locale; filename: string; bytes: number; revision: number };
   if (!v || !isLocale(v.locale) || typeof v.filename !== "string" || !v.filename.trim() || v.filename.length > 180 || /[\u0000-\u001f\u007f/\\]/.test(v.filename) || !Number.isSafeInteger(v.bytes) || v.bytes < 1 || v.bytes > MAX_PDF_BYTES) throw new AdminError(422, "Odaberite PDF do 5 MB sa ispravnim nazivom.");
   revision(v.revision); if ((await stateRow()).revision !== v.revision) throw new AdminError(409, "Rezultati su promijenjeni. Osvježite stranicu.");
@@ -70,11 +72,13 @@ async function uploadSession(id: string, actor: string): Promise<UploadRow> {
   const u = rows[0]; if (!u || u.created_by !== actor || Date.parse(u.expires_at) <= Date.now()) throw new AdminError(422, "Prenos je istekao. Ponovo odaberite PDF."); return u;
 }
 export async function uploadChunk(id: string, index: number, bytes: Buffer, actor: string) {
+  requirePdfManagement();
   resultsConfiguration(true); const u = await uploadSession(id, actor), count = Math.ceil(u.bytes / PDF_CHUNK_BYTES);
   if (u.asset_id || !Number.isInteger(index) || index < 0 || index >= count || bytes.length !== Math.min(PDF_CHUNK_BYTES, u.bytes - index*PDF_CHUNK_BYTES)) throw new AdminError(422, "Dio prenosa nije ispravan.");
   await request(`/storage/v1/object/${BUCKET}/uploads/${id}/${index}`, { method: "POST", headers: { "Content-Type": "application/octet-stream", "x-upsert": "false" }, body: new Uint8Array(bytes) }, true);
 }
 export async function finishUpload(id: string, expected: unknown, actor: string) {
+  requirePdfManagement();
   resultsConfiguration(true); revision(expected); const u = await uploadSession(id, actor);
   if (u.asset_id) return readResults();
   if (u.base_revision !== expected || (await stateRow()).revision !== expected) throw new AdminError(409, "Rezultati su promijenjeni. Osvježite stranicu.");
@@ -95,8 +99,9 @@ export async function readPdf(id: string) {
   if (bytes.length !== a.bytes || bytes.length > MAX_PDF_BYTES || pdfDigest(bytes) !== a.sha256) throw new AdminError(503, "PDF trenutno nije dostupan.");
   return { bytes, asset: project(a) };
 }
-export async function removeDraft(locale: unknown, expected: unknown) { resultsConfiguration(true); revision(expected); if (!isLocale(locale as string)) throw new AdminError(422, "Jezik nije ispravan."); await rpc("medresa_results_remove_draft", { p_locale: locale, p_expected: expected }); return readResults(); }
+export async function removeDraft(locale: unknown, expected: unknown) { requirePdfManagement(); resultsConfiguration(true); revision(expected); if (!isLocale(locale as string)) throw new AdminError(422, "Jezik nije ispravan."); await rpc("medresa_results_remove_draft", { p_locale: locale, p_expected: expected }); return readResults(); }
 export async function publishResults(expected: unknown, actor: string, id: string, locale: unknown) {
+  requirePdfManagement();
  resultsConfiguration(true); revision(expected);
  if (!uuid(id) || !isLocale(locale as string)) throw new AdminError(422,"Objava ili jezik nijesu ispravni.");
  const selected = locale as Locale, head = await publication(selected);
