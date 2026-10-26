@@ -63,12 +63,12 @@ Provjereno na svih 93 odredišnih stranica:
 
 ## Napomene
 
-- **Generacije** vode na mjesto svake generacije na stranici Alumni (`/alumni#generacija-N`, `/sq/alumni#…`, `/en/alumni#…`), jer `main` nema posebne stranice generacija. Kada se uvede neobjavljeni Alumni commit `6fd7466` (stranica za svaku generaciju), njegova preusmjeravanja treba da zamijene ova (preklapaju se u `src/seo/legacy.ts`).
+- **Generacije** vode na stalnu stranicu svake generacije (`/alumni/generacija-vii`, `/sq/alumni/gjenerata-vii`, `/en/alumni/generation-vii`), istu adresu koju otvara QR kod na panou (Alumni commit `6fd7466`, usklađen s ovom granom).
 - **Lanac preusmjeravanja**: stari URL-ovi sa kosom crtom na kraju idu u dva koraka (308 uklanja kosu crtu, pa 301). Google to prati bez gubitka.
 
 ## Fajlovi
 
 - `docs/seo-migration/url-map.csv`: 409 starih URL-ova, sa novom adresom, stvarnim lancem statusa, kvalitetom podudaranja i napomenom.
 - `docs/seo-migration/media-check.csv`: 510 starih medijskih URL-ova, sa statusom na novom sajtu i istim fajlom na novom sajtu gdje postoji.
-- `src/seo/legacy.ts`: pravila za generacije i 410 za demo sadržaj teme i `my-account`. Za PDF-ove nema pravila.
+- `src/seo/legacy.ts`: pravila za generacije (stranice generacija iz Alumni commita) i 410 za demo sadržaj teme i `my-account`. Za PDF-ove nema pravila.
 - `tests/seo-legacy-redirects.test.mjs`: regresioni test.
