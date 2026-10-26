@@ -40,10 +40,11 @@ export function Results({initial,admissions}:{initial:ResultsLibrary;admissions?
   finally{lock.current=false;setBusy(false);}
  };
  const draft=state?.drafts[locale],published=state?.published[locale]?.file,ready=!!state?.drafts[locale];
- return <Shell active="/ulaz7/rezultati" title="Rezultati ispita" intro="Jedni rezultati · nezavisne jezičke objave.">
+ return <Shell active="/ulaz7/rezultati" title={initial.pdfModuleEnabled === false ? "Upis" : "Rezultati ispita"} intro={initial.pdfModuleEnabled === false ? "" : "Jedni rezultati · nezavisne jezičke objave."}>
   {initial.message&&<p className={shared.notice} role="status">{initial.message}</p>}
   {message&&<p className={styles.notice} role="status">{message}</p>}
   <section className={styles.admissions} aria-label="Status upisa"><h2>STATUS UPISA</h2><div className={styles.actions} role="group" aria-label="OPEN / CLOSED">{(["open","closed"] as const).map(status=><button key={status} aria-pressed={admission?.status===status} className={admission?.status===status?shared.primary:shared.secondary} disabled={!admissions?.writable||!admission||statusBusy||busy} onClick={()=>void updateStatus(status)}>{status.toUpperCase()}</button>)}</div>{admissions?.message&&<p className={styles.context} role="status">{admissions.message}</p>}</section>
+  {initial.pdfModuleEnabled !== false && <>
   <div className={styles.tabs} role="tablist" aria-label="Jezik PDF-a">{resultLocales.map(l=><button role="tab" aria-label={l.toUpperCase()} key={l} aria-selected={locale===l} disabled={busy} className={locale===l?shared.primary:shared.secondary} onClick={()=>setLocale(l)}>{l.toUpperCase()}{state?.drafts[l] && <span className={styles.complete} aria-label="PDF spreman"> ✓</span>}</button>)}</div>
   <section className={styles.document} role="tabpanel" aria-label={locale.toUpperCase()}>
    <h2>{locale==="bs"?"Bosanski PDF":locale==="sq"?"Shqip PDF":"English PDF"}</h2>
@@ -56,5 +57,6 @@ export function Results({initial,admissions}:{initial:ResultsLibrary;admissions?
   </section>
   <section className={styles.publish}><h2>Objavljivanje rezultata</h2><ul>{resultLocales.map(l=><li key={l}>{state?.drafts[l]?"✓":"—"} {l.toUpperCase()} · {state?.published[l]?"Objavljeno":state?.drafts[l]?"Spremno":"Nepotpuno"}</li>)}</ul><p>Prije objave pregledajte PDF za ovaj jezik. Ostali objavljeni dokumenti ostaju nepromijenjeni.</p><button className={shared.primary} disabled={busy||!initial.writable||!ready} onClick={()=>setConfirm(true)}>OBJAVI {locale.toUpperCase()} REZULTATE</button></section>
   {confirm&&<ConfirmDialog title="Objavi rezultate" description={`Objaviti pripremljeni ${locale.toUpperCase()} PDF? Ostali jezici ostaju nepromijenjeni; prethodni dokument ostaje sačuvan u istoriji.`} confirm={`OBJAVI ${locale.toUpperCase()} REZULTATE`} busy={busy} onCancel={()=>setConfirm(false)} onConfirm={()=>void mutate("publish")}/>}
+ </>}
  </Shell>;
 }

@@ -2,6 +2,7 @@ import { backendDeploymentSupported } from "@/server/backendDeployment";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { publicAdmissionStatus } from "@/server/admin/results/admissions";
+import { pdfModuleEnabled } from "@/server/admin/results/maintenance";
 import { publishedHref } from "@/server/admin/results/service";
 import { upisContent } from "@/content/upis";
 import { Upis } from "@/components/upis/Upis";
@@ -23,11 +24,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   if (backendDeploymentSupported()) await connection();
   const locale = asLocale((await params).locale);
-  const [documentHref, admissionStatus] = await Promise.all([publishedHref(locale), publicAdmissionStatus()]);
+  const pdfEnabled = pdfModuleEnabled();
+  const [documentHref, admissionStatus] = pdfEnabled ? await Promise.all([publishedHref(locale), publicAdmissionStatus()]) : [null, "closed" as const];
   return (
     <>
       <PageJsonLd id="upis" locale={locale} />
-      <Upis locale={locale} documentHref={documentHref} admissionStatus={admissionStatus} />
+      <Upis locale={locale} documentHref={documentHref} admissionStatus={admissionStatus} pdfEnabled={pdfEnabled} />
     </>
   );
 }

@@ -5,6 +5,6 @@ export const PDF_CHUNK_BYTES = 1024 * 1024;
 export type ResultAsset = { id: string; locale: Locale; filename: string; bytes: number; pages: number; createdAt: string };
 export type ResultPublication = { id: string; version: number; publishedAt: string; file: ResultAsset };
 export type ResultState = { revision: number; drafts: Record<Locale, ResultAsset | null>; published: Record<Locale, ResultPublication | null> };
-export type ResultsLibrary = { ready: boolean; writable: boolean; message: string | null; state: ResultState | null };
+export type ResultsLibrary = { pdfModuleEnabled?: boolean; ready: boolean; writable: boolean; message: string | null; state: ResultState | null };
 export const resultDownload = (locale: Locale) => `/api/results/${locale}`;
 export const resultAssetPreview = (id: string) => `/api/admin/results/assets?id=${id}`;

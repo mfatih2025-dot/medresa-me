@@ -47,7 +47,7 @@ const enter = (delay: number, duration?: number) =>
  * FATIH → signature → results. Scroll adds restrained depth only: the
  * photograph scales and drifts, the type lifts away, the glass settles out.
  */
-export function Hero({ dict }: { dict: Dictionary }) {
+export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; resultsEnabled?: boolean }) {
   const { hero } = dict;
   const [first, ...rest] = hero.name.split(" ");
   const second = rest.join(" ");
@@ -187,7 +187,7 @@ export function Hero({ dict }: { dict: Dictionary }) {
               className="group flex items-center gap-3 rounded-[22px] border border-gold-soft/35 bg-[linear-gradient(135deg,rgb(30_52_38/0.74),rgb(12_34_27/0.66))] py-3.5 pl-4 pr-3 text-ivory shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_18px_44px_-22px_rgb(0_0_0/0.6)] backdrop-blur-xl backdrop-saturate-[1.2] transition-[background-color,border-color,translate,scale] duration-300 ease-out hover:-translate-y-0.5 hover:border-gold-soft/55 active:scale-[0.985] md:gap-5 md:rounded-[26px] md:py-4 md:pl-6 md:pr-4 lg:py-5 lg:pl-7 lg:pr-5"
             >
               <span aria-hidden className="hidden shrink-0 text-gold-soft min-[360px]:block">
-                <DocumentIcon width={26} height={26} className="md:size-7" />
+                {resultsEnabled && <DocumentIcon width={26} height={26} className="md:size-7" />}
               </span>
               <span
                 aria-hidden

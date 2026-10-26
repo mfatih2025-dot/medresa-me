@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requirePdfModule } from "@/server/admin/results/maintenance";
 import { AdminError } from "@/admin/contracts";
 import { authorize, apiFailure } from "@/server/admin/http";
 import { listResults, publishResults, removeDraft, resultsConfiguration } from "@/server/admin/results/service";
@@ -6,7 +7,7 @@ export const config = { api: { bodyParser: { sizeLimit: "8kb" } } };
 export const maxDuration = 60;
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session=authorize(req,res,["GET","POST"]);resultsConfiguration();
+    const session=authorize(req,res,["GET","POST"]);requirePdfModule();resultsConfiguration();
     if(req.method==="GET")return res.json(await listResults());
     if(req.body?.action==="remove")return res.json({state:await removeDraft(req.body.locale,req.body.revision)});
     if(req.body?.action==="publish")return res.json({state:await publishResults(req.body.revision,session.user,req.body.id,req.body.locale)});

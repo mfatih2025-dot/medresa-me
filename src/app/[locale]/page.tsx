@@ -1,5 +1,7 @@
 import { Alumni } from "@/components/sections/Alumni";
 import { Closing } from "@/components/sections/Closing";
+import { pdfModuleEnabled } from "@/server/admin/results/maintenance";
+import { admissionText } from "@/admin/results/admissions";
 import { Hero } from "@/components/sections/Hero";
 import { HeroStage } from "@/components/sections/HeroStage";
 import { LifeStack } from "@/components/sections/LifeStack";
@@ -30,11 +32,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function HomePage({ params }: Props) {
   const locale = asLocale((await params).locale);
-  const dict = await publicHomeDictionary(locale);
+  const original = await publicHomeDictionary(locale);
+  const closed = admissionText("closed", locale);
+  const label = `${closed.before} ${closed.word}`;
+  const dict = pdfModuleEnabled() ? original : { ...original, hero: { ...original.hero, admissions: { ...original.hero.admissions, label } }, admissions: { ...original.admissions, primary: { ...original.admissions.primary, label } } };
   return (
     <>
       <JsonLd data={[organization(locale), website(locale)]} />
-      <HeroStage hero={<Hero dict={dict} />}>
+      <HeroStage hero={<Hero dict={dict} resultsEnabled={pdfModuleEnabled()} />}>
         <News dict={dict} />
         <Alumni dict={dict} />
       </HeroStage>

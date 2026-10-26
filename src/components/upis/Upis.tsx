@@ -92,7 +92,7 @@ function DocumentBlock({ doc, index }: { doc: UpisDocument; index: number }) {
   );
 }
 
-export function Upis({ locale, documentHref, admissionStatus }: { locale: Locale; documentHref?: string | null; admissionStatus?: AdmissionStatus | null }) {
+export function Upis({ locale, documentHref, admissionStatus, pdfEnabled = true }: { pdfEnabled?: boolean; locale: Locale; documentHref?: string | null; admissionStatus?: AdmissionStatus | null }) {
   const source = { ...upisContent[locale], ...(admissionStatus ? { status: admissionText(admissionStatus,locale) } : {}) };
   const u = documentHref === undefined ? source : { ...source, documents: source.documents.map((doc, i) => i === 0 ? { ...doc, href: documentHref } : doc) };
   const [l1, l2] = u.title;
@@ -179,7 +179,7 @@ export function Upis({ locale, documentHref, admissionStatus }: { locale: Locale
       </section>
 
       {/* ---------- The document: the destination ---------- */}
-      <section aria-label={u.documents[0]?.title} className="wrap mt-8 md:mt-10 lg:mt-12">
+      {pdfEnabled && <section aria-label={u.documents[0]?.title} className="wrap mt-8 md:mt-10 lg:mt-12">
         {/* …and the document after the status. */}
         <Stage after={2.5}>
           <ul className="grid gap-4 md:gap-5 lg:max-w-[66.6667%]">
@@ -204,7 +204,7 @@ export function Upis({ locale, documentHref, admissionStatus }: { locale: Locale
             ))}
           </div>
         )}
-      </section>
+      </section>}
     </article>
   );
 }

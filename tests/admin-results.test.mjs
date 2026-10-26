@@ -32,7 +32,7 @@ test('one additive migration provides private storage, RLS, invoker RPCs, locale
 });
 test('BS, SQ and EN publish independently; updates, draft removals and retries preserve other heads',async()=>{
  const db=await resultsDatabase();try{
-  Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const objects=new Map();globalThis.fetch=resultsRest(db,objects);await db.exec('set role service_role');
+  Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true",MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const objects=new Map();globalThis.fetch=resultsRest(db,objects);await db.exec('set role service_role');
   let state=await service.readResults();assert.equal(state.revision,0);assert.equal(await service.publishedHref('bs'),null);
   const pdfs={},heads={};
   for(const locale of ['bs','sq','en']){
@@ -55,14 +55,14 @@ test('BS, SQ and EN publish independently; updates, draft removals and retries p
 });
 test('failed/incomplete uploads, corrupted originals, stale revisions and wrong project cannot partially publish',async()=>{
  const db=await resultsDatabase();try{
-  Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const objects=new Map();globalThis.fetch=resultsRest(db,objects);let s=await service.readResults();
+  Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true",MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const objects=new Map();globalThis.fetch=resultsRest(db,objects);let s=await service.readResults();
   const bytes=await pdfFixture('bad upload');const u=await service.beginUpload({locale:'bs',filename:'fixture.pdf',bytes:bytes.length,revision:0},'fixture');
   await assert.rejects(service.uploadChunk(u.id,0,bytes.subarray(1),'fixture'));await assert.rejects(service.uploadChunk(u.id,0,bytes,'other-user'));
   await service.uploadChunk(u.id,0,Buffer.alloc(bytes.length),'fixture');await assert.rejects(service.finishUpload(u.id,0,'fixture'),e=>e.status===422);assert.equal((await service.readResults()).revision,0);
   for(const l of ['bs','sq','en'])s=await upload(l,await pdfFixture(l),s.revision);
   const initial=randomUUID();s=await service.publishResults(s.revision,'fixture',initial,'en');await assert.rejects(service.removeDraft('bs',0),e=>e.status===409);
   const a=s.drafts.en;objects.set('medresa-results-preview/documents/'+a.id+'.pdf',{bytes:Buffer.from('corrupt'),mime:'application/pdf'});await assert.rejects(service.publishResults(s.revision,'fixture',randomUUID(),'en'));assert.equal((await service.readResults()).published.en.id,initial);
-  for(const patch of [{VERCEL_ENV:'production'},{VERCEL_GIT_COMMIT_REF:'main'},{MEDRESA_SUPABASE_PROJECT_REF:'wrong'},{MEDRESA_SUPABASE_WRITE_ENABLED:'false'}]){Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment,patch);await assert.rejects(service.beginUpload({locale:'bs',filename:'f.pdf',bytes:10,revision:s.revision},'fixture'));}
+  for(const patch of [{VERCEL_ENV:'production'},{VERCEL_GIT_COMMIT_REF:'main'},{MEDRESA_SUPABASE_PROJECT_REF:'wrong'},{MEDRESA_SUPABASE_WRITE_ENABLED:'false'}]){Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true",MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment,patch);await assert.rejects(service.beginUpload({locale:'bs',filename:'f.pdf',bytes:10,revision:s.revision},'fixture'));}
  }finally{await db.close();}
 });
 test('the locked Upis renderer is identical with data-source override and uses only relative locale downloads',()=>{
@@ -76,7 +76,7 @@ test('the locked Upis renderer is identical with data-source override and uses o
  for(const f of ['src/admin/results/model.ts','src/admin/results/Results.tsx','src/server/admin/results/service.ts'])assert.ok(!readFileSync(f,'utf8').includes('vercel.app'));
 });
 test('all new Admin Results endpoints enforce sessions and same origin before remote work',async()=>{
- Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const {createSession,cookieName}=load('src/server/admin/auth');process.env.MEDRESA_ADMIN_USER='fixture';process.env.MEDRESA_ADMIN_SESSION_SECRET='x'.repeat(48);process.env.MEDRESA_ADMIN_PASSWORD_HASH='scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128);process.env.MEDRESA_ADMIN_ORIGIN='http://localhost:3215';
+ Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true",MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const {createSession,cookieName}=load('src/server/admin/auth');process.env.MEDRESA_ADMIN_USER='fixture';process.env.MEDRESA_ADMIN_SESSION_SECRET='x'.repeat(48);process.env.MEDRESA_ADMIN_PASSWORD_HASH='scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128);process.env.MEDRESA_ADMIN_ORIGIN='http://localhost:3215';
  const token=createSession();let calls=0;const fake=new Proxy({},{get:()=>()=>{calls++;throw new Error('Forbidden remote call');}});
  for(const path of ['index','upload','chunk','finalize','assets']){const {default:handler}=moduleLoader({'@/server/admin/results/service':fake})('src/pages/api/admin/results/'+path);for(const req of [{method:'GET',cookies:{},headers:{},query:{}},{method:'POST',cookies:{[cookieName()]:token},headers:{origin:'https://evil.example'},query:{},body:{}}]){const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};await handler(req,res);assert.equal(res.code,!Object.keys(req.cookies).length?401:path==='assets'?405:403);}}
  assert.equal(calls,0);
@@ -84,7 +84,7 @@ test('all new Admin Results endpoints enforce sessions and same origin before re
 
 
 test('PDF management defaults to suspended and every mutation rejects before any remote request',async()=>{
- Object.assign(process.env,fixtureEnvironment);let requests=0;
+ Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true"},fixtureEnvironment);let requests=0;
  globalThis.fetch=async()=>{requests++;throw new Error('Suspended operations must not contact Supabase');};
  const maintenance=load('src/server/admin/results/maintenance');
  for(const flag of [undefined,'false','TRUE','1','']){
@@ -99,7 +99,7 @@ test('PDF management defaults to suspended and every mutation rejects before any
 });
 
 test('authenticated stale-session PDF API requests return maintenance without database calls or retries',async()=>{
- Object.assign(process.env,fixtureEnvironment);delete process.env.MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED;
+ Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true"},fixtureEnvironment);delete process.env.MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED;
  Object.assign(process.env,{MEDRESA_ADMIN_USER:'fixture',MEDRESA_ADMIN_SESSION_SECRET:'x'.repeat(48),MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128),MEDRESA_ADMIN_ORIGIN:'http://localhost:3215'});
  const {createSession,cookieName}=load('src/server/admin/auth'),token=createSession();let requests=0;
  globalThis.fetch=async()=>{requests++;throw new Error('No remote calls allowed');};
@@ -114,4 +114,30 @@ test('authenticated stale-session PDF API requests return maintenance without da
  const {default:handler}=load('src/pages/api/admin/results/index');
  for(let i=0;i<100;i++)await handler({method:'POST',cookies:{[cookieName()]:token},headers:{origin:process.env.MEDRESA_ADMIN_ORIGIN},body:{action:'remove',locale:'bs',revision:0}},{setHeader(){},status(code){assert.equal(code,423);return this;},json(){}});
  assert.equal(requests,0);
+});
+
+
+test('complete PDF module defaults off: reads, downloads, API and mutations never contact Supabase',async()=>{
+ Object.assign(process.env,fixtureEnvironment,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:'true'});delete process.env.MEDRESA_RESULTS_PDF_MODULE_ENABLED;
+ let requests=0;globalThis.fetch=async()=>{requests++;throw new Error('Isolated PDF module must not use Supabase');};
+ assert.deepEqual(await service.listResults(),{ready:false,writable:false,message:null,state:null,pdfModuleEnabled:false});
+ assert.equal(await service.publishedHref('bs'),null);
+ for(const operation of [()=>service.readResults(),()=>service.readPdf(randomUUID()),()=>service.publicPdf('bs'),()=>service.removeDraft('bs',0),()=>service.beginUpload({},'fixture'),()=>service.uploadChunk('old',0,Buffer.alloc(0),'fixture'),()=>service.finishUpload('old',0,'fixture'),()=>service.publishResults(0,'fixture',randomUUID(),'bs')])await assert.rejects(operation,e=>e.status===404);
+ assert.equal(requests,0);
+ const {createSession,cookieName}=load('src/server/admin/auth');Object.assign(process.env,{MEDRESA_ADMIN_USER:'fixture',MEDRESA_ADMIN_SESSION_SECRET:'x'.repeat(48),MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+'a'.repeat(32)+'$'+'b'.repeat(128),MEDRESA_ADMIN_ORIGIN:'http://localhost:3215'});const token=createSession();
+ for(const path of ['index','upload','chunk','finalize','assets']){
+  const {default:handler}=load('src/pages/api/admin/results/'+path),method=['index','assets'].includes(path)?'GET':'POST';
+  const res={setHeader(){},status(code){this.code=code;return this;},json(){return this;}};
+  await handler({method,cookies:{[cookieName()]:token},headers:{origin:process.env.MEDRESA_ADMIN_ORIGIN},query:{id:randomUUID()},body:{}},res);assert.equal(res.code,404);
+ }
+ assert.equal(requests,0);
+});
+
+test('isolated Upis renders existing closed status without PDF section or replacement notice',()=>{
+ const motion=Object.fromEntries(['Depth','Line','Soft','Stage'].map(key=>[key,function MotionFixture({children}){return React.createElement(React.Fragment,null,children);}]));motion.Letters=function LettersFixture({text}){return React.createElement('span',null,text);};
+ const {Upis}=moduleLoader({'./UpisMotion':motion})('src/components/upis/Upis');
+ for(const locale of ['bs','sq','en']){
+  const html=renderToStaticMarkup(React.createElement(Upis,{locale,admissionStatus:'closed',pdfEnabled:false}));
+  assert.ok(!html.includes('PDF'));assert.ok(!html.includes('download='));assert.ok(!html.includes('obustavljeno'));assert.equal((html.match(/<section/g)||[]).length,1);
+ }
 });

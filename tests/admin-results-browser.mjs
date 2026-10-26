@@ -8,11 +8,11 @@ import {resultsDatabase,resultsRest,fixtureEnvironment,providerHost,pdfFixture} 
 const require=createRequire(resolve('package.json')),next=require('next'),{chromium}=require('playwright');
 process.env.NODE_ENV='production';const origin='http://localhost:3215';
 (async()=>{
- const db=await resultsDatabase(),objects=new Map(),rest=resultsRest(db,objects),realFetch=globalThis.fetch;let remoteCalls=0;
+ const db=await resultsDatabase(),objects=new Map(),rest=resultsRest(db,objects),realFetch=globalThis.fetch;let remoteCalls=0,pdfRequests=0;
  globalThis.fetch=(input,init={})=>{
   const address=input instanceof URL?input.href:typeof input==='string'?input:input.url;
   if(address.startsWith(providerHost+'/')){
-   remoteCalls++;
+   remoteCalls++;if(address.includes('medresa_results_')||address.includes('medresa-results-preview'))pdfRequests++;
    if(address.includes('/medresa_admin_public_locale_feed'))return Promise.resolve(Response.json([]));
    if(address.includes('/medresa_campaigns'))return Promise.resolve(Response.json([]));
    return rest(address,init);
@@ -21,7 +21,7 @@ process.env.NODE_ENV='production';const origin='http://localhost:3215';
   return realFetch(input,init);
  };
  const password=randomBytes(24).toString('base64url'),salt=randomBytes(16).toString('hex');
- Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment,{NEXT_TELEMETRY_DISABLED:'1',MEDRESA_ADMIN_USER:'results-browser-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
+ Object.assign(process.env,{MEDRESA_RESULTS_PDF_MODULE_ENABLED:"true",MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment,{NEXT_TELEMETRY_DISABLED:'1',MEDRESA_ADMIN_USER:'results-browser-fixture',MEDRESA_ADMIN_PASSWORD_HASH:'scrypt$'+salt+'$'+scryptSync(password,salt,64).toString('hex'),MEDRESA_ADMIN_SESSION_SECRET:randomBytes(48).toString('base64url'),MEDRESA_ADMIN_ORIGIN:origin});
  const app=next({dev:false,dir:process.cwd(),hostname:'localhost',port:3215});await app.prepare();const server=http.createServer(app.getRequestHandler());await new Promise(r=>server.listen(3215,'localhost',r));
  const browser=await chromium.launch({executablePath:process.env.MEDRESA_TEST_CHROMIUM||(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:true,args:['--no-sandbox']});
  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});await context.addCookies([{name:'medresa-locale',value:'bs',url:origin}]);
@@ -95,6 +95,24 @@ process.env.NODE_ENV='production';const origin='http://localhost:3215';
   assert.deepEqual([...objects.entries()].map(([path,value])=>[path,hash(value.bytes)]),stored,'Suspension preserves every Storage object');
   process.env.MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED='true';await page.goto(origin+'/ulaz7/rezultati');assert.ok(await page.getByRole('button',{name:'Zamijeni PDF',exact:true}).isEnabled(),'Server flag reverses suspension');
   assert.equal((await db.query('select count(*)::int n from medresa_results_locale_publications')).rows[0].n,4);assert.equal((await db.query('select count(*)::int n from medresa_admin_articles')).rows[0].n,0);assert.equal((await db.query('select count(*)::int n from medresa_analytics_daily')).rows[0].n,0);assert.deepEqual(errors,[]);
-  console.log('PASS: default PDF suspension, stale-tab/direct API rejection before database access, no removal retries, unchanged published downloads/storage, reversible flag, mobile/desktop disabled controls; global OPEN/CLOSED status, six exact locale strings and persistence without rebuilding; authenticated native-picker PDF upload incl. exact 5 MB; 360/390/412/430/tablet/desktop; real locked Upis module unchanged; BS/SQ/EN route-to-PDF mapping; independent locale publication and replacement without server rebuild; draft removal/invalid PDF preserve publication; streaming bytes; history/security/client secret isolation. Local fixtures ONLY, no remote data.');
+  // Entire module isolated: no PDF reads, downloads, controls or writes.
+  delete process.env.MEDRESA_RESULTS_PDF_MODULE_ENABLED;pdfRequests=0;
+  await page.goto(origin+'/');assert.ok(await page.getByText('UPIS JE ZATVOREN',{exact:true}).count());
+  for(const [locale,path]of [['bs','/upis'],['sq','/sq/regjistrimi'],['en','/en/admissions']]){
+   await page.goto(origin+path);assert.equal(await page.locator('main article a[download]').count(),0);assert.equal(await page.locator('main article').getByText('PDF',{exact:true}).count(),0);assert.equal(await page.locator('main article section').count(),1);
+   assert.equal((await context.request.get(origin+'/api/results/'+locale)).status(),404);
+  }
+  for(const path of ['/api/admin/results','/api/admin/results/assets?id='+randomUUID()])assert.equal((await context.request.get(origin+path)).status(),404);
+  for(const [path,data]of [['/api/admin/results',{action:'remove',locale:'bs',revision:0}],['/api/admin/results',{action:'publish',locale:'bs',revision:0,id:randomUUID()}],['/api/admin/results/upload',{}],['/api/admin/results/finalize',{}]])assert.equal((await context.request.post(origin+path,{headers:{Origin:origin},data})).status(),404);
+  assert.equal(pdfRequests,0,'Isolated public pages and APIs perform zero PDF Supabase requests');
+  await page.goto(origin+'/ulaz7');assert.equal(await page.getByText('Službeni PDF, na postojećem mjestu.',{exact:true}).count(),0);
+  await page.goto(origin+'/ulaz7/rezultati');
+  for(const width of [360,390,412,430,768,1440]){
+   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1));
+   assert.equal(await page.getByRole('button',{name:'Ukloni PDF',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Zamijeni PDF',exact:true}).count(),0);assert.equal(await page.locator('input[type=file]').count(),0);
+  }
+  assert.equal(pdfRequests,0,'Admin also performs zero PDF requests');
+  process.env.MEDRESA_RESULTS_PDF_MODULE_ENABLED='true';await page.goto(origin+'/ulaz7/rezultati');assert.ok(await page.getByRole('button',{name:'Zamijeni PDF',exact:true}).isEnabled());
+  console.log('PASS: complete module isolation with zero PDF Supabase requests and reversible public/admin rendering; default PDF suspension, stale-tab/direct API rejection before database access, no removal retries, unchanged published downloads/storage, reversible flag, mobile/desktop disabled controls; global OPEN/CLOSED status, six exact locale strings and persistence without rebuilding; authenticated native-picker PDF upload incl. exact 5 MB; 360/390/412/430/tablet/desktop; real locked Upis module unchanged; BS/SQ/EN route-to-PDF mapping; independent locale publication and replacement without server rebuild; draft removal/invalid PDF preserve publication; streaming bytes; history/security/client secret isolation. Local fixtures ONLY, no remote data.');
  }finally{await context.close();await browser.close();await new Promise(r=>server.close(r));await app.close();await db.close();globalThis.fetch=realFetch;}
 })().catch(error=>{console.error(error.stack||String(error));process.exit(1);});

@@ -6,14 +6,14 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { MAX_PDF_BYTES, PDF_CHUNK_BYTES, resultLocales, resultDownload, type ResultAsset, type ResultState, type ResultsLibrary } from "@/admin/results/model";
 import { supabaseConfiguration, supabaseRequest } from "../supabase";
 import { pdfDigest, validatePdf } from "./pdf";
-import { pdfManagementEnabled, requirePdfManagement, PDF_MAINTENANCE_MESSAGE } from "./maintenance";
+import { pdfModuleEnabled, requirePdfModule, pdfManagementEnabled, requirePdfManagement, PDF_MAINTENANCE_MESSAGE } from "./maintenance";
 const BUCKET = "medresa-results-preview";
 export function resultsConfiguration(write = false) {
   const c = supabaseConfiguration();
   if (!c || c.ref !== "safsijrhxbefgcahvsvm" || !backendDeploymentSupported() || write && !c.writable) throw new AdminError(503, "Rezultati nijesu spremni za namijenjeni Preview projekat.");
   return c;
 }
-async function request(path: string, init: RequestInit = {}, write = false) { resultsConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }
+async function request(path: string, init: RequestInit = {}, write = false) { requirePdfModule(); resultsConfiguration(write); return supabaseRequest(path, { ...init, redirect: "error" }, write); }
 async function rpc(name: string, body: unknown) {
   try { return await (await request(`/rest/v1/rpc/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, true)).json(); }
   catch (error) { if (error instanceof AdminError && error.status === 409) throw new AdminError(409, "Rezultati su promijenjeni u drugom prozoru. Osvježite stranicu."); throw error; }
@@ -54,6 +54,7 @@ export async function readResults(): Promise<ResultState> {
  return {revision:s.revision,drafts,published};
 }
 export async function listResults(): Promise<ResultsLibrary> {
+  if (!pdfModuleEnabled()) return { ready: false, writable: false, message: null, state: null, pdfModuleEnabled: false };
   try { const c = resultsConfiguration(); let channelsReady = true; try { await request("/rest/v1/medresa_results_locale_heads?select=locale&limit=1"); } catch { channelsReady = false; } return { ready: true, writable: c.writable && channelsReady && pdfManagementEnabled(), message: !pdfManagementEnabled() ? PDF_MAINTENANCE_MESSAGE : !channelsReady ? "Za nezavisnu objavu PDF-a primijenite Preview migraciju 202610100004_independent_locale_channels.sql." : c.writable ? null : "Rezultati su dostupni samo za čitanje.", state: await readResults() }; }
   catch { return { ready: false, writable: false, message: "Rezultati još nijesu povezani. Provjerite Preview migraciju za rezultate.", state: null }; }
 }
