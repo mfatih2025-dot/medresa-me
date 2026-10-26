@@ -39,7 +39,7 @@ test('migration preserves existing complete result releases and active campaigns
   const before=(await db.query('select * from medresa_campaigns where id=$1',[id])).rows[0];
   const ids={};for(const l of ['bs','sq','en']){ids[l]=randomUUID();await db.query("insert into medresa_results_assets(id,locale,filename,object_path,bytes,pages,sha256,created_by) values($1,$2,'fixture.pdf',$3,100,1,$4,'fixture')",[ids[l],l,'documents/'+ids[l]+'.pdf','a'.repeat(64)]);}
   await db.query('update medresa_results_state set bs_id=$1,sq_id=$2,en_id=$3',[ids.bs,ids.sq,ids.en]);const pub=randomUUID();await db.query("select medresa_results_publish($1,0,'fixture')",[pub]);
-  Object.assign(process.env,fixtureEnvironment);const campaignFetch=campaignRest(db),resultFetch=resultsRest(db);
+  Object.assign(process.env,{MEDRESA_RESULTS_PDF_MANAGEMENT_ENABLED:"true"},fixtureEnvironment);const campaignFetch=campaignRest(db),resultFetch=resultsRest(db);
   globalThis.fetch=(url,init)=>String(url).includes('medresa_results_')?resultFetch(url,init):new URL(String(url)).searchParams.get('select')?.includes('locale_active')?Promise.resolve(new Response('{}',{status:400})):campaignFetch(url,init);
   assert.equal((await service.currentCampaign()).campaign.id,id,'Legacy campaign stays public before migration');assert.equal((await service.listCampaigns()).writable,false);
   const resultService=load('src/server/admin/results/service');for(const l of ['bs','sq','en'])assert.equal(await resultService.publishedHref(l),'/api/results/'+l,'Legacy result links stay public');assert.equal((await resultService.listResults()).writable,false);
