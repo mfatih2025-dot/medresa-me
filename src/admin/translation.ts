@@ -46,6 +46,13 @@ export function applyTranslationDraft(draft: NewsDraft, translation: Translation
     images: draft.images.map((image, i) => ({ ...image, alt: { bs: image.alt.bs, ...translation.images[i].alt } })),
   });
   // Identical regenerated text still requires a fresh human review.
-  for (const l of translationLocales) next.review[l] = { approved: false, reviewedRevision: null };
+  for (const l of translationLocales) next.review[l] = { approved: false, reviewedRevision: null, aiGenerated: true };
   return next;
+}
+
+/** Editorial stages are distinct from structural completeness and publication. */
+export function translationStage(draft: NewsDraft, locale: "bs" | "sq" | "en") {
+  const review = draft.review[locale];
+  if (review.reviewedRevision === draft.revision) return review.approved ? "Odobreno" : "Pregledano";
+  return review.aiGenerated ? "AI nacrt" : "Nacrt";
 }

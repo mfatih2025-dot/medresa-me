@@ -1,3 +1,4 @@
+import { translationPair as pair } from './fixtures/translation.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,7 +19,6 @@ async function environment(fn) {
     return await fn();
   } finally { names.forEach((n,i) => old[i] === undefined ? delete process.env[n] : process.env[n] = old[i]); globalThis.fetch = fetch; }
 }
-const pair = value => ({ sq:value ? 'Përkthim: '+value : '', en:value ? 'Translation: '+value : '' });
 // Provider responses are deterministic TEST fixtures; production has no mock path.
 function translated(source) {
   return { title:pair(source.title), lead:pair(source.lead), blocks:source.blocks.map(b=>({id:b.id,type:b.type,text:pair(b.text)})), images:source.images.map(i=>({id:i.id,alt:pair(i.alt)})) };
@@ -43,7 +43,7 @@ test('Responses API sends only BS and glossary; validates both locales, restores
     return json(envelope(translated(source)));
   };
   const result=await translateBosnianMaster(d); assert.equal(calls,1); assert.equal(canonicalJson(d),original);
-  assert.equal(result.slug.sq,'perkthim-posjeta-medresi-mehmed-fatih'); assert.equal(result.slug.en,'translation-posjeta-medresi-mehmed-fatih');
+  assert.equal(result.slug.sq,'vizite-ne-medresene-mehmed-fatih'); assert.equal(result.slug.en,'visit-to-the-mehmed-fatih-medresa');
   for(const l of ['sq','en']) for(const fact of ['08.10.2026','250,00','EUR','https://medresa.me/prijava','ME25505000012345']) assert.ok(result.blocks[0].text[l].includes(fact));
   assert.deepEqual(result.blocks.map(b=>[b.id,b.type]),d.blocks.map(b=>[b.id,b.type]));
 }));
@@ -126,13 +126,19 @@ test('real save RPC atomically persists SQ/EN drafts; preserves BS, images/publi
     await assert.rejects(translateNews(published.draft,published.draft.revision,[],'test-admin'),e=>e.status===409); assert.equal(openai,calls); assert.equal(writes.length,writeCount);
     await assert.rejects(translateNews({...published.draft,title:{...published.draft.title,sq:''}},published.draft.revision,['en'],'test-admin'),e=>e.status===409);
     for(const failure of ['failure','invalid']) { mode=failure; await assert.rejects(translateNews(published.draft,published.draft.revision,['sq','en'],'test-admin')); assert.equal(canonicalJson((await getNews(identity)).draft),unchanged); }
-    mode='deferred'; const entered=new Promise(resolve=>started=resolve); const pending=translateNews(published.draft,published.draft.revision,['sq','en'],'test-admin'); await entered;
-    await assert.rejects(translateNews(published.draft,published.draft.revision,['sq','en'],'test-admin'),e=>e.status===409); release(); const replaced=await pending;
-    assert.deepEqual(replaced.publications,published.publications); assert.equal(replaced.draft.review.sq.approved,false); assert.equal(replaced.draft.review.en.approved,false);
-    mode='race'; raceInput=revise(replaced.draft,{title:{...replaced.draft.title,sq:'Concurrent manual edit'}});
-    await assert.rejects(translateNews(replaced.draft,replaced.draft.revision,['sq','en'],'test-admin'),e=>e.status===409); assert.equal((await getNews(identity)).draft.title.sq,'Concurrent manual edit');
+    // Even explicit overwrite confirmation cannot replace corrected translations.
+    await assert.rejects(translateNews(published.draft,published.draft.revision,['sq','en'],'test-admin'),e=>e.status===409);
+    assert.equal(canonicalJson((await getNews(identity)).draft),unchanged);assert.equal(openai,calls);
+    const replaced=published;
     mode='success'; const second=await createDraft('test-admin'); let next=revise(second.draft,master(second.draft.id)); next.revision=1; next.slug.bs='different-bs-url'; const secondSaved=await saveDraft(next,0,'test-admin');
     const beforeConflict=canonicalJson(secondSaved.draft); await assert.rejects(translateNews(secondSaved.draft,secondSaved.draft.revision,[],'test-admin'),e=>e.status===409); assert.equal(canonicalJson((await getNews(secondSaved.draft.id)).draft),beforeConflict);
+    mode='deferred';const entered=new Promise(resolve=>started=resolve);
+    const pending=translateNews(secondSaved.draft,secondSaved.draft.revision,[],'test-admin');await entered;
+    await assert.rejects(translateNews(secondSaved.draft,secondSaved.draft.revision,[],'test-admin'),e=>e.status===409);
+    release();await assert.rejects(pending,e=>e.status===409); // Existing published slug remains reserved.
+    mode='race';raceInput=revise(secondSaved.draft,{title:{...secondSaved.draft.title,en:'Concurrent manual edit'}});
+    await assert.rejects(translateNews(secondSaved.draft,secondSaved.draft.revision,[],'test-admin'),e=>e.status===409);
+    assert.equal((await getNews(secondSaved.draft.id)).draft.title.en,'Concurrent manual edit');
     assert.deepEqual(existingTranslationLocales(replaced.draft),['sq','en']);
   } finally { await db.close(); }
 }));
@@ -180,3 +186,52 @@ test('simple translation health handles absent, empty and whitespace keys withou
     if(value?.trim()) assert.ok(!JSON.stringify(report).includes(value));
   }
 }));
+
+test('incident uppercase BS headline reaches OpenAI intact; proper name alone is protected',()=>environment(async()=>{
+ const draft=master();draft.title.bs='NAJBOLJI UČENICI MEDRESE "MEHMED FATIH"';
+ const original=canonicalJson(draft);
+ globalThis.fetch=async(_url,init)=>{
+  const request=JSON.parse(init.body),source=JSON.parse(request.input[0].content);
+  assert.equal(source.title,'NAJBOLJI UČENICI MEDRESE "⟦KEEP:0⟧"');assert.match(request.instructions,/ALL-CAPS/);
+  const result=translated({...source,title:'Posjeta Medresi ⟦KEEP:0⟧'});
+  result.title={sq:'NXËNËSIT MË TË MIRË TË MEDRESESË "⟦KEEP:0⟧"',en:'THE BEST STUDENTS OF THE "⟦KEEP:0⟧" MEDRESA'};
+  return json(envelope(result));
+ };
+ const result=await translateBosnianMaster(draft);
+ assert.equal(result.title.en,'THE BEST STUDENTS OF THE "MEHMED FATIH" MEDRESA');
+ assert.equal(result.title.sq,'NXËNËSIT MË TË MIRË TË MEDRESESË "MEHMED FATIH"');
+ assert.equal(canonicalJson(draft),original);
+}));
+
+test('exact incident fragments, copied prose and obvious omissions are rejected, never substituted',()=>{
+ const {assertTranslationQuality}=load('src/server/admin/translation');
+ const source='NAJBOLJI UČENICI MEDRESE "MEHMED FATIH"';
+ for(const [locale,target]of [['en','NAJBOLJI STUDENICI OF MEDRESE "MEHMED..."'],['sq','NAJBOLJI NXENICI TË MEDRESE SË "MEHMED..."']])assert.throws(()=>assertTranslationQuality(source,target,locale),e=>e.status===502);
+ const body='Danas se u našoj školi održava posebna svečanost za sve članove zajednice.';
+ assert.throws(()=>assertTranslationQuality(body,body,'en'));
+ assert.throws(()=>assertTranslationQuality(body,'A ceremony.','en'));
+ assert.throws(()=>assertTranslationQuality('First line\nSecond line','Only one line','en'));
+});
+
+test('configured OpenAI model and reasoning envelope work; failures expose only safe classifications',()=>environment(async()=>{
+ const previous=process.env.OPENAI_TRANSLATION_MODEL;process.env.OPENAI_TRANSLATION_MODEL='gpt-4.1-2025-04-14';
+ try{
+  globalThis.fetch=async(_url,init)=>{
+   const request=JSON.parse(init.body);assert.equal(request.model,process.env.OPENAI_TRANSLATION_MODEL);
+   const result=envelope(translated(JSON.parse(request.input[0].content)));result.output.unshift({type:'reasoning',summary:[]});return json(result);
+  };
+  await translateBosnianMaster(master());
+  for(const [status,pattern]of [[400,/format/],[401,/autentikacija/],[403,/pristup/],[404,/model/],[429,/kvota/],[500,/servis/]]){
+   globalThis.fetch=async()=>json({error:{message:process.env.OPENAI_API_KEY}},status);
+   await assert.rejects(translateBosnianMaster(master()),e=>e.status===502&&pattern.test(e.message)&&!e.message.includes(process.env.OPENAI_API_KEY));
+  }
+ }finally{if(previous===undefined)delete process.env.OPENAI_TRANSLATION_MODEL;else process.env.OPENAI_TRANSLATION_MODEL=previous;}
+}));
+
+test('AI draft, Reviewed and Approved are distinct; editing the BS master invalidates target review',()=>{
+ const {translationStage}=load('src/admin/translation');let draft=master();
+ draft.review.en={aiGenerated:true,approved:false,reviewedRevision:null};assert.equal(translationStage(draft,'en'),'AI nacrt');
+ draft.review.en.reviewedRevision=draft.revision;assert.equal(translationStage(draft,'en'),'Pregledano');assert.equal(publicationChecklist(draft,'en').find(c=>c.key==='review').complete,false);
+ draft.review.en.approved=true;assert.equal(translationStage(draft,'en'),'Odobreno');
+ draft=revise(draft,{title:{...draft.title,bs:'Novi bosanski naslov'}});assert.equal(draft.review.en.approved,false);assert.equal(translationStage(draft,'en'),'AI nacrt');
+});

@@ -1,3 +1,4 @@
+import {translationPair} from './fixtures/translation.mjs';
 import { createRequire } from "node:module";
 import { randomBytes, scryptSync } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
@@ -39,7 +40,7 @@ let translationMode = 'success';
       await new Promise(resolve => setTimeout(resolve, 150));
       if (translationMode === 'failure') return new Response(JSON.stringify({error:'explicit-private-provider-fixture'}),{status:500});
       const source = JSON.parse(JSON.parse(init.body).input[0].content);
-      const pair = value => ({sq:value ? 'Përkthim: '+value : '',en:value ? 'Translation: '+value : ''});
+      const pair = translationPair;
       const output = {title:pair(source.title),lead:pair(source.lead),blocks:source.blocks.map(b=>({id:b.id,type:b.type,text:pair(b.text)})),images:source.images.map(i=>({id:i.id,alt:pair(i.alt)}))};
       if (translationMode === 'invalid') output.blocks.reverse();
       return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(output)}]}]}),{headers:{'Content-Type':'application/json'}});
@@ -144,7 +145,7 @@ let translationMode = 'success';
     await page.getByLabel('Naslov · '+l.toUpperCase(),{exact:true}).fill('Independent '+l.toUpperCase()+(update?' updated':''));
     await page.getByLabel('URL slug · '+l.toUpperCase(),{exact:true}).fill('independent-'+l);
     await page.getByLabel('Tekst 1 · '+l.toUpperCase(),{exact:true}).fill('Independent body '+l.toUpperCase()+(update?' updated':''));
-    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
+    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · '+l.toUpperCase(),exact:true}).click();
     // Ready review is still unsaved: publish must persist it automatically.
     const pendingStatus=page.getByRole('list',{name:'Status jezika',exact:true}).getByRole('listitem').filter({has:page.locator('b',{hasText:new RegExp('^'+l.toUpperCase()+'$')})});
     assert.match(await pendingStatus.textContent(),/Spremno/);
@@ -206,7 +207,7 @@ let translationMode = 'success';
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Direct BS-only publication');
   await page.getByLabel('URL slug · BS',{exact:true}).fill('direct-bs-only-publication');
   await page.getByLabel('Tekst 1 · BS',{exact:true}).fill('BS-only direct creation body');
-  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · BS',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'OBJAVI BS',exact:true}).isEnabled(),true);
   await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click();
   await page.getByRole('button',{name:'Objavi u bazi',exact:true}).click();
@@ -220,7 +221,7 @@ let translationMode = 'success';
   assert.match(await directStates.nth(1).textContent(),/SQNacrt/); assert.match(await directStates.nth(2).textContent(),/ENNacrt/);
   const frozenDirect=directRows[0];
   await page.getByLabel('Naslov · BS',{exact:true}).fill('Direct BS changed');
-  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · BS',exact:true}).click();
   // A failed automatic save must not invoke the publication action or overwrite history.
   let blockedPublish=0;
   await page.route('**/api/admin/news/'+directId, async route=>{
@@ -302,7 +303,7 @@ let translationMode = 'success';
   await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),'Browser draft BS');
   for(const l of ['bs','sq','en']) {
     await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:l.toUpperCase(),exact:true}).click();
-    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click();
+    await page.getByRole('button',{name:'Potvrdi ljudski pregled · '+l.toUpperCase(),exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · '+l.toUpperCase(),exact:true}).click();
   }
   // The ready-language batch also auto-saves reviews before publishing.
   assert.equal(await page.getByRole('button',{name:'OBJAVI SVE SPREMNE JEZIKE',exact:true}).isEnabled(),true);
@@ -359,7 +360,7 @@ let translationMode = 'success';
   const createdTranslation=await context.request.post(origin+'/api/admin/news',{headers:{Origin:origin},data:{draft:source}}); assert.equal(createdTranslation.status(),201);
   const translationId=(await createdTranslation.json()).article.draft.id;
   await page.goto(origin+'/ulaz7/vijesti/'+translationId);
-  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click();
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · BS',exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · BS',exact:true}).click();
   await page.getByRole('button',{name:'OBJAVI BS',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
   await page.getByText('Objavljeno: BS. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
   const beforeTranslation=(await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document;
@@ -380,15 +381,11 @@ let translationMode = 'success';
   await page.getByLabel('Jezik uređivanja',{exact:true}).getByRole('button',{name:'SQ',exact:true}).click(); await page.getByLabel('Naslov · SQ',{exact:true}).fill('Titull i redaktuar');
   await page.getByRole('button',{name:'Sačuvaj nacrt',exact:true}).click(); await page.getByText('Nacrt je spremljen u bazu.',{exact:true}).waitFor();
   const preservedTranslation=JSON.stringify((await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document);
-  await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click(); await page.getByRole('dialog').waitFor(); assert.equal(translationRequests,1);
-  await page.getByRole('button',{name:'Odustani',exact:true}).click(); assert.equal(await page.getByLabel('Naslov · SQ',{exact:true}).inputValue(),'Titull i redaktuar');
-  for(const mode of ['failure','invalid']) {
-    translationMode=mode; await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click(); await page.getByRole('button',{name:'Potvrdi zamjenu i prevedi',exact:true}).click();
-    await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).waitFor(); await page.getByRole('dialog').waitFor({state:'hidden'});
-    assert.equal(JSON.stringify((await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document),preservedTranslation); assert.equal(await page.getByLabel('Naslov · SQ',{exact:true}).inputValue(),'Titull i redaktuar');
-  }
-  translationMode='success';
-  await page.getByRole('button',{name:'Potvrdi ljudski pregled · SQ',exact:true}).click(); await page.getByRole('button',{name:'OBJAVI SQ',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
+  await page.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).click();
+  await page.getByText('Postojeći SQ/EN prijevodi su zaštićeni od automatske zamjene. Uredite ih ručno.',{exact:true}).waitFor();
+  assert.equal(translationRequests,1);assert.equal(await page.getByRole('dialog').count(),0);
+  assert.equal(JSON.stringify((await db.query('select document from medresa_admin_articles where id=$1',[translationId])).rows[0].document),preservedTranslation);
+  await page.getByRole('button',{name:'Potvrdi ljudski pregled · SQ',exact:true}).click(); await page.getByRole('button',{name:'Odobri prijevod · SQ',exact:true}).click(); await page.getByRole('button',{name:'OBJAVI SQ',exact:true}).click(); await page.getByRole('dialog').getByRole('button',{name:'Objavi u bazi',exact:true}).click();
   await page.getByText('Objavljeno: SQ. Javni website još koristi postojeći izvor.',{exact:true}).waitFor();
   await page.reload(); assert.equal(await page.getByLabel('Naslov · BS',{exact:true}).inputValue(),source.title.bs);
   const translationPublications=(await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows;
@@ -421,12 +418,9 @@ let translationMode = 'success';
     }
     await phone.goto(origin+'/ulaz7/vijesti/'+translationId);
     await phone.getByRole('button',{name:'Prevedi na SQ i EN',exact:true}).tap();
-    const translationDialog=await phone.getByRole('dialog').boundingBox(); assert.ok(translationDialog.x>=0&&translationDialog.x+translationDialog.width<=width+1); await assertFits();
-    if(width===360) {
-      await phone.getByRole('button',{name:'Potvrdi zamjenu i prevedi',exact:true}).tap(); await phone.getByText('SQ i EN nacrti su pripremljeni.',{exact:true}).waitFor();
-      assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows,translationPublications);
-      await phone.getByLabel('Jezik pregleda',{exact:true}).getByRole('button',{name:'EN',exact:true}).tap(); await phone.frameLocator('iframe').getByRole('heading',{name:afterTranslation.title.en,exact:true}).waitFor();
-    } else await phone.getByRole('button',{name:'Odustani',exact:true}).tap();
+    await phone.getByText('Postojeći SQ/EN prijevodi su zaštićeni od automatske zamjene. Uredite ih ručno.',{exact:true}).waitFor();
+    assert.equal(await phone.getByRole('dialog').count(),0);await assertFits();
+    assert.deepEqual((await db.query('select * from medresa_admin_locale_publication_state where article_id=$1 order by locale',[translationId])).rows,translationPublications);
     await phone.goto(origin+'/ulaz7/vijesti/nova');
     await phone.getByLabel('Datum objave',{exact:true}).fill('2026-10-08');
     const choose=phone.waitForEvent('filechooser'); await phone.getByRole('button',{name:'Odaberi sliku',exact:true}).tap();
@@ -501,6 +495,6 @@ let translationMode = 'success';
   assert.equal((await context.request.post(origin+'/api/admin/logout',{headers:{Origin:origin},maxRedirects:0})).status(),303);
   await page.goto(origin+'/ulaz7'); assert.match(page.url(),/\/ulaz7\/login$/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: OpenAI translation API fixtures; BS/master and ordered images unchanged; atomic draft persistence; human review/independent SQ publication; manual overwrite confirmation/cancel; provider/invalid-output failure recovery; automatic locked Article preview; missing-key disabled action; translation dialogs at 360/390/412/430; public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
+  console.log('PASS: OpenAI translation API fixtures; BS/master and ordered images unchanged; atomic draft persistence; human review/independent SQ publication; manual overwrite blocked; separate review/approval; automatic locked Article preview; missing-key disabled action; translation dialogs at 360/390/412/430; public BS archive/article/homepage latest three; unpublished SQ/EN hidden; all 51 original locale URLs; public published-image access with unreferenced/draft images blocked; authenticated routes; 17 legacy items; existing/unsaved renderer preview; native filechooser/replacement; shared multi-image uploads; persisted drafts/reload; unsaved-ready BS auto-save/publication; direct new BS publication; failed save/publication recovery; safe disposable trash cleanup; later SQ/EN, independent SQ update; ready-language batch publication; desktop DND; touch-only nine-block articles; archive/trash/restore; logout; all five mobile menu destinations; 360/390/412/430 px without page/menu overflow; tablet/desktop navigation. Supabase is an in-memory PostgreSQL/Storage test fixture, not an external connection.');
   await browser.close(); await db.close(); server.close(); await app.close(); process.exit(0);
 })().catch(error=>{console.error((error.stack ?? error.message).split('Call log:')[0]);console.error((error.stack ?? '').split('\n').filter(line=>line.includes('at ')&&line.includes('tests/admin-browser.mjs')).join('\n'));process.exit(1);});

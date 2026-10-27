@@ -30,7 +30,7 @@ export function validateDraft(value: unknown): asserts value is NewsDraft {
   }
   for (const l of locales) {
     const r = value.review[l];
-    if (!record(r) || typeof r.approved !== "boolean" || (r.reviewedRevision !== null && !Number.isSafeInteger(r.reviewedRevision))) throw new AdminError(422, "Neispravan ljudski pregled.");
+    if (!record(r) || typeof r.approved !== "boolean" || (r.aiGenerated !== undefined && typeof r.aiGenerated !== "boolean") || (r.reviewedRevision !== null && !Number.isSafeInteger(r.reviewedRevision))) throw new AdminError(422, "Neispravan ljudski pregled.");
   }
 }
 export function assertPublishable(draft: NewsDraft, locale: Locale = "bs") {

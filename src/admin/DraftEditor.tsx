@@ -11,7 +11,7 @@ import { ImagePicker } from "./ImagePicker";
 import { LivePreview } from "./LivePreview";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { adminRequest } from "./client";
-import { bosnianTranslationReady, existingTranslationLocales } from "./translation";
+import { bosnianTranslationReady, existingTranslationLocales, translationStage } from "./translation";
 import styles from "./admin.module.css";
 const labels = { text: "Tekst", subheading: "Podnaslov", image: "Slika", quote: "Citat" };
 export type EditorProps = { initial: ManagedArticle | null; assets: SharedImage[]; backend: BackendState; saved?: boolean; translationAvailable?: boolean };
@@ -25,7 +25,6 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
   const [busy, setBusy] = useState(false);
   const [translating, setTranslating] = useState(false);
   const translationRunning = useRef(false);
-  const [translationConfirm, setTranslationConfirm] = useState<("sq" | "en")[] | null>(null);
   const [translatedDraft, setTranslatedDraft] = useState<NewsDraft | null>(null);
   const [confirm, setConfirm] = useState<Locale[] | null>(null);
   const [message, setMessage] = useState(saved ? "Nacrt je spremljen u bazu." : "");
@@ -58,12 +57,19 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
     });
     setDirty(true); setMessage("");
   }
+  function reviewTranslation() {
+    setDraft(d => {
+      const next = revise(d, {});
+      next.review[locale] = { ...d.review[locale], approved: false, reviewedRevision: next.revision };
+      return next;
+    }); setDirty(true);
+  }
   function approve() {
     setDraft(d => {
-      const revision = d.revision + 1;
-      const review = Object.fromEntries((["bs", "sq", "en"] as const).map(l => [l, { approved: l === locale ? !d.review[l].approved : d.review[l].approved && d.review[l].reviewedRevision === d.revision, reviewedRevision: revision }])) as NewsDraft["review"];
-      const next = { ...d, revision, review, status: "draft" as const };
-      return { ...next, status: readyLocales(next).length > 0 ? "ready" : "draft" };
+      if (d.review[locale].reviewedRevision !== d.revision) return d;
+      const next = revise(d, {});
+      next.review[locale] = { ...d.review[locale], approved: !d.review[locale].approved, reviewedRevision: next.revision };
+      return { ...next, status: readyLocales(next).length ? "ready" : "draft" };
     }); setDirty(true);
   }
   async function save() {
@@ -81,7 +87,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
   function requestTranslation() {
     if (busy || translationRunning.current || !writable || !record || !translationAvailable || !bosnianTranslationReady(draft)) return;
     const existing = [...new Set([...existingTranslationLocales(draft), ...existingTranslationLocales(record.draft)])];
-    if (existing.length) setTranslationConfirm(existing);
+    if (existing.length) setMessage("Postojeći SQ/EN prijevodi su zaštićeni od automatske zamjene. Uredite ih ručno.");
     else void translate([]);
   }
   async function translate(confirmedLocales: ("sq" | "en")[]) {
@@ -92,7 +98,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
       setRecord(article); setDraft(article.draft); setDirty(false); setTranslatedDraft(article.draft);
       setMessage("SQ i EN nacrti su pripremljeni.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Prijevod nije završen. Postojeći sadržaj je sačuvan."); }
-    finally { translationRunning.current = false; setBusy(false); setTranslating(false); setTranslationConfirm(null); }
+    finally { translationRunning.current = false; setBusy(false); setTranslating(false); }
   }
   async function publish() {
     if (!confirm || busy || !writable || !publishingReady || confirm.some(l => !ready.includes(l))) return;
@@ -134,7 +140,7 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
   const editAlt = (assetId: string, value: string) => change({ images: draft.images.map(a => a.id === assetId ? { ...a, alt: { ...a.alt, [locale]: value } } : a) });
   return <Shell active="/ulaz7/vijesti" title={record ? "Uredi vijest" : "Nova vijest"} intro="Priča u blokovima. Jedan redoslijed, tri jezika." action={<Link href="/ulaz7/vijesti" className={styles.secondary} onClick={e => { if (dirty && !window.confirm("Nespremljene promjene će biti izgubljene. Želite li otići?")) e.preventDefault(); }}>← Sve vijesti</Link>}>
     <div className={styles.noticeInline}><span className={styles.status}>{statusLabels[draft.status]}{dirty ? " · nespremljene promjene" : ""}</span><p>{record?.source === "static" ? "Postojeća vijest · import još nije izvršen. Uređivanje i pregled su dostupni; spremanje čeka provjereni import." : record?.archivedAt || record?.deletedAt ? "Vijest je arhivirana ili u smeću. Vratite je iz biblioteke prije uređivanja." : backend.message}</p></div>
-    <div className={styles.editorGrid}><section className={styles.editor} aria-label="Uređivanje vijesti"><div className={styles.editorTop}><div className={styles.segment} aria-label="Jezik uređivanja">{(["bs", "sq", "en"] as const).map(l => <button key={l} aria-label={l.toUpperCase()} aria-pressed={locale === l} onClick={() => setLocale(l)}>{l.toUpperCase()}{publicationChecklist(draft,l).filter(c=>c.key!=="review").every(c=>c.complete) && <span style={{color:"#25734b"}} aria-label="Sadržaj kompletan"> ✓</span>}</button>)}</div><span>{locale === "bs" ? "Bosanski master" : "Prijevod za ljudski pregled"}</span></div>
+    <div className={styles.editorGrid}><section className={styles.editor} aria-label="Uređivanje vijesti"><div className={styles.editorTop}><div className={styles.segment} aria-label="Jezik uređivanja">{(["bs", "sq", "en"] as const).map(l => <button key={l} aria-label={l.toUpperCase()} aria-pressed={locale === l} onClick={() => setLocale(l)}>{l.toUpperCase()}{draft.review[l].approved && draft.review[l].reviewedRevision === draft.revision && publicationChecklist(draft,l).every(c=>c.complete) && <span style={{color:"#25734b"}} aria-label="Odobreno"> ✓</span>}</button>)}</div><span>{locale === "bs" ? "Bosanski master" : translationStage(draft, locale)}</span></div>
       <fieldset disabled={busy || !!record?.archivedAt || !!record?.deletedAt} className={styles.editorFields}>
       <label>Naslov · {locale.toUpperCase()}<input value={draft.title[locale]} onChange={e => text("title", e.target.value)} placeholder="Naslov vijesti" /></label>
       <label>Datum objave<input type="date" value={draft.date} onChange={e => change({ date: e.target.value })} /></label>
@@ -147,7 +153,8 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
       <ol className={styles.blocks} aria-label="Blokovi članka">{draft.blocks.map((block, index) => <li key={block.id} className={styles.block} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (busy) return; const from = draft.blocks.findIndex(b => b.id === e.dataTransfer.getData("text/medresa-block")); if (from >= 0) change({ blocks: moveBlock(draft.blocks, from, index) }); }}><div className={styles.blockHead}><button type="button" draggable onDragStart={e => { e.dataTransfer.setData("text/medresa-block", block.id); e.dataTransfer.effectAllowed = "move"; }} aria-label={`Povuci blok ${index + 1}`} className={styles.dragHandle}>⠿</button><b>{String(index + 1).padStart(2, "0")} / {labels[block.type]}</b><div className={styles.blockActions}><button aria-label={`Pomjeri blok ${index + 1} gore`} disabled={busy || index === 0} onClick={() => change({ blocks: moveBlock(draft.blocks, index, index - 1) })}>↑</button><button aria-label={`Pomjeri blok ${index + 1} dolje`} disabled={busy || index === draft.blocks.length - 1} onClick={() => change({ blocks: moveBlock(draft.blocks, index, index + 1) })}>↓</button><button aria-label={`Ukloni blok ${index + 1}`} onClick={() => change({ blocks: draft.blocks.filter(b => b.id !== block.id) })}>×</button></div></div>
       {block.type === "image" ? <><ImagePicker label={`Slika bloka ${index + 1}`} image={image(block.assetId)} assets={[...draft.images, ...assets.filter(a => !draft.images.some(d => d.id === a.id))]} locale={locale} onSelect={a => selectImage(a, block.id)} onRemove={() => change({ blocks: draft.blocks.map(b => b.id === block.id ? { ...block, assetId: "" } : b) })} onCover={block.assetId ? () => change({ coverImageId: block.assetId }) : undefined} busy={busy} />{image(block.assetId) && <label>Opis slike · {locale.toUpperCase()}<input value={image(block.assetId)!.alt[locale]} onChange={e => editAlt(block.assetId, e.target.value)} /></label>}</> : <textarea aria-label={`${labels[block.type]} ${index + 1} · ${locale.toUpperCase()}`} rows={block.type === "text" ? 5 : 2} value={block.text[locale]} onChange={e => change({ blocks: draft.blocks.map(b => b.id === block.id ? { ...block, text: { ...block.text, [locale]: e.target.value } } : b) })} placeholder={locale === "bs" ? "Napišite sadržaj bloka…" : `Unesite ${locale.toUpperCase()} prijevod…`} />}</li>)}</ol>
       <div className={styles.addBlocks} aria-label="Dodaj blok">{(["text", "subheading", "image", "quote"] as const).map(t => <button key={t} onClick={() => add(t)}>＋ {labels[t]}</button>)}</div>
-      <button className={styles.secondary} onClick={approve} disabled={!checks.find(c => c.key === locale)?.complete}>{draft.review[locale].approved ? "✓ Pregledano · povuci odobrenje" : `Potvrdi ljudski pregled · ${locale.toUpperCase()}`}</button>
+      <button className={styles.secondary} onClick={reviewTranslation} disabled={!checks.filter(c => c.key !== "review").every(c => c.complete)}>Potvrdi ljudski pregled · {locale.toUpperCase()}</button>
+      <button className={styles.secondary} onClick={approve} disabled={draft.review[locale].reviewedRevision !== draft.revision || !checks.find(c => c.key === locale)?.complete}>{draft.review[locale].approved ? "Odobreno · povuci odobrenje" : `Odobri prijevod · ${locale.toUpperCase()}`}</button>
       </fieldset>
       <section className={styles.editorReview}><h3>Prijevod uz ljudski pregled.</h3><p className={styles.muted}>{translationAvailable ? "BS je master. OpenAI priprema samo SQ i EN nacrte; prije objave potvrdite ljudski pregled svakog jezika." : "OpenAI prijevod nije dostupan za ovaj Preview. SQ i EN možete urediti ručno."}{!record && " Prvo sačuvajte novi nacrt u bazu."}</p><button className={styles.secondary} disabled={busy || !writable || !record || !translationAvailable || !bosnianTranslationReady(draft)} onClick={requestTranslation}>{translating ? "Prevodim SQ i EN…" : "Prevedi na SQ i EN"}</button></section>
     </section><LivePreview draft={draft} translatedDraft={translatedDraft} /><aside className={styles.publicationAside}><section><p className={styles.eyebrow}>Prije objave</p><h2>Svaki detalj provjeren.</h2><ul className={styles.checklist}>{checks.map(c => <li key={c.key}><span className={c.complete ? styles.checkComplete : styles.checkPending} aria-hidden="true">{c.complete ? "✓" : "○"}</span><span>{c.label}</span><span className={styles.srOnly}>{c.complete ? "ispunjeno" : "nije ispunjeno"}</span></li>)}</ul><ul className={styles.checklist} aria-label="Status jezika">{(["bs", "sq", "en"] as const).map(l => <li key={l}><b>{l.toUpperCase()}</b><span>{statusLabels[localeStatus(draft, record?.publications, l)]}{record?.publications?.[l] && localeStatus(draft, record.publications, l) !== "published" ? " · prethodna objava sačuvana" : ""}</span></li>)}</ul>
@@ -158,6 +165,6 @@ export function DraftEditor({ initial, assets: initialAssets, backend, saved, tr
     <section><h3>Sačuvajte rad.</h3><button className={styles.primary} disabled={!writable || busy || (!!record && !dirty)} onClick={save}>{busy ? "Čuvanje…" : record ? "Sačuvaj nacrt" : "Kreiraj i sačuvaj nacrt"}</button><p>{writable ? "Nacrti se spremaju u bazu i ostaju dostupni u sljedećoj sesiji." : "Spremanje nije dostupno. Promjene u ovom prozoru su privremene."}</p><button className={styles.secondary} onClick={download}>Preuzmi nacrt · JSON</button><p role="status">{message}</p></section>
     <section><h3>Zajedničke fotografije.</h3><p>Fotografije se prenose jednom. Opisi se uređuju za svaki jezik; redoslijed je zajednički.</p></section></aside></div>
     {confirm && <ConfirmDialog title={`Objavi ${confirm.map(l => l.toUpperCase()).join(", ")}?`} description="Objavljuju se samo odabrani jezici. Ostale objave ostaju sačuvane; javni website još koristi postojeći izvor." confirm="Objavi u bazi" busy={busy} onCancel={() => setConfirm(null)} onConfirm={publish} />}
-    {translationConfirm && <ConfirmDialog title={`Zamijeniti ${translationConfirm.map(l => l.toUpperCase()).join(" i ")} nacrte?`} description="Postojeći tekst i opisi slika bit će zamijenjeni AI prijevodom. BS i ranije objave ostaju sačuvani. Novi SQ i EN nacrti traže ljudski pregled." confirm="Potvrdi zamjenu i prevedi" busy={busy} onCancel={() => setTranslationConfirm(null)} onConfirm={() => void translate(translationConfirm)} />}
+
   </Shell>;
 }

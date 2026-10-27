@@ -13,7 +13,7 @@ export type ContentBlock =
   | { id: string; type: "image"; assetId: string };
 
 export type SharedImage = NewsPhoto & { id: string };
-export type Review = { approved: boolean; reviewedRevision: number | null };
+export type Review = { approved: boolean; reviewedRevision: number | null; aiGenerated?: boolean };
 export type NewsDraft = {
   id: string;
   revision: number;
@@ -67,8 +67,12 @@ export function localeContent(draft: NewsDraft, locale: Locale): string {
 /** Shared changes invalidate every affected locale; unchanged locales carry review forward. */
 export function revise(draft: NewsDraft, patch: Partial<NewsDraft>): NewsDraft {
   const next = { ...draft, ...patch, revision: draft.revision + 1, status: "draft" as const, review: newDraft(draft.id).review };
-  for (const l of ["bs", "sq", "en"] as const) if (draft.review[l].approved && draft.review[l].reviewedRevision === draft.revision && localeContent(draft, l) === localeContent(next, l)) {
-    next.review[l] = { approved: true, reviewedRevision: next.revision };
+  const masterChanged = localeContent(draft, "bs") !== localeContent(next, "bs");
+  for (const l of ["bs", "sq", "en"] as const) {
+    if (draft.review[l].aiGenerated) next.review[l].aiGenerated = true;
+    if ((l === "bs" || !masterChanged) && draft.review[l].reviewedRevision === draft.revision && localeContent(draft, l) === localeContent(next, l)) {
+      next.review[l] = { ...draft.review[l], reviewedRevision: next.revision };
+    }
   }
   return next;
 }
