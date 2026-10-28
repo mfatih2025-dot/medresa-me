@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useTransform, type MotionValue } from "framer-motion";
-import { useRef } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import type { Dictionary } from "@/content";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
@@ -110,10 +110,26 @@ const deck = [
  * card. The browser promotes the layers by itself while they move; at rest they
  * are ordinary painted content and always come back.
  */
-export function LifeStack({ dict }: { dict: Dictionary }) {
+export function LifeStack({
+  dict,
+  reference,
+}: {
+  dict: Dictionary;
+  /** The Bosnian heading and text, whose lines the other languages keep (absent on the Bosnian page). */
+  reference?: { heading: string; text: string };
+}) {
   const { life } = dict;
   const s = life.stack;
   const ref = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const refHeading = useRef<HTMLParagraphElement>(null);
+  const refText = useRef<HTMLParagraphElement>(null);
+  useFitToReference(copyRef, [
+    [headingRef, refHeading],
+    [textRef, refText],
+  ]);
   const { reduced, compact } = useMotionProfile();
   // 0: stack's top at the viewport bottom · 1: its bottom at the viewport top.
   const p = useScrollProgress(ref, ["start end", "end start"]);
@@ -161,15 +177,23 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
                 aria-hidden
                 className="geo pointer-events-none absolute inset-0 opacity-[0.1] mix-blend-screen"
               />
-              <div className="relative">
+              <div ref={copyRef} className="relative">
+                {reference && (
+                  // The Bosnian lines at this width, never shown: the measure the translation keeps.
+                  <div aria-hidden className="pointer-events-none invisible absolute inset-x-0 top-0">
+                    <p ref={refHeading} className={HEADING}>
+                      {reference.heading}
+                    </p>
+                    <p ref={refText} className={TEXT}>
+                      {reference.text}
+                    </p>
+                  </div>
+                )}
                 <p className="eyebrow eyebrow-display text-gold">{life.eyebrow}</p>
-                <h2
-                  id="life-title"
-                  className="display mt-4 text-[clamp(2.125rem,1.4rem+3.2vw,3.75rem)] leading-[1.02] md:mt-5"
-                >
+                <h2 ref={headingRef} id="life-title" className={`mt-4 md:mt-5 ${HEADING}`}>
                   {s.heading}
                 </h2>
-                <p className="mt-4 max-w-[30em] text-[0.9375rem] leading-[1.6] text-ivory/80 md:mt-5 md:text-base">
+                <p ref={textRef} className={`mt-4 md:mt-5 ${TEXT}`}>
                   {s.text}
                 </p>
                 <Link
@@ -186,6 +210,69 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
       </div>
     </section>
   );
+}
+
+const HEADING = "display text-[clamp(2.125rem,1.4rem+3.2vw,3.75rem)] leading-[1.02]";
+const TEXT = "max-w-[30em] text-[0.9375rem] leading-[1.6] text-ivory/80 md:text-base";
+/** Smallest share of its designed size a fitted line may take: below it, the type stays as designed. */
+const FIT_MIN = 0.75;
+
+/*
+ * The four photographs' composition is set by the green card's height, so the card keeps the
+ * Bosnian card's height in every language: where a translation would take more lines than the
+ * Bosnian heading or text at this width (Albanian and English headings wrap to two lines on
+ * phones), its type is set just small enough to take the same lines, each line keeping the
+ * Bosnian line height. Nothing is cut and no word changes; on the Bosnian page nothing runs.
+ */
+function useFitToReference(
+  box: RefObject<HTMLElement | null>,
+  pairs: [RefObject<HTMLElement | null>, RefObject<HTMLElement | null>][],
+) {
+  useLayoutEffect(() => {
+    const container = box.current;
+    const lines = pairs.map(([own, ref]) => [own.current, ref.current] as const);
+    if (!container || lines.some(([own, ref]) => !own || !ref)) return;
+    const fit = () => {
+      for (const [el, target] of lines as [HTMLElement, HTMLElement][]) {
+        el.style.fontSize = "";
+        el.style.lineHeight = "";
+        const fits = () => el.offsetHeight <= target.offsetHeight + 0.5;
+        if (fits()) continue;
+        const style = getComputedStyle(el);
+        const size = parseFloat(style.fontSize);
+        el.style.lineHeight = style.lineHeight;
+        let lo = FIT_MIN;
+        let hi = 1;
+        for (let i = 0; i < 9; i++) {
+          const mid = (lo + hi) / 2;
+          el.style.fontSize = `${size * mid}px`;
+          if (fits()) lo = mid;
+          else hi = mid;
+        }
+        el.style.fontSize = `${size * lo}px`;
+        if (!fits()) {
+          el.style.fontSize = "";
+          el.style.lineHeight = "";
+        }
+      }
+    };
+    fit();
+    let width = container.offsetWidth;
+    const ro = new ResizeObserver(() => {
+      if (container.offsetWidth === width) return;
+      width = container.offsetWidth;
+      fit();
+    });
+    ro.observe(container);
+    let live = true;
+    document.fonts?.ready.then(() => live && fit());
+    return () => {
+      live = false;
+      ro.disconnect();
+    };
+    // The refs are stable; the copy is rendered once per page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
 
 function Photo({

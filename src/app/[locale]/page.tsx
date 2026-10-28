@@ -43,7 +43,7 @@ export default async function HomePage({ params }: Props) {
         <News dict={dict} />
         <Alumni dict={dict} />
       </HeroStage>
-      <LifeStack dict={dict} />
+      <LifeStack dict={dict} reference={locale === "bs" ? undefined : { heading: getDictionary("bs").life.stack.heading, text: getDictionary("bs").life.stack.text }} />
       <Closing dict={dict} />
       <SocialFeed dict={dict} />
     </>
