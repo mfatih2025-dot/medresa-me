@@ -47,6 +47,23 @@ const PHONE = {
 };
 const PHONE_QUERY = "(max-width: 767px) and (prefers-reduced-motion: no-preference)";
 
+/*
+ * Phones, under a moving film: two layers of the composition are drawn without the
+ * per-frame cost they carry over video. (With the film, the mask and the soft-light
+ * glow made the browser re-render the whole hero offscreen for every frame; GPU work
+ * while scrolling fell from about 63% to 40% of a core with these, 36% without film.)
+ * - The top fade: instead of masking the film to transparency, the sky gradient of
+ *   the section is laid over it with the mask's opposite alpha (sampled every 2%):
+ *   the same pixels, the entrance fade included.
+ * - The warm glow at the right: a plain radial light in place of the soft-light blend,
+ *   matched to its effect on the phone composition (it differs by 1/255 on average,
+ *   at most 8/255, in the sky).
+ * Tablets and desktops (the photograph) keep the mask and the blend.
+ */
+const PHONE_FADE =
+  "linear-gradient(180deg,rgb(194.1 214.5 229.9 / 1) 0%,rgb(198.2 217.2 231.1 / 0.917) 2%,rgb(202.4 219.8 232.3 / 0.833) 4%,rgb(206.7 222.3 233.4 / 0.75) 6%,rgb(211 224.8 234.4 / 0.667) 8%,rgb(215.3 227.4 235.4 / 0.583) 10%,rgb(219.6 229.9 236.5 / 0.5) 12%,rgb(223.9 232.4 237.5 / 0.417) 14%,rgb(228.2 234.9 238.6 / 0.333) 16%,rgb(229.5 235.7 238.9 / 0.25) 18%,rgb(228.6 235.2 238.8 / 0.167) 20%,rgb(227.7 234.7 238.7 / 0.083) 22%,rgb(226.8 234.2 238.5 / 0) 24%)";
+const PHONE_GLOW = "radial-gradient(70% 42% at 100% 30%,rgb(255 245 225/0.05) 0%,rgb(255 245 225/0) 100%)";
+
 /** CSS entrance timing (see .hero-in in globals.css): delay and duration in seconds. */
 const enter = (delay: number, duration?: number) =>
   ({ "--in-delay": `${delay}s`, ...(duration ? { "--in-dur": `${duration}s` } : {}) }) as CSSProperties;
@@ -96,9 +113,10 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
         className="absolute inset-x-0 bottom-0 top-[11svh] -z-20 will-change-transform md:top-[12svh] lg:top-0"
         style={still ? undefined : { scale: imgScale, y: imgY }}
       >
-        <div className="hero-photo-in absolute inset-0 [mask-image:linear-gradient(180deg,transparent_0%,#000_24%)] lg:[mask-image:none]">
+        <div className="hero-photo-in absolute inset-0 md:[mask-image:linear-gradient(180deg,transparent_0%,#000_24%)] lg:[mask-image:none]">
           <HeroPicture src={hero.image.src} alt={hero.image.alt} />
           <HeroLoop />
+          <div aria-hidden className="absolute inset-0 md:hidden" style={{ backgroundImage: PHONE_FADE }} />
         </div>
       </motion.div>
 
@@ -112,8 +130,9 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
       />
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(70%_42%_at_100%_30%,rgb(255_222_160/0.32)_0%,rgb(255_222_160/0)_100%)] mix-blend-soft-light lg:bg-[radial-gradient(48%_55%_at_96%_28%,rgb(255_222_160/0.4)_0%,rgb(255_222_160/0)_100%)]"
+        className="absolute inset-0 -z-10 max-md:hidden bg-[radial-gradient(70%_42%_at_100%_30%,rgb(255_222_160/0.32)_0%,rgb(255_222_160/0)_100%)] mix-blend-soft-light lg:bg-[radial-gradient(48%_55%_at_96%_28%,rgb(255_222_160/0.4)_0%,rgb(255_222_160/0)_100%)]"
       />
+      <div aria-hidden className="absolute inset-0 -z-10 md:hidden" style={{ backgroundImage: PHONE_GLOW }} />
       <div
         aria-hidden
         className="absolute inset-x-0 bottom-0 -z-10 h-[38%] bg-[linear-gradient(0deg,rgb(8_26_22/0.4)_0%,rgb(8_26_22/0)_100%)]"
