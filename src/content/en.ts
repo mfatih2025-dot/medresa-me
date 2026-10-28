@@ -42,6 +42,7 @@ export const en: Dictionary = {
     navLeft: "Main navigation, left",
     navRight: "Main navigation, right",
     home: "homepage",
+    homeLink: "Home",
     notFound: "Page not found.",
     playGenerations: "Play the moving generations",
     pauseGenerations: "Pause the moving generations",

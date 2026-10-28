@@ -95,6 +95,11 @@ button,
   border-radius: 2px;
 }
 
+/* A page with its own way back where „← Početna“ sits (a generation, the 404) shows only that one. */
+main:has([data-back-nav]) .home-link {
+  display: none;
+}
+
 @layer components {
   /* ---------- Layout primitives ---------- */
   .wrap {

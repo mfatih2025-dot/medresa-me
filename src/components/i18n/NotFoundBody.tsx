@@ -12,7 +12,7 @@ export function NotFoundBody({ text }: { text: Record<Locale, { title: string; b
     <div className="wrap">
       <p className="eyebrow mb-6 text-gold-deep">404</p>
       <h1 className="display h-section text-green">{text[locale].title}</h1>
-      <Link href={pathFor(null, locale)} className="btn btn-green mt-10">
+      <Link href={pathFor(null, locale)} data-back-nav className="btn btn-green mt-10">
         {text[locale].back}
       </Link>
     </div>

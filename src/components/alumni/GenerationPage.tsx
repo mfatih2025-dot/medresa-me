@@ -41,6 +41,7 @@ export function GenerationPage({ locale, number }: { locale: Locale; number: num
         <div className="lg:col-span-3">
           <Link
             href={pathFor("alumni", locale)}
+            data-back-nav
             className="eyebrow eyebrow-display inline-flex min-h-11 items-center gap-3 text-gold-deep"
           >
             <span aria-hidden className="h-px w-8 bg-gold md:w-10" />

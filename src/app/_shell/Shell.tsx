@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Gateway } from "@/components/i18n/Gateway";
 import { Header } from "@/components/layout/Header";
+import { HomeLink } from "@/components/layout/HomeLink";
 import { SkipLink } from "@/components/i18n/SkipLink";
 import { chromeOf, dictionaries } from "@/content";
 import { LOCALE_COOKIE, locales, type Locale } from "@/i18n/config";
@@ -55,7 +56,10 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
       <body>
         <SkipLink labels={{ bs: chrome.bs.ui.skip, sq: chrome.sq.ui.skip, en: chrome.en.ui.skip }} />
         <Header dicts={chrome} />
-        <main id="main">{children}</main>
+        <main id="main">
+          <HomeLink labels={{ bs: chrome.bs.ui.homeLink, sq: chrome.sq.ui.homeLink, en: chrome.en.ui.homeLink }} />
+          {children}
+        </main>
         <Footer dicts={chrome} />
         <Gateway />
         {process.env.VERCEL_ENV === "production" && <PublicAnalytics />}

@@ -43,6 +43,7 @@ export const sq: Dictionary = {
     navLeft: "Navigimi kryesor, majtas",
     navRight: "Navigimi kryesor, djathtas",
     home: "ballina",
+    homeLink: "Ballina",
     notFound: "Faqja nuk u gjet.",
     playGenerations: "Lësho lëvizjen e gjeneratave",
     pauseGenerations: "Ndal lëvizjen e gjeneratave",

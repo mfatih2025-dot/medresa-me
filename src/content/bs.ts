@@ -76,6 +76,7 @@ export const bs = {
     navLeft: "Glavna navigacija, lijevo",
     navRight: "Glavna navigacija, desno",
     home: "početna",
+    homeLink: "Početna",
     notFound: "Stranica nije pronađena.",
     playGenerations: "Pokreni kretanje generacija",
     pauseGenerations: "Zaustavi kretanje generacija",
