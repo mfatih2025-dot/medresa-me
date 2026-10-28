@@ -133,7 +133,7 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
       <div className="wrap">
         <div
           ref={ref}
-          className="relative mx-auto h-[clamp(34rem,142vw,37.5rem)] max-w-[34rem] md:h-[43rem] md:max-w-none lg:h-[clamp(36rem,47vw,44rem)]"
+          className="relative mx-auto flow-root min-h-[var(--deck)] max-w-[34rem] [--deck:clamp(34rem,142vw,37.5rem)] md:block md:h-[43rem] md:min-h-0 md:max-w-none lg:h-[clamp(36rem,47vw,44rem)]"
         >
           {deck.map((d, i) => (
             <Photo
@@ -148,9 +148,15 @@ export function LifeStack({ dict }: { dict: Dictionary }) {
             />
           ))}
 
-          {/* The green card: the stack's top layer. */}
+          {/*
+            The green card: the stack's top layer. On phones it sits in the flow, at 35% of
+            the deck as before, with the strip below it where the bottom photographs show
+            reserved (the deck's own proportion, as in the Bosnian composition): a longer
+            text (Albanian, English, the narrowest phones) makes the deck taller rather than
+            covering the bottom two photographs. Tablet and desktop: unchanged.
+          */}
           <motion.div
-            className="absolute inset-x-[5%] top-[35%] z-10 md:inset-x-auto md:left-[22%] md:top-[27%] md:w-[56%] lg:left-[23%] lg:top-[34%] lg:w-[40%]"
+            className="relative z-10 mx-[5%] mb-[max(0px,calc(var(--deck)*0.65-17.6rem))] mt-[calc(var(--deck)*0.35)] md:absolute md:m-0 md:inset-x-auto md:left-[22%] md:top-[27%] md:w-[56%] lg:left-[23%] lg:top-[34%] lg:w-[40%]"
             style={reduced ? undefined : { y: cardDrift }}
           >
             <motion.div
