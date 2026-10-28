@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import { Bodoni_Moda, Newsreader } from "next/font/google";
 import { motion, useReducedMotion, useTransform } from "framer-motion";
-import { useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -31,6 +31,21 @@ const label = Newsreader({
   variable: "--font-hero-label",
   display: "swap",
 });
+
+/**
+ * Phones (below md) see the campus from the air in a seamless loop: clouds drift
+ * over the building, which stays still. 3.6 s at 24 fps without sound, made from
+ * the source film by cross-fading its last 1.5 s into its first; H.264 (590 KB,
+ * hardware-decoded on every phone) with a VP9 WebM (390 KB) for browsers without
+ * H.264. The poster is its first frame, so the still and the film meet without a
+ * jump. Tablets and desktops keep the photograph.
+ */
+const PHONE = {
+  mp4: "/images/hero/mobile-loop.mp4",
+  webm: "/images/hero/mobile-loop.webm",
+  poster: "/images/hero/mobile-loop.jpg",
+};
+const PHONE_QUERY = "(max-width: 767px) and (prefers-reduced-motion: no-preference)";
 
 /** CSS entrance timing (see .hero-in in globals.css): delay and duration in seconds. */
 const enter = (delay: number, duration?: number) =>
@@ -82,15 +97,8 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
         style={still ? undefined : { scale: imgScale, y: imgY }}
       >
         <div className="hero-photo-in absolute inset-0 [mask-image:linear-gradient(180deg,transparent_0%,#000_24%)] lg:[mask-image:none]">
-          <Image
-            src={hero.image.src}
-            alt={hero.image.alt}
-            fill
-            priority
-            sizes="100vw"
-            quality={85}
-            className="object-cover object-[31%_100%] md:object-[34%_100%] lg:object-[46%_62%]"
-          />
+          <HeroPicture src={hero.image.src} alt={hero.image.alt} />
+          <HeroLoop />
         </div>
       </motion.div>
 
@@ -212,5 +220,95 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
         </motion.div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The photograph from md up, the film's first frame on phones: one <picture>, so each
+ * device downloads only its own image (art direction, see next/image getImageProps).
+ */
+function HeroPicture({ src, alt }: { src: string; alt: string }) {
+  const common = { alt, fill: true, priority: true, sizes: "100vw", quality: 85 } as const;
+  const { srcSet: wide } = getImageProps({ ...common, src }).props;
+  const { srcSet: phone, ...img } = getImageProps({ ...common, src: PHONE.poster }).props;
+  return (
+    <picture>
+      <source media="(min-width: 768px)" srcSet={wide} sizes="100vw" />
+      <img
+        {...img}
+        srcSet={phone}
+        alt={alt}
+        className="object-cover object-[50%_100%] md:object-[34%_100%] lg:object-[46%_62%]"
+      />
+    </picture>
+  );
+}
+
+/**
+ * The phone loop over its poster. Created only in the browser and only on a phone
+ * that allows motion (and has not asked to save data), so tablets, desktops and
+ * reduced motion never download it; shown once it plays (the poster is the same
+ * frame), paused while the hero is out of view: scrolled away, or held under the
+ * sections that cover it (HeroStage marks it data-covered).
+ */
+function HeroLoop() {
+  const [on, setOn] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY);
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+    const update = () => setOn(mq.matches && !saveData);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!on || !v) return;
+    // Muted before playing, so every phone browser allows autoplay.
+    v.muted = true;
+    v.defaultMuted = true;
+    const holder = v.closest("section")?.parentElement;
+    let inView = true;
+    const sync = () => {
+      if (inView && !holder?.hasAttribute("data-covered")) v.play().catch(() => {});
+      else v.pause();
+    };
+    const io = new IntersectionObserver(([e]) => {
+      inView = e.isIntersecting;
+      sync();
+    });
+    io.observe(v);
+    const mo = new MutationObserver(sync);
+    if (holder) mo.observe(holder, { attributes: true, attributeFilter: ["data-covered"] });
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, [on]);
+
+  if (!on) return null;
+  return (
+    <video
+      ref={ref}
+      aria-hidden
+      poster={PHONE.poster}
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+      disablePictureInPicture
+      disableRemotePlayback
+      tabIndex={-1}
+      onPlaying={() => setPlaying(true)}
+      className={`pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_100%] md:hidden ${playing ? "" : "opacity-0"}`}
+    >
+      <source src={PHONE.mp4} type='video/mp4; codecs="avc1.640028"' />
+      <source src={PHONE.webm} type='video/webm; codecs="vp9"' />
+    </video>
   );
 }
