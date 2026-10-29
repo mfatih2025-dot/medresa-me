@@ -47,18 +47,17 @@ const CROP: Record<Facility, string> = {
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
 /*
- * The composition at rest (spread). Each photograph has its own place per
- * breakpoint — phones get a tight, tall deck; tablets a wider fan; desktop a
- * cinematic spread — plus where it starts in the compressed stack (x/y in % of
- * its own size, rotation in degrees), its resting tilt, and how far it drifts
- * as the stack leaves (depth, px). On phones and tablets the two lower
- * photographs show only below the green card, so they are wider and the upper
- * two a little smaller: the four keep near-even visible shares (phones about
- * 60/40 between the pairs at 390 px, against 71/29 before; tablets 21–31% each).
+ * The composition at rest (spread). The four photographs are the same card: one size and
+ * aspect per breakpoint (CARD), the same frame, radius, crop rules and motion; only their
+ * places differ — a pair above the green card and a pair below it, mirrored — plus where
+ * each starts in the compressed stack (x/y in % of its own size, rotation in degrees), its
+ * resting tilt, and how far it drifts as the stack leaves (depth, px).
  */
+const CARD = "w-[50%] aspect-[4/5] md:w-[37%] md:aspect-[4/3] lg:w-[24%] lg:aspect-[4/5]";
+
 const deck = [
   {
-    place: "left-0 top-[5%] w-[48%] aspect-[4/5] md:top-0 md:w-[33%] lg:left-[7%] lg:top-[9%] lg:w-[25%] lg:aspect-[4/5]",
+    place: `left-0 top-0 ${CARD} lg:left-[7%] lg:top-[9%]`,
     label: "top",
     align: "",
     from: { x: 24, y: 34, r: -1 },
@@ -68,7 +67,7 @@ const deck = [
   },
   {
     place:
-      "right-0 top-[7%] w-[45%] aspect-[3/4] md:right-[5%] md:top-[4%] md:w-[36%] md:aspect-[4/3] lg:left-[30%] lg:right-auto lg:top-0 lg:w-[21%] lg:aspect-[3/4]",
+      `right-0 top-[3%] ${CARD} md:right-[5%] md:top-[4%] lg:left-[30%] lg:right-auto lg:top-0`,
     label: "top",
     align: "",
     from: { x: -22, y: 30, r: 1.5 },
@@ -78,9 +77,10 @@ const deck = [
   },
   {
     place:
-      "left-0 bottom-0 w-[54%] aspect-[4/5] md:left-[4%] md:w-[38%] md:aspect-[5/4] lg:left-[57%] lg:right-auto lg:top-[4%] lg:bottom-auto lg:w-[29%] lg:aspect-[4/3]",
+      `left-0 bottom-0 ${CARD} md:left-[6%] lg:left-[55%] lg:right-auto lg:top-[3%] lg:bottom-auto`,
     label: "bottom",
-    align: "lg:text-right",
+    // On desktop its lower edge lies under the green card and Amfiteatar: the label goes top right.
+    align: "lg:text-right lg:top-0 lg:bottom-auto lg:bg-[linear-gradient(180deg,rgb(8_26_22/0.42),transparent)]",
     from: { x: 18, y: -36, r: 1 },
     fromWide: { x: -46, y: 34, r: 1 },
     rest: -2,
@@ -88,7 +88,7 @@ const deck = [
   },
   {
     place:
-      "right-0 bottom-[2%] w-[52%] aspect-square md:bottom-[5%] md:w-[41%] md:aspect-[4/3] lg:left-[60%] lg:right-auto lg:bottom-[2%] lg:w-[27%] lg:aspect-[5/4]",
+      `right-0 bottom-[3%] ${CARD} md:bottom-[5%] lg:left-[71%] lg:right-auto lg:bottom-[2%]`,
     label: "bottom",
     align: "lg:text-right",
     from: { x: -20, y: -34, r: -1 },
