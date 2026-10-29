@@ -21,6 +21,7 @@ import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
 import { FooterLines } from "./FooterLines";
 import { Overlay } from "./Overlay";
 import { LanguageSwitch } from "@/components/i18n/LanguageSwitch";
+import { AnniversaryPiece, useAnniversaryFit } from "./Anniversary";
 
 type Props = { dicts: Record<Locale, Chrome> };
 
@@ -124,6 +125,8 @@ export function Header({ dicts }: Props) {
   const navL = useGeo(p, geo, (v, g) => ((g.logo * (1 - LOGO_MIN)) / 2) * v, 0);
   const navR = useGeo(p, geo, (v, g) => (-(g.logo * (1 - LOGO_MIN)) / 2) * v, 0);
 
+  useAnniversaryFit();
+
   const logoY = useGeo(p, geo, (v, g) => ((g.hc - g.logo * LOGO_MIN) / 2 - g.logoTop) * v, 0);
   const logoScale = useTransform(p, [0, 1], [1, LOGO_MIN]);
 
@@ -145,7 +148,9 @@ export function Header({ dicts }: Props) {
           className="header-row pointer-events-auto grid grid-cols-[1fr_auto_1fr] items-center text-ink"
           style={{ y: rowY }}
         >
-          <div className="flex items-center justify-between gap-6 pl-2 pr-4 xl:pl-3 xl:pr-8">
+          <div className="relative flex items-center justify-between gap-6 pl-2 pr-4 xl:pl-3 xl:pr-8">
+            <AnniversaryPiece side="left" place="inner" words={ui.anniversary} x={navL} />
+            <AnniversaryPiece side="left" place="outer" words={ui.anniversary} x={edgeL} />
             <motion.div style={{ x: edgeL }}>
               <IconButton label={ui.search} onClick={() => setSearch(true)}>
                 <SearchIcon />
@@ -164,7 +169,9 @@ export function Header({ dicts }: Props) {
 
           <div className="header-spacer" aria-hidden />
 
-          <div className="flex items-center justify-between gap-6 pl-4 pr-2 xl:pl-8 xl:pr-3">
+          <div className="relative flex items-center justify-between gap-6 pl-4 pr-2 xl:pl-8 xl:pr-3">
+            <AnniversaryPiece side="right" place="inner" words={ui.anniversary} x={navR} />
+            <AnniversaryPiece side="right" place="outer" words={ui.anniversary} x={edgeR} />
             <motion.nav aria-label={ui.navRight} className="hidden xl:block" style={{ x: navR }}>
               <ul className="flex items-center gap-8 2xl:gap-11">
                 {nav.right.map((l) => (

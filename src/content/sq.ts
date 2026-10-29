@@ -44,6 +44,7 @@ export const sq: Dictionary = {
     navRight: "Navigimi kryesor, djathtas",
     home: "ballina",
     homeLink: "Ballina",
+    anniversary: { short: ["18", "VJET"], full: ["18 VJET", "EKZISTENCË"] },
     notFound: "Faqja nuk u gjet.",
     playGenerations: "Lësho lëvizjen e gjeneratave",
     pauseGenerations: "Ndal lëvizjen e gjeneratave",

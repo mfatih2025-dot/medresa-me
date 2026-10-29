@@ -77,6 +77,8 @@ export const bs = {
     navRight: "Glavna navigacija, desno",
     home: "početna",
     homeLink: "Početna",
+    // The top bar's anniversary line (Header / Anniversary.tsx): either side of the emblem.
+    anniversary: { short: ["18", "GODINA"], full: ["18 GODINA", "POSTOJANJA"] } as { short: readonly [string, string]; full: readonly [string, string] },
     notFound: "Stranica nije pronađena.",
     playGenerations: "Pokreni kretanje generacija",
     pauseGenerations: "Zaustavi kretanje generacija",

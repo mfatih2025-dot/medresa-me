@@ -43,6 +43,7 @@ export const en: Dictionary = {
     navRight: "Main navigation, right",
     home: "homepage",
     homeLink: "Home",
+    anniversary: { short: ["18", "YEARS"], full: ["18 YEARS", "SINCE 2008"] },
     notFound: "Page not found.",
     playGenerations: "Play the moving generations",
     pauseGenerations: "Pause the moving generations",
