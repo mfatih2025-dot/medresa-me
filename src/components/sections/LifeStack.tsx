@@ -51,11 +51,14 @@ const easeOut = (t: number) => 1 - (1 - t) ** 3;
  * breakpoint — phones get a tight, tall deck; tablets a wider fan; desktop a
  * cinematic spread — plus where it starts in the compressed stack (x/y in % of
  * its own size, rotation in degrees), its resting tilt, and how far it drifts
- * as the stack leaves (depth, px).
+ * as the stack leaves (depth, px). On phones and tablets the two lower
+ * photographs show only below the green card, so they are wider and the upper
+ * two a little smaller: the four keep near-even visible shares (phones about
+ * 60/40 between the pairs at 390 px, against 71/29 before; tablets 21–31% each).
  */
 const deck = [
   {
-    place: "left-0 top-0 w-[56%] aspect-[4/5] md:w-[40%] lg:left-[7%] lg:top-[9%] lg:w-[25%] lg:aspect-[4/5]",
+    place: "left-0 top-[5%] w-[48%] aspect-[4/5] md:top-0 md:w-[33%] lg:left-[7%] lg:top-[9%] lg:w-[25%] lg:aspect-[4/5]",
     label: "top",
     align: "",
     from: { x: 24, y: 34, r: -1 },
@@ -65,7 +68,7 @@ const deck = [
   },
   {
     place:
-      "right-0 top-[3%] w-[50%] aspect-[3/4] md:right-[5%] md:top-[4%] md:w-[38%] md:aspect-[4/3] lg:left-[30%] lg:right-auto lg:top-0 lg:w-[21%] lg:aspect-[3/4]",
+      "right-0 top-[7%] w-[45%] aspect-[3/4] md:right-[5%] md:top-[4%] md:w-[36%] md:aspect-[4/3] lg:left-[30%] lg:right-auto lg:top-0 lg:w-[21%] lg:aspect-[3/4]",
     label: "top",
     align: "",
     from: { x: -22, y: 30, r: 1.5 },
@@ -75,7 +78,7 @@ const deck = [
   },
   {
     place:
-      "left-[3%] bottom-0 w-[44%] aspect-square md:left-[6%] md:w-[30%] md:aspect-[5/4] lg:left-[57%] lg:right-auto lg:top-[4%] lg:bottom-auto lg:w-[29%] lg:aspect-[4/3]",
+      "left-0 bottom-0 w-[54%] aspect-[4/5] md:left-[4%] md:w-[38%] md:aspect-[5/4] lg:left-[57%] lg:right-auto lg:top-[4%] lg:bottom-auto lg:w-[29%] lg:aspect-[4/3]",
     label: "bottom",
     align: "lg:text-right",
     from: { x: 18, y: -36, r: 1 },
@@ -85,7 +88,7 @@ const deck = [
   },
   {
     place:
-      "right-0 bottom-[3%] w-[48%] aspect-[4/3] md:bottom-[5%] md:w-[40%] lg:left-[60%] lg:right-auto lg:bottom-[2%] lg:w-[27%] lg:aspect-[5/4]",
+      "right-0 bottom-[2%] w-[52%] aspect-square md:bottom-[5%] md:w-[41%] md:aspect-[4/3] lg:left-[60%] lg:right-auto lg:bottom-[2%] lg:w-[27%] lg:aspect-[5/4]",
     label: "bottom",
     align: "lg:text-right",
     from: { x: -20, y: -34, r: -1 },
@@ -234,6 +237,9 @@ function useFitToReference(
     if (!container || lines.some(([own, ref]) => !own || !ref)) return;
     const fit = () => {
       for (const [el, target] of lines as [HTMLElement, HTMLElement][]) {
+        // Measured at once: with reduced motion the stylesheet gives every element a short
+        // transition (globals.css), which would otherwise animate each trial size away.
+        el.style.transitionProperty = "none";
         el.style.fontSize = "";
         el.style.lineHeight = "";
         const fits = () => el.offsetHeight <= target.offsetHeight + 0.5;
