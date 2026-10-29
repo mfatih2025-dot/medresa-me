@@ -4,7 +4,7 @@ import { getImageProps } from "next/image";
 import Link from "next/link";
 import { Bodoni_Moda, Newsreader } from "next/font/google";
 import { motion, useReducedMotion, useTransform } from "framer-motion";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -31,6 +31,26 @@ const label = Newsreader({
   variable: "--font-hero-label",
   display: "swap",
 });
+
+/** The two arches of the mihrab outline, drawn upward from their feet (pathLength 1). */
+const ARCHES = [
+  "M40 640 V300 A320 320 0 0 1 200 22.9 A320 320 0 0 1 360 300 V640",
+  "M66 640 V300 A268 268 0 0 1 200 68 A268 268 0 0 1 334 300 V640",
+];
+
+/*
+ * Phones: where the mihrab stands in the film's own frame (788 x 1318, the size of
+ * the loop and its poster). RIDGE is the sky above the hill on the right, traced
+ * from the film (the same in every frame of the loop, within 2 px): the arches are
+ * clipped to it, so the hill covers their feet and they never cross the building.
+ * At rest the crown is at y 458 and the springing line about 40 px above the ridge.
+ */
+const FRAME = { w: 788, h: 1318 };
+const RIDGE =
+  "M0 0H788V694L768 704L752 701L736 704L720 706L704 708L688 710L672 710L656 714L640 718L624 720L608 722L592 724L576 718L560 718L544 720L528 720L512 723L496 730L480 728L464 730L448 734L432 736L416 738L400 740L384 742L352 754L320 758L288 767L256 770L224 778L200 784L0 784Z";
+const ARCH_AT = { x: 430, y: 440, scale: 0.8 };
+const ARCH_CROWN = ARCH_AT.y + 22.9 * ARCH_AT.scale;
+const ARCH_LEFT = ARCH_AT.x + 40 * ARCH_AT.scale;
 
 /**
  * Phones (below md) see the campus from the air in a seamless loop: clouds drift
@@ -138,17 +158,30 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
         className="absolute inset-x-0 bottom-0 -z-10 h-[38%] bg-[linear-gradient(0deg,rgb(8_26_22/0.4)_0%,rgb(8_26_22/0)_100%)]"
       />
 
-      {/* The mihrab outline: two concentric pointed arches, hairline. Its crown rises
-          behind the clear header; its lines end at the mountain ridge of the photograph
-          (see .hero-arch-box), so it never crosses the building. */}
+      {/* Phones: the mihrab rises from behind the hill of the film (PhoneArch). */}
       <motion.div
         aria-hidden
-        className="hero-arch-box pointer-events-none absolute right-[-14%] top-2 -z-10 h-[46svh] w-[58%] md:right-[-6%] md:w-[44%] lg:right-[9%] lg:h-[52svh] lg:w-[24%]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 top-[11svh] -z-10 md:hidden"
+        style={still ? undefined : { scale: imgScale, y: imgY }}
+      >
+        <div className="hero-photo-in absolute inset-0">
+          <PhoneArch />
+        </div>
+      </motion.div>
+
+      {/* Tablets and desktops: the mihrab outline, two concentric pointed arches,
+          hairline. Its crown rises behind the clear header; its lines end at the
+          mountain ridge of the photograph (see .hero-arch-box), so it never crosses
+          the building. */}
+      <motion.div
+        aria-hidden
+        className="hero-arch-box pointer-events-none absolute right-[-6%] top-2 -z-10 h-[46svh] w-[44%] max-md:hidden lg:right-[9%] lg:h-[52svh] lg:w-[24%]"
         style={still ? undefined : { y: lineY }}
       >
         <svg viewBox="0 0 400 640" preserveAspectRatio="xMidYMin meet" className="hero-arch h-full w-full">
-          <path d="M40 640 V300 A320 320 0 0 1 200 22.9 A320 320 0 0 1 360 300 V640" pathLength={1} />
-          <path d="M66 640 V300 A268 268 0 0 1 200 68 A268 268 0 0 1 334 300 V640" pathLength={1} />
+          {ARCHES.map((d) => (
+            <path key={d} d={d} pathLength={1} />
+          ))}
         </svg>
       </motion.div>
 
@@ -260,6 +293,74 @@ function HeroPicture({ src, alt }: { src: string; alt: string }) {
         className="object-cover object-[50%_100%] md:object-[34%_100%] lg:object-[46%_62%]"
       />
     </picture>
+  );
+}
+
+/**
+ * Phones: the mihrab outline in the film's frame, laid out exactly as the film is
+ * (object-fit: cover from the bottom, as xMidYMax slice), so it stays on the
+ * landscape at every phone size and moves with it. It rises slowly from behind the
+ * hill as its lines draw (.hero-arch-rise); the clip to the sky keeps the hill in
+ * front. Where the name comes down close to the hill (short or narrow phones) the
+ * arch stands lower behind the hill, its crown always clear of the name.
+ */
+function PhoneArch() {
+  const id = useId();
+  const ref = useRef<SVGGElement>(null);
+
+  useEffect(() => {
+    const g = ref.current;
+    const layer = g?.ownerSVGElement?.parentElement?.parentElement;
+    const section = layer?.closest("section");
+    const title = section?.querySelector("h1");
+    if (!g || !layer || !section || !title) return;
+    const place = () => {
+      // Read at rest only: scrolled, the name and the film have moved apart.
+      if (window.scrollY > 0) return;
+      const top = section.getBoundingClientRect().top;
+      const w = layer.offsetWidth;
+      const h = layer.offsetHeight;
+      const k = Math.max(w / FRAME.w, h / FRAME.h);
+      const crown = layer.offsetTop + h - (FRAME.h - ARCH_CROWN) * k;
+      const left = ARCH_LEFT * k - (FRAME.w * k - w) / 2;
+      const name = title.getBoundingClientRect();
+      const clear = name.right + 16 < left ? 0 : name.bottom - top + 28;
+      const drop = Math.max(0, clear - crown) / k;
+      g.setAttribute("transform", `translate(0 ${drop.toFixed(1)})`);
+      g.style.visibility = drop > 160 ? "hidden" : "";
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(section);
+    let live = true;
+    document.fonts?.ready.then(() => live && place());
+    return () => {
+      live = false;
+      ro.disconnect();
+    };
+  }, []);
+
+  return (
+    <svg
+      viewBox={`0 0 ${FRAME.w} ${FRAME.h}`}
+      preserveAspectRatio="xMidYMax slice"
+      className="hero-arch-phone absolute inset-0 h-full w-full"
+    >
+      <clipPath id={`${id}sky`}>
+        <path d={RIDGE} />
+      </clipPath>
+      <g clipPath={`url(#${id}sky)`}>
+        <g ref={ref}>
+          <g className="hero-arch-rise">
+            <g transform={`translate(${ARCH_AT.x} ${ARCH_AT.y}) scale(${ARCH_AT.scale})`}>
+              {ARCHES.map((d) => (
+                <path key={d} d={d} pathLength={1} />
+              ))}
+            </g>
+          </g>
+        </g>
+      </g>
+    </svg>
   );
 }
 

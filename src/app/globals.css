@@ -825,7 +825,8 @@ main:has([data-back-nav]) .home-link {
    pixel is max(width / 1627, height / 1080) on screen. The lines fade out just
    above it, so they rise from behind the ridge and never cross the building. */
 .hero-arch-box {
-  /* phones: photograph from 11svh down, bottom-aligned; ridge at y≈245 */
+  /* (phones have their own arch, PhoneArch in Hero.tsx; this is the base for tablets)
+     phones: photograph from 11svh down, bottom-aligned; ridge at y≈245 */
   --ridge: calc(100svh - 835 * max(100vw / 1627, 89svh / 1080));
   --fade: 3.5rem;
 }
@@ -853,7 +854,8 @@ main:has([data-back-nav]) .home-link {
   );
 }
 /* The mihrab outline: hairlines in pale gold, drawn upward once (pathLength=1). */
-.hero-arch path {
+.hero-arch path,
+.hero-arch-phone path {
   fill: none;
   stroke: rgb(255 248 228 / 0.7);
   stroke-width: 1.15;
@@ -861,7 +863,8 @@ main:has([data-back-nav]) .home-link {
   stroke-dasharray: 1;
   animation: hero-arch 2.4s cubic-bezier(0.45, 0, 0.2, 1) 0.6s both;
 }
-.hero-arch path + path {
+.hero-arch path + path,
+.hero-arch-phone path + path {
   stroke: rgb(227 199 143 / 0.55);
   animation-delay: 0.85s;
 }
@@ -873,10 +876,25 @@ main:has([data-back-nav]) .home-link {
     stroke-dashoffset: 0;
   }
 }
+/* Phones: while its lines draw, the mihrab rises slowly out of the hill (Hero.tsx,
+   PhoneArch), the distance in the film's pixels, and comes to rest without a stop. */
+.hero-arch-rise {
+  animation: hero-arch-rise 5.2s cubic-bezier(0.3, 0.05, 0.15, 1) 0.3s both;
+}
+.hero-arch-phone path {
+  animation-duration: 3.2s;
+}
+@keyframes hero-arch-rise {
+  from {
+    transform: translateY(150px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .hero-in,
   .hero-photo-in,
-  .hero-arch path {
+  .hero-arch path,
+  .hero-arch-phone path,
+  .hero-arch-rise {
     animation: none;
   }
 }
