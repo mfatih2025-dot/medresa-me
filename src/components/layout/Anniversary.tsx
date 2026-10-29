@@ -4,11 +4,12 @@ import { motion, type MotionValue } from "framer-motion";
 import { useLayoutEffect } from "react";
 
 export type AnniversaryWords = {
-  /** Phones: two words, one each side of the emblem. */
+  /** Fallback where the full message would not fit. */
   short: readonly [string, string];
-  /** Tablets and desktops, where there is room: the full message, split by the emblem. */
+  /** The full message, split by the emblem. */
   full: readonly [string, string];
 };
+
 
 /*
  * 18 godina postojanja: a quiet anniversary line in the top bar, in the space the
@@ -17,6 +18,12 @@ export type AnniversaryWords = {
  * buttons. Every 25 s (see .anniv in globals.css): a gold hairline draws out from the
  * emblem, the words fade in with one slow gold sheen, hold 4 s and fade away. Nothing
  * scales or moves; the bar, the emblem and the buttons keep their places and sizes.
+ *
+ * Phones: „18 GODINA“ and „POSTOJANJA“ always, either side of the emblem at one distance,
+ * sized to the room between the emblem and the buttons. No hairline; the words come in
+ * with a fade and a short glide toward the emblem, and leave the same way. Once the bar is
+ * compact (solid), they stay, in plain gold-deep (.anniv-still); back at the top the cycle
+ * returns. Below 352 px the large emblem leaves no room, so they show in the compact bar only.
  *
  * The header checks each variant's real box (useAnniversaryFit) and shows the full
  * message, the short one, or none, so the words never touch a button, a link or the
@@ -51,7 +58,10 @@ export function AnniversaryPiece({
     >
       {(["short", "full"] as const).map((v) => (
         <span key={v} data-variant={v} className={`anniv-variant anniv-${v} ${anchor}`}>
-          <span className="anniv-text">{words[v][i]}</span>
+          <span className="anniv-words">
+            <span className="anniv-text">{words[v][i]}</span>
+            <span className="anniv-still">{words[v][i]}</span>
+          </span>
           <span className={`anniv-line ${toward}`} />
         </span>
       ))}
@@ -86,8 +96,9 @@ export function useAnniversaryFit() {
             const inside = q.left >= bar.left + gap && q.right <= bar.right - gap;
             return inside && keep.every((o) => q.right + o.gap <= o.q.left || q.left - o.gap >= o.q.right);
           });
+      // Phones size the words to their room in CSS (globals.css, .anniv on phones).
       const phone = window.innerWidth < 768;
-      h.dataset.anniv = !phone && fits("full") ? "full" : fits("short") ? "short" : "off";
+      h.dataset.anniv = phone || fits("full") ? "full" : fits("short") ? "short" : "off";
     };
     fit();
     const ro = new ResizeObserver(fit);

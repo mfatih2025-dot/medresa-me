@@ -598,10 +598,90 @@ main:has([data-back-nav]) .home-link {
   transform: scaleX(0);
   animation: anniv-line 25s cubic-bezier(0.65, 0, 0.35, 1) 2.6s infinite both;
 }
+.anniv-words {
+  display: grid;
+}
+.anniv-words > * {
+  grid-area: 1 / 1;
+}
+.anniv-still {
+  display: none;
+}
 @media (min-width: 768px) {
   .anniv-text {
     font-size: 0.6875rem;
     letter-spacing: 0.22em;
+  }
+}
+/* Phones: the words alone, 10 px clear of the emblem's disc and sized to the room left
+   before the buttons (8 px at 352 px, the bar's 10 px from 400 px), centred on the bar. They glide 8 px in toward
+   the emblem as they fade in, hold, and drift back out as they fade. In the compact (solid)
+   bar a still copy in gold-deep fades in over them and stays; back at the top it fades away
+   and the cycle carries on. Narrower than 352 px the large emblem leaves no room for them:
+   the compact bar shows them, the top state does not. */
+@media (max-width: 767.98px) {
+  .anniv {
+    --anniv-dir: 1;
+  }
+  .anniv[data-anniv-piece$="right"] {
+    --anniv-dir: -1;
+  }
+  .anniv-line {
+    display: none;
+  }
+  .anniv-text,
+  .anniv-still {
+    font-size: clamp(0.5rem, 4.1667vw - 0.4167rem, 0.625rem);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .anniv-text {
+    animation:
+      anniv-glide 25s linear 2.6s infinite both,
+      anniv-sheen 25s cubic-bezier(0.37, 0, 0.3, 1) 2.6s infinite both;
+    transition: visibility 0s;
+  }
+  .anniv-still {
+    display: block;
+    color: var(--color-gold-deep);
+    opacity: 0;
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .medresa-header[data-compact="1"] .anniv-still {
+    opacity: 1;
+  }
+  /* Hidden only once the still copy covers it, so the words never dip. */
+  .medresa-header[data-compact="1"] .anniv-text {
+    visibility: hidden;
+    transition: visibility 0s 0.6s;
+  }
+}
+@media (max-width: 351.98px) {
+  .anniv-text {
+    display: none;
+  }
+}
+@keyframes anniv-glide {
+  0% {
+    opacity: 0;
+    translate: calc(var(--anniv-dir) * -8px) 0;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  6.4% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  22.4% {
+    opacity: 1;
+    translate: 0 0;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1);
+  }
+  27.2%,
+  100% {
+    opacity: 0;
+    translate: calc(var(--anniv-dir) * -6px) 0;
   }
 }
 @keyframes anniv-line {
