@@ -884,6 +884,18 @@ main:has([data-back-nav]) .home-link {
 .hero-arch-phone path {
   animation-duration: 2.65s;
 }
+.hero-arch-place {
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* It rises only once it knows where it stands (PhoneArch places it after the page loads). */
+@media (scripting: enabled) {
+  .hero-arch-phone:not([data-placed]) {
+    visibility: hidden;
+  }
+  .hero-arch-phone:not([data-placed]) * {
+    animation-play-state: paused;
+  }
+}
 @keyframes hero-arch-rise {
   from {
     transform: translateY(150px);

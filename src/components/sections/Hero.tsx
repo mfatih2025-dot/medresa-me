@@ -43,14 +43,16 @@ const ARCHES = [
  * the loop and its poster). RIDGE is the sky above the hill on the right, traced
  * from the film (the same in every frame of the loop, within 2 px): the arches are
  * clipped to it, so the hill covers their feet and they never cross the building.
- * At rest the crown is at y 458 and the springing line about 40 px above the ridge.
+ * At rest the crown is at y 279, high in the sky, and the feet stand in the hill.
  */
 const FRAME = { w: 788, h: 1318 };
 const RIDGE =
   "M0 0H788V694L768 704L752 701L736 704L720 706L704 708L688 710L672 710L656 714L640 718L624 720L608 722L592 724L576 718L560 718L544 720L528 720L512 723L496 730L480 728L464 730L448 734L432 736L416 738L400 740L384 742L352 754L320 758L288 767L256 770L224 778L200 784L0 784Z";
-const ARCH_AT = { x: 430, y: 440, scale: 0.8 };
+const ARCH_AT = { x: 430, y: 261, scale: 0.8 };
 const ARCH_CROWN = ARCH_AT.y + 22.9 * ARCH_AT.scale;
-const ARCH_LEFT = ARCH_AT.x + 40 * ARCH_AT.scale;
+const ARCH_RIGHT = ARCH_AT.x + 360 * ARCH_AT.scale;
+/** Least distance in px between the arch and a line of the name. */
+const CLEAR = 10;
 
 /**
  * Phones (below md) see the campus from the air in a seamless loop: clouds drift
@@ -301,8 +303,8 @@ function HeroPicture({ src, alt }: { src: string; alt: string }) {
  * (object-fit: cover from the bottom, as xMidYMax slice), so it stays on the
  * landscape at every phone size and moves with it. It rises slowly from behind the
  * hill as its lines draw (.hero-arch-rise); the clip to the sky keeps the hill in
- * front. Where the name comes down close to the hill (short or narrow phones) the
- * arch stands lower behind the hill, its crown always clear of the name.
+ * front. Where a line of the name stands over the arch (short or narrow phones), the
+ * arch stands lower behind the hill, its crown always clear of that line.
  */
 function PhoneArch() {
   const id = useId();
@@ -322,14 +324,34 @@ function PhoneArch() {
       const h = layer.offsetHeight;
       const k = Math.max(w / FRAME.w, h / FRAME.h);
       const crown = layer.offsetTop + h - (FRAME.h - ARCH_CROWN) * k;
-      const left = ARCH_LEFT * k - (FRAME.w * k - w) / 2;
-      const name = title.getBoundingClientRect();
-      const clear = name.right + 16 < left ? 0 : name.bottom - top + 28;
-      const drop = Math.max(0, clear - crown) / k;
-      g.setAttribute("transform", `translate(0 ${drop.toFixed(1)})`);
-      g.style.visibility = drop > 160 ? "hidden" : "";
+      const shift = (FRAME.w * k - w) / 2;
+      // The lines of the name as drawn (their text, not their boxes).
+      const range = document.createRange();
+      // Where each line comes to rest: less what is left of its entrance (.hero-in).
+      const settle = title.getBoundingClientRect().height / title.offsetHeight;
+      const lines = [...title.querySelectorAll<HTMLElement>(".hero-in")].map((line) => {
+        range.selectNodeContents(line);
+        const q = range.getBoundingClientRect();
+        const rise = new DOMMatrix(getComputedStyle(line).transform).m42 * settle;
+        return { left: q.left - CLEAR, right: q.right + CLEAR, bottom: q.bottom - rise - top + CLEAR };
+      });
+      // The arch's outer left edge (a pointed arch: narrow at the crown) at a depth below it.
+      const edge = (depth: number) => {
+        const d = depth / (k * ARCH_AT.scale);
+        const x = d >= 277.1 ? 40 : 360 - Math.sqrt(320 ** 2 - (277.1 - d) ** 2);
+        return (ARCH_AT.x + x * ARCH_AT.scale) * k - shift;
+      };
+      const touches = (c: number) =>
+        lines.some((l) => l.bottom > c && edge(l.bottom - c) < l.right && ARCH_RIGHT * k - shift > l.left);
+      let drop = 0;
+      while (drop < 400 && touches(crown + drop * k)) drop += 2;
+      g.style.transform = `translateY(${drop}px)`;
+      g.ownerSVGElement?.setAttribute("data-placed", "");
+      g.style.visibility = drop > 260 ? "hidden" : "";
     };
     place();
+    // Any later change (the fonts arriving, a turned phone) glides, never jumps.
+    requestAnimationFrame(() => g.classList.add("hero-arch-place"));
     const ro = new ResizeObserver(place);
     ro.observe(section);
     let live = true;
