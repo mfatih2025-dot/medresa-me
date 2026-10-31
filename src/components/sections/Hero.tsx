@@ -128,7 +128,7 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
       ref={ref}
       aria-labelledby="hero-title"
       className={`hero-frame ${display.variable} ${label.variable} relative isolate overflow-hidden bg-[linear-gradient(180deg,#a9c6de_0%,#c9dbe8_14%,#e6ecef_26%,#dfe8ee_40%)]`}
-      style={{ height: "max(36rem, 100svh)" }}
+      style={{ height: "max(36rem, calc(100svh - var(--ann-h)))" }}
     >
       {/* The photograph, full bleed: the architecture fills the lower frame. */}
       <motion.div

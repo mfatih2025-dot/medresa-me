@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import { pathFor } from "@/i18n/routes";
+import { pathFor, type PageId } from "@/i18n/routes";
 import { href as pageHref, pageTitles, type PageSlug } from "./site";
 import { homeNews } from "./vijesti/home";
 
@@ -79,6 +79,18 @@ export const bs = {
     homeLink: "Početna",
     // The top bar's anniversary line (Header / Anniversary.tsx): either side of the emblem.
     anniversary: { short: ["18", "GODINA"], full: ["18 GODINA", "POSTOJANJA"] } as { short: readonly [string, string]; full: readonly [string, string] },
+    // The announcement bar above the header (AnnouncementBar.tsx): one message at a time, each a link.
+    announcements: {
+      label: "Obavijesti",
+      items: [
+        { text: "18 godina znanja, odgoja i tradicije", page: "historijat" },
+        { text: "Više od nastave. Više od škole.", page: "misija" },
+        { text: "Pratite najnovije vijesti iz Medrese", page: "vijesti" },
+      ],
+    } as {
+      label: string;
+      items: readonly { text: string; page: PageId }[];
+    },
     notFound: "Stranica nije pronađena.",
     playGenerations: "Pokreni kretanje generacija",
     pauseGenerations: "Zaustavi kretanje generacija",

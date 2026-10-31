@@ -5,6 +5,7 @@ import { Kanit } from "next/font/google";
 import type { ReactNode } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Gateway } from "@/components/i18n/Gateway";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { HomeLink } from "@/components/layout/HomeLink";
 import { SkipLink } from "@/components/i18n/SkipLink";
@@ -55,6 +56,13 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
       </head>
       <body>
         <SkipLink labels={{ bs: chrome.bs.ui.skip, sq: chrome.sq.ui.skip, en: chrome.en.ui.skip }} />
+        <AnnouncementBar
+          content={{
+            bs: chrome.bs.ui.announcements,
+            sq: chrome.sq.ui.announcements,
+            en: chrome.en.ui.announcements,
+          }}
+        />
         <Header dicts={chrome} />
         <main id="main">
           <HomeLink labels={{ bs: chrome.bs.ui.homeLink, sq: chrome.sq.ui.homeLink, en: chrome.en.ui.homeLink }} />

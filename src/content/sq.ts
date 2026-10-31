@@ -45,6 +45,14 @@ export const sq: Dictionary = {
     home: "ballina",
     homeLink: "Ballina",
     anniversary: { short: ["18", "VJET"], full: ["18 VJET", "EKZISTENCË"] },
+    announcements: {
+      label: "Njoftime",
+      items: [
+        { text: "18 vjet dije, edukim dhe traditë", page: "historijat" },
+        { text: "Më shumë se mësim. Më shumë se shkollë.", page: "misija" },
+        { text: "Ndiqni lajmet më të fundit nga Medreseja", page: "vijesti" },
+      ],
+    },
     notFound: "Faqja nuk u gjet.",
     playGenerations: "Lësho lëvizjen e gjeneratave",
     pauseGenerations: "Ndal lëvizjen e gjeneratave",

@@ -34,7 +34,8 @@ export function HeroStage({ hero, children }: { hero: ReactNode; children: React
   useMotionValueEvent(scrollY, "change", (y) => {
     const el = stage.current;
     if (!el) return;
-    const covered = y > el.offsetHeight + 2;
+    // From where the hero starts on the page (below the announcement bar).
+    const covered = y > (el.parentElement?.offsetTop ?? 0) + el.offsetHeight + 2;
     if (covered !== el.hasAttribute("data-covered")) el.toggleAttribute("data-covered", covered);
   });
 

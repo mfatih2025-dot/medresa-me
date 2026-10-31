@@ -44,6 +44,14 @@ export const en: Dictionary = {
     home: "homepage",
     homeLink: "Home",
     anniversary: { short: ["18", "YEARS"], full: ["18 YEARS", "SINCE 2008"] },
+    announcements: {
+      label: "Announcements",
+      items: [
+        { text: "18 years of knowledge, upbringing and tradition", page: "historijat" },
+        { text: "More than lessons. More than a school.", page: "misija" },
+        { text: "Follow the latest news from the Medresa", page: "vijesti" },
+      ],
+    },
     notFound: "Page not found.",
     playGenerations: "Play the moving generations",
     pauseGenerations: "Pause the moving generations",
