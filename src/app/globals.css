@@ -29,7 +29,7 @@
   --max: 90rem;
   --header-h: 4.5rem;
   /* The announcement bar above the header (AnnouncementBar.tsx). */
-  --ann-h: 2rem;
+  --ann-h: 1.8125rem;
 }
 @media (min-width: 640px) {
   :root {
@@ -261,25 +261,21 @@ main:has([data-back-nav]) .home-link {
 }
 
 /* ---------- Announcement bar (AnnouncementBar.tsx) ----------
-   A slim dark-green band in the page's flow, a gold hairline at its foot. One
-   message at a time; each change: the old line rises out, the new one rises in
-   from below, both fading, 0.8 s. A message waiting below is moved there without
-   a transition (it is invisible). */
+   Pearl glass in the page's flow: a cool white, faintly translucent over the page,
+   a light edge along its top and a hairline at its foot, dark-green type. Not a
+   backdrop blur: the bar sits above the hero, not over it, and a live blur would
+   be redrawn on every scrolled frame. One message at a time; each change: the old
+   line rises out, the new one rises in from below, both fading, 0.8 s. A message
+   waiting below is moved there without a transition (it is invisible). */
 .ann {
   position: relative;
   height: var(--ann-h);
   overflow: hidden;
-  background:
-    radial-gradient(60% 140% at 50% 0%, rgb(196 154 85 / 0.1), rgb(196 154 85 / 0) 70%),
-    var(--color-green-deep);
-  color: var(--color-ivory);
-}
-.ann::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgb(196 154 85 / 0), rgb(196 154 85 / 0.6) 30%, rgb(196 154 85 / 0.6) 70%, rgb(196 154 85 / 0));
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92) 0%, rgb(246 247 245 / 0.86) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(15 59 46 / 0.08);
+  color: var(--color-green);
 }
 .ann-track {
   position: absolute;
@@ -298,11 +294,11 @@ main:has([data-back-nav]) .home-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
   padding-inline: var(--gutter);
-  font-size: 0.75rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
   transition:
@@ -325,31 +321,37 @@ main:has([data-back-nav]) .home-link {
   text-overflow: ellipsis;
 }
 .ann-arrow {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 0.625rem;
+  height: 0.625rem;
   flex: none;
-  color: var(--color-gold-soft);
+  color: var(--color-gold);
+  opacity: 0.85;
   transition: transform 0.3s var(--ease-out-expo);
 }
 .ann-msg:hover .ann-arrow,
 .ann-msg:focus-visible .ann-arrow {
-  transform: translateX(3px);
+  transform: translateX(2px);
 }
 .ann-msg:focus-visible {
-  outline: 1px solid var(--color-gold-soft);
+  outline: 1px solid var(--color-gold);
   outline-offset: -4px;
 }
 /* The narrowest phones: a little less air, so the longest message is never cut. */
 @media (max-width: 359.98px) {
   .ann-msg {
     padding-inline: 0.75rem;
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
   }
 }
 @media (min-width: 768px) {
   .ann-msg {
-    font-size: 0.8125rem;
-    letter-spacing: 0.05em;
+    gap: 0.4375rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.015em;
+  }
+  .ann-arrow {
+    width: 0.6875rem;
+    height: 0.6875rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

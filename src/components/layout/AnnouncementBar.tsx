@@ -17,7 +17,7 @@ export type Announcements = {
 const HOLD = 5000;
 
 /*
- * The announcement bar: a slim dark-green band above the header, in the page's
+ * The announcement bar: a slim band of pearl glass above the header, in the page's
  * flow (so it scrolls away with the page and nothing is laid over the content).
  * The header and the homepage hero make room for it through --ann-h (globals.css).
  *

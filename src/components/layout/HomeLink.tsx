@@ -26,7 +26,7 @@ export function HomeLink({ labels }: { labels: Record<Locale, string> }) {
   const pathname = (usePathname() || "/").replace(/\/$/, "") || "/";
   if (pathname === home || pathname === "/bs" || isArticle(pathname, locale)) return null;
   return (
-    <div className="home-link wrap pointer-events-none absolute inset-x-0 top-[4.75rem] z-20 md:top-[6.5rem]">
+    <div className="home-link wrap pointer-events-none absolute inset-x-0 top-[calc(4.75rem+var(--ann-h))] z-20 md:top-[calc(6.5rem+var(--ann-h))]">
       <Link
         href={home}
         className="group pointer-events-auto -ml-1 inline-flex min-h-11 items-center gap-2 px-1 text-[0.8125rem] font-medium tracking-[0.01em] text-green md:text-[0.875rem]"
