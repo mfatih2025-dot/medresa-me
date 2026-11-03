@@ -85,6 +85,7 @@ export function GoldRule({ className = "", vertical = false }: { className?: str
   return (
     <motion.span
       aria-hidden
+      data-gold-rule
       className={`block bg-gold/70 ${vertical ? "w-px origin-top" : "h-px origin-left"} ${className}`}
       {...motionProps}
     />

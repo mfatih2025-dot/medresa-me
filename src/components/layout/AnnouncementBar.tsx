@@ -6,6 +6,7 @@ import { ArrowRight } from "@/components/ui/icons";
 import { useLocale } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { pathFor, type PageId } from "@/i18n/routes";
+import { RamadanGreeting } from "@/seasonal/RamadanGreeting";
 
 export type Announcements = {
   /** Names the bar for assistive technology. */
@@ -97,6 +98,7 @@ export function AnnouncementBar({ content }: { content: Record<Locale, Announcem
           );
         })}
       </div>
+      <RamadanGreeting />
     </div>
   );
 }

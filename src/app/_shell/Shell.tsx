@@ -12,6 +12,9 @@ import { SkipLink } from "@/components/i18n/SkipLink";
 import { chromeOf, dictionaries } from "@/content";
 import { LOCALE_COOKIE, locales, type Locale } from "@/i18n/config";
 import "../globals.css";
+import { previewAllowed, seasonalScript, seasonalSettings } from "@/seasonal/config";
+import { RamadanPageMark } from "@/seasonal/RamadanPageMark";
+import { SeasonalThemeKeeper } from "@/seasonal/SeasonalThemeKeeper";
 
 /*
  * The document every page is rendered in: <html> in the page's own language
@@ -44,14 +47,25 @@ const chrome = Object.fromEntries(locales.map((l) => [l, chromeOf(dictionaries[l
 const gatewayScript = `(function(){try{var d=document.documentElement,l=location,s=l.pathname.split("/")[1];if(s==="sq"||s==="en")d.lang=s;if(l.pathname!=="/")return;var chosen=/(?:^|;\\s*)${LOCALE_COOKIE}=(bs|sq|en)(?:;|$)/.test(document.cookie);var bot=/bot|crawl|spider|slurp|facebookexternalhit|lighthouse/i.test(navigator.userAgent);if(!bot&&(!chosen||/[?&]intro\\b/.test(l.search)))d.dataset.gateway="1"}catch(e){}})()`;
 
 export function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
+  const seasonal = seasonalScript(seasonalSettings.active, previewAllowed());
   return (
     // suppressHydrationWarning: the pre-paint script below may set data-gateway on <html>.
-    <html lang={dictionaries[locale].lang} className={kanit.variable} suppressHydrationWarning>
+    <html
+      lang={dictionaries[locale].lang}
+      className={kanit.variable}
+      data-seasonal-theme={seasonalSettings.active ?? undefined}
+      suppressHydrationWarning
+    >
       <head>
         <script
           // Static, build-time code only: decides before first paint whether the
           // first-visit language gateway is shown (see components/i18n/Gateway.tsx).
           dangerouslySetInnerHTML={{ __html: gatewayScript }}
+        />
+        <script
+          // Static, build-time code only: sets the seasonal edition (if any) before
+          // first paint; on previews, ?ramadan=1 / ?ramadan=0 (see src/seasonal/config.ts).
+          dangerouslySetInnerHTML={{ __html: seasonal }}
         />
       </head>
       <body>
@@ -66,10 +80,12 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
         <Header dicts={chrome} />
         <main id="main">
           <HomeLink labels={{ bs: chrome.bs.ui.homeLink, sq: chrome.sq.ui.homeLink, en: chrome.en.ui.homeLink }} />
+          <RamadanPageMark />
           {children}
         </main>
         <Footer dicts={chrome} />
         <Gateway />
+        <SeasonalThemeKeeper script={seasonal} />
         {process.env.VERCEL_ENV === "production" && <PublicAnalytics />}
         {backendDeploymentSupported() && <CampaignPopup />}
       </body>

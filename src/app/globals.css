@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Seasonal editions: hidden and inert unless <html data-seasonal-theme> is set (src/seasonal). */
+@import "../seasonal/ramadan.css";
 
 @theme {
   --color-ivory: #f7f3ea;

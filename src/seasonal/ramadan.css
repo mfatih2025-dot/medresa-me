@@ -1,0 +1,359 @@
+/* ==========================================================================
+   Ramadan edition (src/seasonal). Every rule here is either a seasonal element
+   kept hidden by default (.rmd), or scoped to html[data-seasonal-theme="ramadan"].
+   Without that attribute nothing below changes the site.
+   ========================================================================== */
+
+.rmd {
+  display: none;
+}
+
+[data-seasonal-theme="ramadan"] {
+  --rmd-champagne: #e8c98c;
+  --rmd-champagne-soft: rgb(232 201 140 / 0.55);
+  --rmd-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Hero: the mihrab, in gold, with the crescent (RamadanArch.tsx) ---------- */
+[data-seasonal-theme="ramadan"] g.rmd-arch {
+  display: inline;
+}
+/* The arches themselves: champagne instead of pale ivory (their draw is unchanged). */
+[data-seasonal-theme="ramadan"] :is(.hero-arch, .hero-arch-phone) path:not([class]) {
+  stroke: rgb(240 210 150 / 0.95);
+}
+[data-seasonal-theme="ramadan"] :is(.hero-arch, .hero-arch-phone) path:not([class]) + path:not([class]) {
+  stroke: rgb(226 190 122 / 0.8);
+}
+/* Light along each arch: a wide, faint stroke drawn with it. */
+[data-seasonal-theme="ramadan"] .rmd-arch-glow {
+  stroke: rgb(245 205 130 / 0.16);
+  stroke-width: 6;
+}
+[data-seasonal-theme="ramadan"] .rmd-lattice-tile {
+  fill: none;
+  stroke: rgb(232 196 128 / 0.5);
+  stroke-width: 1.3;
+  stroke-dasharray: none;
+  animation: none;
+}
+[data-seasonal-theme="ramadan"] .rmd-lattice {
+  opacity: 0;
+  animation: rmd-fade 1.8s var(--rmd-ease) 2.4s both;
+}
+@keyframes rmd-fade {
+  to {
+    opacity: 1;
+  }
+}
+/* The crescent: 1. a glow appears, 2. the crescent rises into place, fading in,
+   3. its light widens, 4. it settles; then only a slow breath of light. */
+[data-seasonal-theme="ramadan"] .rmd-moon > * {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+[data-seasonal-theme="ramadan"] .rmd-moon-glow {
+  opacity: 0;
+  animation:
+    rmd-glow-in 1.6s var(--rmd-ease) 1.5s forwards,
+    rmd-breathe 7s ease-in-out 6s infinite;
+}
+@keyframes rmd-glow-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+@keyframes rmd-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+[data-seasonal-theme="ramadan"] .rmd-moon-body {
+  opacity: 0;
+  animation: rmd-rise 2.4s cubic-bezier(0.16, 1, 0.3, 1) 1.9s forwards;
+}
+@keyframes rmd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(46px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+[data-seasonal-theme="ramadan"] .rmd-moon-halo {
+  opacity: 0;
+  animation: rmd-halo 2.8s var(--rmd-ease) 2.7s forwards;
+}
+@keyframes rmd-halo {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+}
+
+/* ---------- Admissions card: a golden line round its edge (RamadanCardBorder.tsx) ---------- */
+[data-seasonal-theme="ramadan"] .rmd-card {
+  display: block;
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+}
+.rmd-card-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.rmd-card-svg rect {
+  fill: none;
+  rx: 22px;
+  vector-effect: non-scaling-stroke;
+}
+@media (min-width: 768px) {
+  .rmd-card-svg rect {
+    rx: 26px;
+  }
+}
+[data-seasonal-theme="ramadan"] .rmd-card-line {
+  stroke: var(--rmd-champagne);
+  stroke-width: 1.25;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.85;
+  animation: rmd-trace 2.6s cubic-bezier(0.65, 0, 0.35, 1) 1.9s forwards;
+}
+@keyframes rmd-trace {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* A short light: runs ahead of the line as it is drawn, then goes round once every 12 s. */
+[data-seasonal-theme="ramadan"] .rmd-card-spark {
+  stroke: #fff4d8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.045 0.955;
+  stroke-dashoffset: 0.045;
+  opacity: 0;
+  animation:
+    rmd-spark-trace 2.6s cubic-bezier(0.65, 0, 0.35, 1) 1.9s,
+    rmd-spark-sweep 12s cubic-bezier(0.45, 0, 0.25, 1) 7s infinite;
+}
+@keyframes rmd-spark-trace {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0.045;
+  }
+  10%,
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -0.955;
+  }
+}
+@keyframes rmd-spark-sweep {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0.045;
+  }
+  4%,
+  20% {
+    opacity: 0.55;
+  }
+  26%,
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -0.955;
+  }
+}
+/* The card's own border gives way to the golden one. */
+[data-seasonal-theme="ramadan"] .rmd-card-host {
+  border-color: transparent;
+}
+
+/* ---------- Announcement bar: the greeting (RamadanGreeting.tsx) ---------- */
+[data-seasonal-theme="ramadan"] .ann-track {
+  visibility: hidden;
+}
+[data-seasonal-theme="ramadan"] .rmd-greeting {
+  display: flex;
+  animation: ann-enter 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+.rmd-greeting-moon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+@media (min-width: 768px) {
+  .rmd-greeting-moon {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* ---------- Sections: a few golden accents ---------- */
+/* Gold rules (GoldRule): champagne, with one slow glint as each comes into view. */
+[data-seasonal-theme="ramadan"] [data-gold-rule] {
+  background: linear-gradient(90deg, #c49a55 0%, #c49a55 40%, #fff1cf 50%, #c49a55 60%, #c49a55 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+}
+@supports (animation-timeline: view()) {
+  [data-seasonal-theme="ramadan"] [data-gold-rule] {
+    animation: rmd-glint linear both;
+    animation-timeline: view();
+    animation-range: entry 40% cover 55%;
+  }
+}
+@keyframes rmd-glint {
+  to {
+    background-position: 0% 0;
+  }
+}
+/* The ornament: an eight-point star between two fading champagne lines, at the top
+   edge of the news sheet, where it rises over the hero. */
+[data-seasonal-theme="ramadan"] section[aria-labelledby="news-title"]::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  z-index: 1;
+  left: 50%;
+  width: min(22rem, 70vw);
+  height: 0.875rem;
+  translate: -50% 0;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8c98c' stroke-width='1.2'%3E%3Cpath d='M6 6h12v12H6z'/%3E%3Cpath d='M12 3.5 20.5 12 12 20.5 3.5 12z'/%3E%3C/g%3E%3C/svg%3E")
+      center / 0.875rem 0.875rem no-repeat,
+    linear-gradient(90deg, rgb(232 201 140 / 0), rgb(232 201 140 / 0.55) 42%, rgb(232 201 140 / 0) 46%, rgb(232 201 140 / 0) 54%, rgb(232 201 140 / 0.55) 58%, rgb(232 201 140 / 0))
+      center / 100% 1px no-repeat;
+}
+/* The director's dark band: a champagne hairline along its top edge. */
+[data-seasonal-theme="ramadan"] section[aria-labelledby="director-title"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(232 201 140 / 0), rgb(232 201 140 / 0.6) 25%, rgb(232 201 140 / 0.6) 75%, rgb(232 201 140 / 0));
+}
+
+/* ---------- Reduced motion: everything at rest, in its final state ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-seasonal-theme="ramadan"] :is(.rmd-lattice, .rmd-moon-glow, .rmd-moon-body, .rmd-moon-halo, .rmd-card-line, .rmd-greeting, [data-gold-rule]) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-moon-glow {
+    opacity: 0.85;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-moon-halo {
+    opacity: 0.75;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-card-line {
+    stroke-dashoffset: 0;
+    opacity: 0.85;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-card-spark {
+    display: none;
+  }
+}
+
+/* Desktop: the mihrab stands behind the header with the hill right under it, so
+   there is no sky in the arch for the crescent; it is left out there. */
+@media (min-width: 1024px) {
+  [data-seasonal-theme="ramadan"] .hero-arch .rmd-moon {
+    display: none;
+  }
+}
+
+/* ---------- Every inner page: the Ramadan mark (RamadanPageMark.tsx) ---------- */
+[data-seasonal-theme="ramadan"] .rmd-mark {
+  display: flex;
+  position: absolute;
+  inset-inline: 0;
+  top: calc(4.75rem + var(--ann-h));
+  z-index: 20;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+  animation: rmd-mark-in 1.4s var(--rmd-ease) 0.5s both;
+}
+@media (min-width: 768px) {
+  [data-seasonal-theme="ramadan"] .rmd-mark {
+    top: calc(6.5rem + var(--ann-h));
+  }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-seasonal-theme="ramadan"] .rmd-mark[data-tall-title] {
+    display: none;
+  }
+}
+@keyframes rmd-mark-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+}
+.rmd-mark-svg {
+  width: 7.5rem;
+  height: 1.125rem;
+  overflow: visible;
+}
+@media (min-width: 768px) {
+  .rmd-mark-svg {
+    width: 10rem;
+    height: 1.5rem;
+  }
+}
+
+/* ---------- The footer, on every page: an eight-point star between two fading lines ---------- */
+[data-seasonal-theme="ramadan"] body > footer::before {
+  content: "";
+  position: absolute;
+  top: 0.375rem;
+  left: 50%;
+  z-index: 1;
+  width: min(22rem, 70vw);
+  height: 0.875rem;
+  translate: -50% 0;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8c98c' stroke-width='1.2'%3E%3Cpath d='M6 6h12v12H6z'/%3E%3Cpath d='M12 3.5 20.5 12 12 20.5 3.5 12z'/%3E%3C/g%3E%3C/svg%3E")
+      center / 0.875rem 0.875rem no-repeat,
+    linear-gradient(90deg, rgb(232 201 140 / 0), rgb(232 201 140 / 0.5) 42%, rgb(232 201 140 / 0) 46%, rgb(232 201 140 / 0) 54%, rgb(232 201 140 / 0.5) 58%, rgb(232 201 140 / 0))
+      center / 100% 1px no-repeat;
+}
+
+/* ---------- Page by page ---------- */
+/* Uprava i profesori: the line drawn under a found name, in champagne. */
+[data-seasonal-theme="ramadan"] .uip-leader-gold {
+  background: linear-gradient(90deg, #b8873d, #f1d595 50%, #b8873d);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-seasonal-theme="ramadan"] .rmd-mark {
+    animation: none;
+  }
+}
