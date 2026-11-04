@@ -9,8 +9,10 @@ import { Line, Numeral, Resolve, Settle, Stream } from "./TiuMotion";
  *
  * The years are the composition. Each one arrives differently and the gold line
  * takes a different route through each, so the chronology reads as one walk
- * from 2025 back to 2021:
+ * from 2026 back to 2021:
  *
+ *   2026  enters as 2025 does: out of a line across the page, from the right
+ *         edge; its one achievement beside the line that drops on to 2025
  *   2025  rises out of a line that crosses the whole page, entering from the
  *         right edge; the line drops between its two achievements
  *   2024  turns left and runs down the text, the year a slow plane behind it
@@ -90,7 +92,7 @@ function Achievement({
 export function Tiu({ locale }: { locale: Locale }) {
   const t = tiuContent[locale];
   const yearOf = (y: string) => t.years.find((x) => x.year === y) as Year;
-  const [y25, y24, y23, y22, y21] = ["2025", "2024", "2023", "2022", "2021"].map(yearOf);
+  const [y26, y25, y24, y23, y22, y21] = ["2026", "2025", "2024", "2023", "2022", "2021"].map(yearOf);
   return (
     <article
       className="overflow-x-clip bg-paper pb-20 text-ink md:pb-28"
@@ -115,6 +117,29 @@ export function Tiu({ locale }: { locale: Locale }) {
             {rich(t.intro)}
           </p>
         </Reveal>
+      </section>
+
+      {/* ---------- 2026: as 2025, out of a line across the page, from the right edge ---------- */}
+      <section aria-labelledby="tiu-2026" className="wrap mt-16 md:mt-24">
+        <Numeral
+          id="tiu-2026"
+          arrival="edge-right"
+          className={`${numeral} text-right text-[min(30vw,10rem)] text-green md:-mr-[calc(var(--edge)*0.45)] md:text-[clamp(10rem,17vw,19rem)]`}
+        >
+          {y26.year}
+        </Numeral>
+        <div className="relative h-px">
+          <Line
+            origin="left"
+            duration={1.3}
+            className="inset-y-0 left-[calc(-1*var(--edge))] right-[calc(-1*var(--edge))]"
+          />
+        </div>
+        <div className="relative pt-8 md:grid md:grid-cols-12 md:pt-12">
+          <Stream className="top-0 bottom-0 left-0 md:hidden" />
+          <Stream className="top-0 bottom-0 hidden md:block" style={{ left: col(7) }} />
+          <Achievement lines={y26.achievements[0]} className="pl-5 md:col-span-6 md:pl-0 md:pr-14" />
+        </div>
       </section>
 
       {/* ---------- 2025: rises out of a line across the page, from the right edge ---------- */}
