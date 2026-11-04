@@ -4,7 +4,7 @@ import { getImageProps } from "next/image";
 import Link from "next/link";
 import { Bodoni_Moda, Newsreader } from "next/font/google";
 import { motion, useReducedMotion, useTransform } from "framer-motion";
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Dictionary } from "@/content";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
@@ -103,7 +103,16 @@ const enter = (delay: number, duration?: number) =>
  * FATIH → signature → results. Scroll adds restrained depth only: the
  * photograph scales and drifts, the type lifts away, the glass settles out.
  */
-export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; resultsEnabled?: boolean }) {
+export function Hero({
+  dict,
+  resultsEnabled = true,
+  seasonal,
+}: {
+  dict: Dictionary;
+  resultsEnabled?: boolean;
+  /** A seasonal edition's card (src/seasonal), shown in the admissions card's place only while that edition is on. */
+  seasonal?: ReactNode;
+}) {
   const { hero } = dict;
   const [first, ...rest] = hero.name.split(" ");
   const second = rest.join(" ");
@@ -192,7 +201,7 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
 
       {/* Identity (MEDRESA, the name on two lines, the signature) above, the
           admissions results at the foot of the same column. */}
-      <div className="absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] top-[clamp(7.25rem,15svh,9rem)] flex flex-col md:bottom-[clamp(2rem,5svh,3rem)] md:top-[clamp(10rem,15.5svh,12.5rem)] lg:bottom-[clamp(1.75rem,4svh,2.75rem)] lg:top-[clamp(8.75rem,18.5svh,11.5rem)]">
+      <div className="hero-column absolute inset-x-[max(var(--gutter),calc((100%-var(--max))/2+var(--gutter)))] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] top-[clamp(7.25rem,15svh,9rem)] flex flex-col md:bottom-[clamp(2rem,5svh,3rem)] md:top-[clamp(10rem,15.5svh,12.5rem)] lg:bottom-[clamp(1.75rem,4svh,2.75rem)] lg:top-[clamp(8.75rem,18.5svh,11.5rem)]">
         {/* MEDRESA, the name and the signature are scaled as one composition (93%). */}
         <h1 id="hero-title" className="w-fit max-w-full origin-top-left scale-[0.93]">
           <motion.span className="block" style={still ? undefined : { y: lineY, opacity: lineOpacity }}>
@@ -243,10 +252,11 @@ export function Hero({ dict, resultsEnabled = true }: { dict: Dictionary; result
 
         {/* Admissions results: dark green glass over the photograph. */}
         <motion.div
-          className="mt-auto w-full md:w-[30rem] lg:w-[min(34rem,max(30rem,40vw))]"
+          className="hero-card-slot mt-auto w-full md:w-[30rem] lg:w-[min(34rem,max(30rem,40vw))]"
           style={still ? undefined : { y: glassY, opacity: glassOpacity }}
         >
-          <div className="hero-in" style={enter(1.1, 1.1)}>
+          {seasonal}
+          <div className="rmd-admissions hero-in" style={enter(1.1, 1.1)}>
             <Link
               href={hero.admissions.href}
               className="rmd-card-host group relative flex items-center gap-3 rounded-[22px] border border-gold-soft/35 bg-[linear-gradient(135deg,rgb(30_52_38/0.74),rgb(12_34_27/0.66))] py-3.5 pl-4 pr-3 text-ivory shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_18px_44px_-22px_rgb(0_0_0/0.6)] backdrop-blur-xl backdrop-saturate-[1.2] transition-[background-color,border-color,translate,scale] duration-300 ease-out hover:-translate-y-0.5 hover:border-gold-soft/55 active:scale-[0.985] md:gap-5 md:rounded-[26px] md:py-4 md:pl-6 md:pr-4 lg:py-5 lg:pl-7 lg:pr-5"

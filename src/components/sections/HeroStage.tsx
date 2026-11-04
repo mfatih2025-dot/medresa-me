@@ -31,6 +31,16 @@ export function HeroStage({ hero, children }: { hero: ReactNode; children: React
   // its glass blur and its looping light sheen underneath the page. One attribute flip
   // at the threshold, in both directions; never visible (it is under opaque sections).
   const stage = useRef<HTMLDivElement>(null);
+
+  // The hero's height, for a seasonal edition whose hero may grow taller than the
+  // screen (src/seasonal/ramadan.css holds it by its foot then). Unused otherwise.
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => el.style.setProperty("--hero-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useMotionValueEvent(scrollY, "change", (y) => {
     const el = stage.current;
     if (!el) return;
@@ -41,7 +51,7 @@ export function HeroStage({ hero, children }: { hero: ReactNode; children: React
 
   return (
     <div className="relative">
-      <div ref={stage} className="sticky top-0 z-0 data-[covered]:invisible motion-reduce:relative">
+      <div ref={stage} className="hero-stage sticky top-0 z-0 data-[covered]:invisible motion-reduce:relative">
         {hero}
         <motion.div
           aria-hidden

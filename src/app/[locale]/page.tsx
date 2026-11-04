@@ -7,6 +7,7 @@ import { HeroStage } from "@/components/sections/HeroStage";
 import { LifeStack } from "@/components/sections/LifeStack";
 import { News } from "@/components/sections/News";
 import { SocialFeed } from "@/components/sections/SocialFeed";
+import { RamadanHadith } from "@/seasonal/RamadanHadith";
 import type { Metadata } from "next";
 import { getDictionary } from "@/content";
 import { publicHomeDictionary } from "@/server/public/news";
@@ -39,7 +40,11 @@ export default async function HomePage({ params }: Props) {
   return (
     <>
       <JsonLd data={[organization(locale), website(locale)]} />
-      <HeroStage hero={<Hero dict={dict} resultsEnabled={pdfModuleEnabled()} />}>
+      <HeroStage
+        hero={
+          <Hero dict={dict} resultsEnabled={pdfModuleEnabled()} seasonal={<RamadanHadith locale={locale} />} />
+        }
+      >
         <News dict={dict} />
         <Alumni dict={dict} />
       </HeroStage>

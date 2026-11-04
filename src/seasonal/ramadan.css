@@ -534,3 +534,217 @@
     background-image: none;
   }
 }
+
+
+/* ---------- Hero: the hadith of the day (RamadanHadith.tsx) ----------
+   Shown only with the Ramadan edition on a day of Ramadan (data-ramadan-day), and
+   then in the admissions card's place; the admissions card returns otherwise. */
+[data-seasonal-theme="ramadan"][data-ramadan-day] .rmd-hadith {
+  display: block;
+}
+[data-seasonal-theme="ramadan"][data-ramadan-day] .hero-card-slot:has(.rmd-hadith) .rmd-admissions {
+  display: none;
+}
+.rmd-hadith-day {
+  display: none;
+}
+[data-seasonal-theme="ramadan"][data-ramadan-day="1"] .rmd-hadith-day[data-day="1"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="2"] .rmd-hadith-day[data-day="2"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="3"] .rmd-hadith-day[data-day="3"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="4"] .rmd-hadith-day[data-day="4"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="5"] .rmd-hadith-day[data-day="5"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="6"] .rmd-hadith-day[data-day="6"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="7"] .rmd-hadith-day[data-day="7"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="8"] .rmd-hadith-day[data-day="8"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="9"] .rmd-hadith-day[data-day="9"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="10"] .rmd-hadith-day[data-day="10"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="11"] .rmd-hadith-day[data-day="11"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="12"] .rmd-hadith-day[data-day="12"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="13"] .rmd-hadith-day[data-day="13"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="14"] .rmd-hadith-day[data-day="14"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="15"] .rmd-hadith-day[data-day="15"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="16"] .rmd-hadith-day[data-day="16"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="17"] .rmd-hadith-day[data-day="17"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="18"] .rmd-hadith-day[data-day="18"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="19"] .rmd-hadith-day[data-day="19"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="20"] .rmd-hadith-day[data-day="20"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="21"] .rmd-hadith-day[data-day="21"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="22"] .rmd-hadith-day[data-day="22"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="23"] .rmd-hadith-day[data-day="23"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="24"] .rmd-hadith-day[data-day="24"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="25"] .rmd-hadith-day[data-day="25"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="26"] .rmd-hadith-day[data-day="26"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="27"] .rmd-hadith-day[data-day="27"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="28"] .rmd-hadith-day[data-day="28"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="29"] .rmd-hadith-day[data-day="29"],
+[data-seasonal-theme="ramadan"][data-ramadan-day="30"] .rmd-hadith-day[data-day="30"] {
+  display: block;
+}
+/* The admissions card's own material: dark emerald glass, the same rounding. */
+[data-seasonal-theme="ramadan"] .rmd-hadith {
+  position: relative;
+  border-radius: 22px;
+  padding: 1.125rem 1.25rem 1.25rem;
+  color: var(--color-ivory);
+  background: linear-gradient(135deg, rgb(30 52 38 / 0.74), rgb(12 34 27 / 0.66));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 18px 44px -22px rgb(0 0 0 / 0.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  animation: rmd-card-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) 1.1s both;
+}
+@media (min-width: 768px) {
+  [data-seasonal-theme="ramadan"] .rmd-hadith {
+    border-radius: 26px;
+    padding: 1.5rem 1.75rem 1.625rem;
+  }
+}
+@media (min-width: 1024px) {
+  [data-seasonal-theme="ramadan"] .rmd-hadith {
+    padding: 1.75rem 2rem 1.875rem;
+  }
+}
+.rmd-hadith-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--color-gold-soft);
+}
+.rmd-hadith-count {
+  flex: none;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(227 199 143 / 0.75);
+}
+.rmd-hadith-text {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-hero-label), Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  font-weight: 400;
+  color: rgb(247 243 234 / 0.96);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+.rmd-hadith-source {
+  margin-top: 0.875rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  color: var(--color-gold-soft);
+}
+.rmd-hadith-draft {
+  color: rgb(227 199 143 / 0.6);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+@media (min-width: 768px) {
+  .rmd-hadith-label {
+    font-size: 0.75rem;
+  }
+  .rmd-hadith-text {
+    margin-top: 1rem;
+    font-size: 1.25rem;
+    line-height: 1.48;
+  }
+  .rmd-hadith-source {
+    margin-top: 1.125rem;
+    font-size: 0.8125rem;
+  }
+}
+@media (min-width: 1024px) {
+  .rmd-hadith-text {
+    font-size: clamp(1.125rem, 0.8rem + 0.45vw, 1.3125rem);
+  }
+  /* Desktop: a longer measure for the hadith, so even the longest stays within the screen. */
+  [data-seasonal-theme="ramadan"][data-ramadan-day] .hero-card-slot:has(.rmd-hadith) {
+    width: min(42rem, 48vw);
+  }
+}
+/* Entrance, once: the card, its golden line (RamadanCardBorder), the day, the
+   hadith, its source. */
+@keyframes rmd-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem);
+  }
+}
+@keyframes rmd-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}
+[data-seasonal-theme="ramadan"] .rmd-hadith-label {
+  animation: rmd-rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 2.2s both;
+}
+[data-seasonal-theme="ramadan"] .rmd-hadith-text {
+  animation: rmd-rise-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) 2.5s both;
+}
+[data-seasonal-theme="ramadan"] .rmd-hadith-source {
+  animation: rmd-rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 2.95s both;
+}
+[data-seasonal-theme="ramadan"] .rmd-hadith .rmd-card-line {
+  animation-delay: 1.6s;
+}
+
+/* The hero makes room for the whole hadith: the card grows upward from its place at
+   the foot, and where the screen is too short, the hero grows instead of covering
+   the name or the sky above the hill. (Laid out in the page's flow while the hadith
+   is shown; with the same offsets as the hero's own absolute layout.) */
+[data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) {
+  height: auto !important;
+  min-height: max(36rem, calc(100svh - var(--ann-h)));
+}
+[data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-column {
+  position: relative;
+  inset: auto;
+  box-sizing: border-box;
+  min-height: max(36rem, calc(100svh - var(--ann-h)));
+  margin-inline: max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter)));
+  padding-top: clamp(7.25rem, 15svh, 9rem);
+  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem));
+}
+/* Between the name and the card, the sky the crescent stands in is kept. */
+[data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-column::after {
+  content: "";
+  order: 1;
+  flex: 1 0 13svh;
+}
+[data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-card-slot {
+  order: 2;
+  margin-top: 0;
+}
+@media (min-width: 768px) {
+  [data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-column {
+    padding-top: clamp(10rem, 15.5svh, 12.5rem);
+    padding-bottom: clamp(2rem, 5svh, 3rem);
+  }
+  [data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-column::after {
+    flex-basis: 6svh;
+  }
+}
+@media (min-width: 1024px) {
+  [data-seasonal-theme="ramadan"][data-ramadan-day] .hero-frame:has(.rmd-hadith) .hero-column {
+    padding-top: clamp(8.75rem, 18.5svh, 11.5rem);
+    padding-bottom: clamp(1.75rem, 4svh, 2.75rem);
+  }
+}
+/* A hero taller than the screen is held by its foot as the page covers it. */
+[data-seasonal-theme="ramadan"] .hero-stage {
+  top: min(0px, calc(100svh - var(--hero-h, 100svh)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-seasonal-theme="ramadan"] :is(.rmd-hadith, .rmd-hadith-label, .rmd-hadith-text, .rmd-hadith-source) {
+    animation: none !important;
+  }
+}
