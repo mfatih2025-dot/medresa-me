@@ -26,6 +26,20 @@ const bs = {
 
   years: [
     {
+      year: "2026",
+      achievements: [
+        [
+          {
+            text: "Učenica drugog razreda Medrese „Mehmed Fatih“ Amera Dautović osvojila je bronzanu medalju u šahu na Medresijadi u Visokom, ostvarivši zapažen rezultat u snažnoj i brojnoj konkurenciji.",
+            emphasis: ["Amera Dautović", "bronzanu medalju"],
+          },
+          {
+            text: "Žensku ekipu predvodila je profesorica fizičkog vaspitanja Asmira Dautović. Ovaj uspjeh predstavlja još jednu potvrdu znanja, talenata i svestranosti učenika Medrese „Mehmed Fatih“.",
+          },
+        ],
+      ],
+    },
+    {
       year: "2025",
       achievements: [
         [
@@ -136,6 +150,20 @@ const en: TiuContent = {
     "Since its founding in 2008, the Medresa “Mehmed Fatih” in Tuzi has been a strong union of spiritual education and contemporary knowledge. In recent years its students have won numerous successes at national and international competitions, bringing recognition both to their school and to the Islamic Community in Montenegro. Below is a chronological overview of the most significant results:",
   years: [
     {
+      year: "2026",
+      achievements: [
+        [
+          {
+            text: "Amera Dautović, a second-year student of the Medresa “Mehmed Fatih”, won the bronze medal in chess at the Medresijada in Visoko, a notable result in strong and numerous competition.",
+            emphasis: ["Amera Dautović", "bronze medal"],
+          },
+          {
+            text: "The girls’ team was led by physical education teacher Asmira Dautović. This success is yet another confirmation of the knowledge, talents and versatility of the students of the Medresa “Mehmed Fatih”.",
+          },
+        ],
+      ],
+    },
+    {
       year: "2025",
       achievements: [
         [
@@ -244,6 +272,20 @@ const sq: TiuContent = {
   intro:
     "Që nga themelimi në vitin 2008, Medreseja “Mehmed Fatih” nga Tuzi përfaqëson një ndërthurje të fortë të arsimit shpirtëror dhe dijeve bashkëkohore. Gjatë viteve të fundit, nxënësit e kësaj shkolle kanë arritur suksese të shumta në gara shtetërore dhe ndërkombëtare, duke sjellë mirënjohje si për shkollën e tyre, ashtu edhe për Bashkësinë Islame në Mal të Zi. Më poshtë sjellim një pasqyrë kronologjike të rezultateve më të rëndësishme:",
   years: [
+    {
+      year: "2026",
+      achievements: [
+        [
+          {
+            text: "Nxënësja e klasës së dytë të Medresesë “Mehmed Fatih”, Amera Dautović, fitoi medaljen e bronzit në shah në Medresijadën në Visoko, duke arritur një rezultat të shquar në një konkurrencë të fortë dhe të gjerë.",
+            emphasis: ["Amera Dautović", "medaljen e bronzit"],
+          },
+          {
+            text: "Ekipin e vajzave e udhëhoqi profesoresha e edukatës fizike Asmira Dautović. Ky sukses është edhe një konfirmim i dijes, talenteve dhe gjithanshmërisë së nxënësve të Medresesë “Mehmed Fatih”.",
+          },
+        ],
+      ],
+    },
     {
       year: "2025",
       achievements: [
