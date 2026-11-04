@@ -7,6 +7,7 @@ import { useMotionProfile } from "@/hooks/useMotionProfile";
 import type { Dictionary } from "@/content";
 import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { ArrowRight, PauseIcon, PlayIcon } from "@/components/ui/icons";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 type Generation = Dictionary["alumni"]["items"][number];
 
@@ -84,7 +85,7 @@ export function Alumni({ dict }: { dict: Dictionary }) {
 
         <Reveal
           y={20}
-          className="mt-7 md:mt-10 lg:mt-12 [@media(max-width:767px)_and_(max-height:740px)]:mt-5"
+          className="relative mt-7 md:mt-10 lg:mt-12 [@media(max-width:767px)_and_(max-height:740px)]:mt-5"
         >
           {/* The stage: one rounded, clipped window onto the wall. */}
           <div
@@ -132,6 +133,8 @@ export function Alumni({ dict }: { dict: Dictionary }) {
               {paused ? <PlayIcon className="translate-x-px" /> : <PauseIcon />}
             </button>
           </div>
+          {/* Ramadan edition: a golden line round the stage, a small star on each corner. */}
+          <GoldenTrail radius={[30, 40, 52]} corners />
         </Reveal>
       </div>
     </section>

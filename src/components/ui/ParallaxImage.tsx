@@ -7,6 +7,7 @@ import type { Img } from "@/content/bs";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { useScrollDrift } from "@/hooks/useScrollDrift";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 type Props = {
   image: Img;
@@ -21,6 +22,8 @@ type Props = {
   priority?: boolean;
   /** Extra response to scroll velocity (desktop only). */
   drift?: number;
+  /** Ramadan edition: the golden light trail along its edge (hidden otherwise). */
+  trail?: boolean;
 };
 
 export function ParallaxImage({
@@ -32,6 +35,7 @@ export function ParallaxImage({
   mask = false,
   priority = false,
   drift = 0,
+  trail = false,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const { reduced, compact } = useMotionProfile();
@@ -69,6 +73,7 @@ export function ParallaxImage({
           />
         </motion.div>
       </motion.div>
+      {trail && <GoldenTrail />}
     </motion.div>
   );
 }

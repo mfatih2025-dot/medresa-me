@@ -128,6 +128,7 @@ export function History({ locale }: { locale: Locale }) {
               scale={[1.08, 1]}
               sizes="(min-width: 1024px) 68vw, 100vw"
               className="aspect-[4/3] md:aspect-[16/9]"
+              trail
             />
             <figcaption className="mt-2.5 px-[var(--gutter)] text-[0.75rem] text-ink-soft md:px-0">
               {h.hero.caption}

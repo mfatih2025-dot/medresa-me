@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import type { Img } from "@/content/bs";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 const inView = { once: true, margin: "0px 0px -8% 0px" } as const;
@@ -20,6 +21,7 @@ export function NewsImage({
   className = "",
   priority = false,
   quiet = false,
+  trail = false,
 }: {
   image: Img;
   sizes: string;
@@ -27,6 +29,8 @@ export function NewsImage({
   priority?: boolean;
   /** Smaller stories answer hover more quietly. */
   quiet?: boolean;
+  /** Ramadan edition: the golden light trail along its edge (hidden otherwise). */
+  trail?: boolean;
 }) {
   const { reduced } = useMotionProfile();
   // Reduced motion is known only after hydration: settle explicitly instead of leaving
@@ -66,6 +70,7 @@ export function NewsImage({
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.1),rgb(255_255_255/0)_60%)] opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
       />
+      {trail && <GoldenTrail />}
     </motion.div>
   );
 }
@@ -85,7 +90,6 @@ export function GoldRule({ className = "", vertical = false }: { className?: str
   return (
     <motion.span
       aria-hidden
-      data-gold-rule
       className={`block bg-gold/70 ${vertical ? "w-px origin-top" : "h-px origin-left"} ${className}`}
       {...motionProps}
     />

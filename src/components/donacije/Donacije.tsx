@@ -4,6 +4,7 @@ import type { Locale } from "@/i18n/config";
 import { Reveal } from "@/components/ui/Reveal";
 import { CopyValue } from "./CopyValue";
 import { Chain, Emerge, Line, Settle, Slit } from "./DonMotion";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 /*
  * Donacije: good that continues.
@@ -138,7 +139,8 @@ export function Donacije({ locale }: { locale: Locale }) {
           <Reveal y={16} className="md:col-span-5 md:pb-2 md:pr-8 lg:col-span-4 lg:pr-12">
             <p className={`${body} max-w-[30em]`}>{d.intro[1]}</p>
           </Reveal>
-          <div className="mx-[calc(-1*var(--edge))] mt-12 md:col-span-7 md:col-start-6 md:ml-0 md:mt-0 lg:col-span-8 lg:col-start-5">
+          <div className="relative mx-[calc(-1*var(--edge))] mt-12 md:col-span-7 md:col-start-6 md:ml-0 md:mt-0 lg:col-span-8 lg:col-start-5">
+            <GoldenTrail />
             <Slit
               src={d.image.src}
               alt={d.image.alt}

@@ -78,6 +78,7 @@ export function NewsStory({ item, role, readLabel, headingLevel = "h3", priority
             priority={priority}
             sizes="(min-width: 1024px) 56vw, (min-width: 768px) 88vw, 92vw"
             className="aspect-[4/3] sm:aspect-[3/2] lg:aspect-[16/10]"
+            trail
           />
           <Reveal y={14}>
             <NewsMeta item={item} className="mt-5 md:mt-6" />

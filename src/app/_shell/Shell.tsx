@@ -14,6 +14,7 @@ import { LOCALE_COOKIE, locales, type Locale } from "@/i18n/config";
 import "../globals.css";
 import { previewAllowed, seasonalScript, seasonalSettings } from "@/seasonal/config";
 import { RamadanPageMark } from "@/seasonal/RamadanPageMark";
+import { SeasonalLights } from "@/seasonal/SeasonalLights";
 import { SeasonalThemeKeeper } from "@/seasonal/SeasonalThemeKeeper";
 
 /*
@@ -86,6 +87,7 @@ export function Shell({ locale, children }: { locale: Locale; children: ReactNod
         <Footer dicts={chrome} />
         <Gateway />
         <SeasonalThemeKeeper script={seasonal} />
+        <SeasonalLights />
         {process.env.VERCEL_ENV === "production" && <PublicAnalytics />}
         {backendDeploymentSupported() && <CampaignPopup />}
       </body>

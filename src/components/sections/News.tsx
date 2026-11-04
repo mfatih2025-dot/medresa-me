@@ -70,6 +70,7 @@ function Featured({ item, readLabel }: { item: NewsItem; readLabel: string }) {
             image={item.image}
             sizes="(min-width: 1024px) 64vw, 96vw"
             className="aspect-[4/3] md:aspect-[16/10] lg:aspect-[6/5] xl:aspect-[16/10] 2xl:aspect-[2/1]"
+            trail
           />
         </div>
 

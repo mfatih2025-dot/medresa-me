@@ -5,6 +5,7 @@ import { LineReveal, Reveal } from "@/components/ui/Reveal";
 import { Faq } from "./Faq";
 import { keepWhole } from "./keepWhole";
 import { Aperture, Depth, Line, Stream } from "./NastavaMotion";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 /*
  * Nastava i predmeti: two streams of knowledge that become one.
@@ -152,7 +153,8 @@ export function Nastava({ locale }: { locale: Locale }) {
       <div className="wrap">
         <div className="relative pt-16 md:pt-20">
           <Line origin="top" duration={0.6} delay={0.5} className="top-0 left-1/2 h-11 md:h-[3.25rem]" />
-          <div className="mx-[calc(-1*var(--edge))] md:mx-[8.3333%]">
+          <div className="relative mx-[calc(-1*var(--edge))] md:mx-[8.3333%]">
+            <GoldenTrail />
             <Aperture
               src={n.image.src}
               alt={n.image.alt}

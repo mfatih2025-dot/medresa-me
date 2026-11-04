@@ -8,6 +8,7 @@ import type { Dictionary } from "@/content";
 import { useMotionProfile } from "@/hooks/useMotionProfile";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { ArrowRight } from "@/components/ui/icons";
+import { GoldenTrail } from "@/seasonal/GoldenTrail";
 
 type Card = Dictionary["life"]["stack"]["cards"][number];
 type Facility = Card["id"];
@@ -180,6 +181,7 @@ export function LifeStack({
                 aria-hidden
                 className="geo pointer-events-none absolute inset-0 opacity-[0.1] mix-blend-screen"
               />
+              <GoldenTrail radius={[26, 30, 34]} />
               <div ref={copyRef} className="relative">
                 {reference && (
                   // The Bosnian lines at this width, never shown: the measure the translation keeps.

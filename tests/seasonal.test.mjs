@@ -50,5 +50,6 @@ test("Ramadan styles are scoped: every rule is the theme's own or keeps a season
     .map((s) => s.trim())
     .filter((s) => s && !s.startsWith("(") && !/^(from|to|\d+%|media|supports)\b/.test(s));
   for (const s of selectors)
-    assert.ok(s.includes('[data-seasonal-theme="ramadan"]') || /^\.(rmd|rmd-[a-z-]+)(\s|$|,)/.test(s) || /^\.rmd-[a-z-]+ rect$/.test(s), s);
+    // Either scoped to the theme, or about a seasonal element itself (all hidden by .rmd).
+    assert.ok(s.includes('[data-seasonal-theme="ramadan"]') || /^\.rmd(-[a-z-]+)?([[\s,:]|$)/.test(s), s);
 });

@@ -210,24 +210,6 @@
 }
 
 /* ---------- Sections: a few golden accents ---------- */
-/* Gold rules (GoldRule): champagne, with one slow glint as each comes into view. */
-[data-seasonal-theme="ramadan"] [data-gold-rule] {
-  background: linear-gradient(90deg, #c49a55 0%, #c49a55 40%, #fff1cf 50%, #c49a55 60%, #c49a55 100%);
-  background-size: 300% 100%;
-  background-position: 100% 0;
-}
-@supports (animation-timeline: view()) {
-  [data-seasonal-theme="ramadan"] [data-gold-rule] {
-    animation: rmd-glint linear both;
-    animation-timeline: view();
-    animation-range: entry 40% cover 55%;
-  }
-}
-@keyframes rmd-glint {
-  to {
-    background-position: 0% 0;
-  }
-}
 /* The ornament: an eight-point star between two fading champagne lines, at the top
    edge of the news sheet, where it rises over the hero. */
 [data-seasonal-theme="ramadan"] section[aria-labelledby="news-title"]::before {
@@ -259,7 +241,7 @@
 
 /* ---------- Reduced motion: everything at rest, in its final state ---------- */
 @media (prefers-reduced-motion: reduce) {
-  [data-seasonal-theme="ramadan"] :is(.rmd-lattice, .rmd-moon-glow, .rmd-moon-body, .rmd-moon-halo, .rmd-card-line, .rmd-greeting, [data-gold-rule]) {
+  [data-seasonal-theme="ramadan"] :is(.rmd-lattice, .rmd-moon-glow, .rmd-moon-body, .rmd-moon-halo, .rmd-card-line, .rmd-greeting) {
     animation: none;
     opacity: 1;
     transform: none;
@@ -355,5 +337,200 @@
 @media (prefers-reduced-motion: reduce) {
   [data-seasonal-theme="ramadan"] .rmd-mark {
     animation: none;
+  }
+}
+
+
+/* ---------- The Golden Light Trail (GoldenTrail.tsx) ---------- */
+[data-seasonal-theme="ramadan"] .rmd-trail {
+  display: block;
+  position: absolute;
+  inset: 1px;
+  z-index: 5;
+  pointer-events: none;
+}
+.rmd-trail-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.rmd-trail-at {
+  display: none;
+}
+.rmd-trail-at[data-at="base"] {
+  display: inline;
+}
+@media (min-width: 768px) {
+  .rmd-trail-at[data-at="base"] {
+    display: none;
+  }
+  .rmd-trail-at[data-at="md"] {
+    display: inline;
+  }
+}
+@media (min-width: 1024px) {
+  .rmd-trail-at[data-at="md"] {
+    display: none;
+  }
+  .rmd-trail-at[data-at="lg"] {
+    display: inline;
+  }
+}
+.rmd-trail-svg rect {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+[data-seasonal-theme="ramadan"] .rmd-trail-line {
+  stroke: var(--rmd-champagne);
+  stroke-width: 1.25;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.85;
+}
+[data-seasonal-theme="ramadan"] .rmd-trail-spark {
+  stroke: #fff4d8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.04 0.96;
+  stroke-dashoffset: 0.04;
+  opacity: 0;
+}
+[data-seasonal-theme="ramadan"] .rmd-trail[data-lit] .rmd-trail-line {
+  animation: rmd-trace 2.8s cubic-bezier(0.65, 0, 0.35, 1) 0.15s forwards;
+}
+[data-seasonal-theme="ramadan"] .rmd-trail[data-lit] .rmd-trail-spark {
+  animation: rmd-spark-trace 2.8s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
+}
+/* Corners: four small eight-point stars, set in once the line is drawn. */
+.rmd-trail-corner {
+  position: absolute;
+  width: 0.875rem;
+  height: 0.875rem;
+  fill: none;
+  stroke: var(--rmd-champagne, #e8c98c);
+  stroke-width: 1.3;
+  opacity: 0;
+  --rmd-c: var(--rmd-corner);
+}
+.rmd-trail-corner circle {
+  fill: var(--rmd-champagne, #e8c98c);
+  stroke: none;
+}
+/* A small disc of the page's ivory under each star, so it sits on the line like a clasp. */
+.rmd-trail-corner .rmd-corner-bg {
+  fill: var(--color-ivory);
+}
+@media (min-width: 768px) {
+  .rmd-trail-corner {
+    width: 1rem;
+    height: 1rem;
+    --rmd-c: var(--rmd-corner-md);
+  }
+}
+@media (min-width: 1024px) {
+  .rmd-trail-corner {
+    width: 1.125rem;
+    height: 1.125rem;
+    --rmd-c: var(--rmd-corner-lg);
+  }
+}
+.rmd-trail-corner[data-corner="tl"] {
+  top: var(--rmd-c);
+  left: var(--rmd-c);
+}
+.rmd-trail-corner[data-corner="tr"] {
+  top: var(--rmd-c);
+  right: var(--rmd-c);
+}
+.rmd-trail-corner[data-corner="bl"] {
+  bottom: var(--rmd-c);
+  left: var(--rmd-c);
+}
+.rmd-trail-corner[data-corner="br"] {
+  bottom: var(--rmd-c);
+  right: var(--rmd-c);
+}
+[data-seasonal-theme="ramadan"] .rmd-trail[data-lit] .rmd-trail-corner {
+  animation: rmd-corner-in 1.2s var(--rmd-ease) 2.4s forwards;
+}
+@keyframes rmd-corner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-22.5deg);
+  }
+  to {
+    opacity: 0.9;
+    transform: none;
+  }
+}
+
+/* ---------- Light along the site's own gold lines (SeasonalLights.tsx) ---------- */
+[data-seasonal-theme="ramadan"] [data-rmd-line] {
+  background-image: linear-gradient(90deg, rgb(255 246 222 / 0) 42%, rgb(255 246 222 / 0.95) 50%, rgb(255 246 222 / 0) 58%);
+  background-repeat: no-repeat;
+  background-size: 320% 100%;
+  background-position: 130% 0;
+}
+[data-seasonal-theme="ramadan"] [data-rmd-line="v"] {
+  background-image: linear-gradient(180deg, rgb(255 246 222 / 0) 42%, rgb(255 246 222 / 0.95) 50%, rgb(255 246 222 / 0) 58%);
+  background-size: 100% 320%;
+  background-position: 0 -30%;
+}
+[data-seasonal-theme="ramadan"] [data-rmd-line="h"][data-lit] {
+  animation: rmd-line-h 2.2s cubic-bezier(0.45, 0, 0.25, 1) 0.4s both;
+}
+[data-seasonal-theme="ramadan"] [data-rmd-line="v"][data-lit] {
+  animation: rmd-line-v 2.6s cubic-bezier(0.45, 0, 0.25, 1) 0.6s both;
+}
+@keyframes rmd-line-h {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+@keyframes rmd-line-v {
+  from {
+    background-position: 0 -30%;
+  }
+  to {
+    background-position: 0 130%;
+  }
+}
+
+/* ---------- Section labels on the homepage: a small motif after each ---------- */
+[data-seasonal-theme="ramadan"] :is(section[aria-labelledby="news-title"], section[aria-labelledby="life-title"]) .eyebrow::after {
+  content: "";
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-inline-start: 0.7em;
+  vertical-align: -0.05em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c49a55' stroke-width='1.6'%3E%3Cpath d='M6 6h12v12H6z'/%3E%3Cpath d='M12 3 21 12 12 21 3 12z'/%3E%3C/g%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+/* Život u Medresi: a crescent instead of the star. */
+[data-seasonal-theme="ramadan"] section[aria-labelledby="life-title"] .eyebrow::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.6 3.2a9 9 0 1 0 5.2 13.9A7.6 7.6 0 0 1 15.6 3.2Z' fill='%23c49a55'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-seasonal-theme="ramadan"] .rmd-trail-line {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-trail-spark {
+    display: none;
+  }
+  [data-seasonal-theme="ramadan"] .rmd-trail-corner {
+    animation: none !important;
+    opacity: 0.9;
+  }
+  [data-seasonal-theme="ramadan"] [data-rmd-line] {
+    animation: none !important;
+    background-image: none;
   }
 }
