@@ -13,7 +13,12 @@ import type { Localized } from "@/i18n/types";
  * `emphasis` names phrases already in a line (names, results) that are set a
  * little stronger; the wording is never changed.
  */
-export type Line = { text: string; emphasis?: readonly string[] };
+export type Line = {
+  text: string;
+  emphasis?: readonly string[];
+  /** An achievement's own heading, or its date and place, set before its text. */
+  role?: "title" | "meta";
+};
 export type Achievement = readonly Line[];
 export type Year = { year: string; achievements: readonly Achievement[] };
 
@@ -28,6 +33,27 @@ const bs = {
     {
       year: "2026",
       achievements: [
+        [
+          { text: "PRVO MJESTO NA MEĐUNARODNOM DEBATNOM TAKMIČENJU „BUDVA OPEN 2026“", role: "title" },
+          { text: "Budva, 20–22. novembar 2026.", role: "meta" },
+          {
+            text: "Učenici Medrese „Mehmed Fatih“ osvojili su prvo mjesto na XI međunarodnom debatnom takmičenju „Budva Open 2026“, ostvarivši izuzetan uspjeh u Karl Popper debatnom formatu, u konkurenciji 24 ekipe.",
+            emphasis: ["prvo mjesto"],
+          },
+          {
+            text: "Pobjedničku ekipu činili su maturanti Imran Bahović, Ilda Sijarić i Merjem Osmanović, pod mentorstvom profesora Elmaza Osmanovića. Nakon uspješnih nastupa tokom takmičenja, naši učenici plasirali su se u finale, gdje su pobijedili ekipu Srednje mješovite škole „Danilo Kiš“ iz Budve i zasluženo osvojili prvo mjesto.",
+            emphasis: ["Imran Bahović", "Ilda Sijarić", "Merjem Osmanović"],
+          },
+          {
+            text: "Na takmičenju je učestvovalo ukupno 120 srednjoškolaca, raspoređenih u 40 ekipa iz četiri države: Crne Gore, Bosne i Hercegovine, Srbije i Sjeverne Makedonije. Medresu su u World Schools formatu, u kojem se debatovalo na engleskom jeziku, predstavljali i učenici Hajdar Bracić, Dina Burdžović i Asiya Demirović.",
+          },
+          {
+            text: "Ovaj značajan međunarodni uspjeh potvrđuje kvalitet znanja, kritičkog promišljanja, argumentacije i govorničkih vještina naših učenika, kao i važnost kontinuiranog mentorskog rada i vannastavnih aktivnosti.",
+          },
+          {
+            text: "Pobjeda na „Budva Open 2026“ predstavlja još jedno vrijedno priznanje Medresi „Mehmed Fatih“ i njenim učenicima, koji svoje znanje i sposobnosti uspješno potvrđuju i izvan školskih učionica.",
+          },
+        ],
         [
           {
             text: "Učenica drugog razreda Medrese „Mehmed Fatih“ Amera Dautović osvojila je bronzanu medalju u šahu na Medresijadi u Visokom, ostvarivši zapažen rezultat u snažnoj i brojnoj konkurenciji.",
@@ -153,6 +179,27 @@ const en: TiuContent = {
       year: "2026",
       achievements: [
         [
+          { text: "FIRST PLACE AT THE INTERNATIONAL DEBATE COMPETITION “BUDVA OPEN 2026”", role: "title" },
+          { text: "Budva, 20–22 November 2026", role: "meta" },
+          {
+            text: "Students of the Medresa “Mehmed Fatih” won first place at the 11th international debate competition “Budva Open 2026”, achieving an outstanding success in the Karl Popper debate format, competing against 24 teams.",
+            emphasis: ["first place"],
+          },
+          {
+            text: "The winning team was made up of final-year students Imran Bahović, Ilda Sijarić and Merjem Osmanović, mentored by professor Elmaz Osmanović. After strong performances throughout the competition, our students reached the final, where they defeated the team of the “Danilo Kiš” Mixed Secondary School from Budva and deservedly took first place.",
+            emphasis: ["Imran Bahović", "Ilda Sijarić", "Merjem Osmanović"],
+          },
+          {
+            text: "A total of 120 secondary school students took part in the competition, in 40 teams from four countries: Montenegro, Bosnia and Herzegovina, Serbia and North Macedonia. In the World Schools format, debated in English, the Medresa was also represented by students Hajdar Bracić, Dina Burdžović and Asiya Demirović.",
+          },
+          {
+            text: "This significant international success confirms the quality of our students’ knowledge, critical thinking, argumentation and public speaking skills, as well as the importance of continuous mentoring and extracurricular activities.",
+          },
+          {
+            text: "The victory at “Budva Open 2026” is another valuable recognition for the Medresa “Mehmed Fatih” and its students, who successfully prove their knowledge and abilities beyond the classroom as well.",
+          },
+        ],
+        [
           {
             text: "Amera Dautović, a second-year student of the Medresa “Mehmed Fatih”, won the bronze medal in chess at the Medresijada in Visoko, a notable result in strong and numerous competition.",
             emphasis: ["Amera Dautović", "bronze medal"],
@@ -275,6 +322,27 @@ const sq: TiuContent = {
     {
       year: "2026",
       achievements: [
+        [
+          { text: "VENDI I PARË NË GARËN NDËRKOMBËTARE TË DEBATIT “BUDVA OPEN 2026”", role: "title" },
+          { text: "Budva, 20–22 nëntor 2026", role: "meta" },
+          {
+            text: "Nxënësit e Medresesë “Mehmed Fatih” fituan vendin e parë në edicionin e XI të garës ndërkombëtare të debatit “Budva Open 2026”, duke arritur një sukses të jashtëzakonshëm në formatin e debatit Karl Popper, në konkurrencë me 24 ekipe.",
+            emphasis: ["vendin e parë"],
+          },
+          {
+            text: "Ekipin fitues e përbënin maturantët Imran Bahović, Ilda Sijarić dhe Merjem Osmanović, nën mentorimin e profesorit Elmaz Osmanović. Pas paraqitjeve të suksesshme gjatë garës, nxënësit tanë u kualifikuan në finale, ku mundën ekipin e Shkollës së Mesme të Përzier “Danilo Kiš” nga Budva dhe fituan merituar vendin e parë.",
+            emphasis: ["Imran Bahović", "Ilda Sijarić", "Merjem Osmanović"],
+          },
+          {
+            text: "Në garë morën pjesë gjithsej 120 nxënës të shkollave të mesme, të ndarë në 40 ekipe nga katër shtete: Mali i Zi, Bosnja dhe Hercegovina, Serbia dhe Maqedonia e Veriut. Në formatin World Schools, në të cilin u debatua në gjuhën angleze, Medresenë e përfaqësuan edhe nxënësit Hajdar Bracić, Dina Burdžović dhe Asiya Demirović.",
+          },
+          {
+            text: "Ky sukses i rëndësishëm ndërkombëtar konfirmon cilësinë e dijes, të menduarit kritik, argumentimit dhe aftësive oratorike të nxënësve tanë, si dhe rëndësinë e punës së vazhdueshme mentoruese dhe të aktiviteteve jashtëmësimore.",
+          },
+          {
+            text: "Fitorja në “Budva Open 2026” përbën edhe një mirënjohje të vlefshme për Medresenë “Mehmed Fatih” dhe nxënësit e saj, të cilët dijen dhe aftësitë e tyre i dëshmojnë me sukses edhe jashtë klasave të shkollës.",
+          },
+        ],
         [
           {
             text: "Nxënësja e klasës së dytë të Medresesë “Mehmed Fatih”, Amera Dautović, fitoi medaljen e bronzit në shah në Medresijadën në Visoko, duke arritur një rezultat të shquar në një konkurrencë të fortë dhe të gjerë.",
