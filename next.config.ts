@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       ...privateSources.map((source) => ({ source, headers: noindex })),
+      // Official documents (announcements): saved as files, never only opened in a viewer.
+      {
+        source: "/dokumenti/:path*",
+        headers: [{ key: "Content-Disposition", value: "attachment" }],
+      },
       // Temporary Vercel addresses (previews and the deployment URL) are never indexed;
       // only the production domain is (canonical: src/seo/config.ts).
       {

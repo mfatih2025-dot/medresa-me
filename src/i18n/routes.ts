@@ -30,6 +30,7 @@ export const pageIds = [
   "vijesti",
   "upis",
   "kontakt",
+  "obavjestenja",
 ] as const;
 export type PageId = (typeof pageIds)[number];
 
@@ -48,6 +49,7 @@ export const slugs: Record<PageId, Record<Locale, string>> = {
   vijesti: { bs: "vijesti", sq: "lajme", en: "news" },
   upis: { bs: "upis", sq: "regjistrimi", en: "admissions" },
   kontakt: { bs: "kontakt", sq: "kontakti", en: "contact" },
+  obavjestenja: { bs: "obavjestenja", sq: "njoftime", en: "announcements" },
 };
 
 export const isPageId = (v: string): v is PageId => (pageIds as readonly string[]).includes(v);
