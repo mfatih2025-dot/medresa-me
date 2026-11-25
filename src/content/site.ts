@@ -58,6 +58,7 @@ const groups: Record<PageId, PageInfo["group"]> = {
   vijesti: "aktuelno",
   upis: "aktuelno",
   kontakt: "aktuelno",
+  obavjestenja: "aktuelno",
 };
 
 /** Page titles as they appear in menus and the browser tab, per language. */
@@ -76,6 +77,7 @@ export const pageTitles: Record<Locale, Record<PageId, string>> = {
     vijesti: "Vijesti",
     upis: "Upis i prijemni",
     kontakt: "Kontakt",
+    obavjestenja: "Obavještenja",
   },
   sq: {
     historijat: "Historiku",
@@ -91,6 +93,7 @@ export const pageTitles: Record<Locale, Record<PageId, string>> = {
     vijesti: "Lajme",
     upis: "Regjistrimi dhe provimi pranues",
     kontakt: "Kontakti",
+    obavjestenja: "Njoftime",
   },
   en: {
     historijat: "History",
@@ -106,6 +109,7 @@ export const pageTitles: Record<Locale, Record<PageId, string>> = {
     vijesti: "News",
     upis: "Admissions and Entrance Exam",
     kontakt: "Contact",
+    obavjestenja: "Announcements",
   },
 };
 
