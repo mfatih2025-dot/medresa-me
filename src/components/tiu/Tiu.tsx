@@ -71,9 +71,19 @@ function Achievement({
   delay?: number;
   className?: string;
 }) {
-  const [first, ...rest] = lines;
+  const title = lines.find((l) => l.role === "title");
+  const meta = lines.find((l) => l.role === "meta");
+  const [first, ...rest] = lines.filter((l) => !l.role);
   return (
     <Settle delay={delay} className={className}>
+      {title && (
+        <h3 className="display hist-text max-w-[22em] text-[clamp(1.25rem,1rem+1vw,1.75rem)] leading-[1.2] tracking-[-0.01em] text-green">
+          {whole(title.text, "h")}
+        </h3>
+      )}
+      {meta && (
+        <p className="hist-text mt-2 mb-5 text-[1rem] font-light text-ink-soft md:mb-6 md:text-[1.0625rem]">{meta.text}</p>
+      )}
       <p className="hist-text max-w-[32em] text-[1.125rem] font-light leading-[1.6] text-ink md:text-[1.25rem] md:leading-[1.6]">
         {rich(first.text, first.emphasis)}
       </p>
@@ -139,6 +149,11 @@ export function Tiu({ locale }: { locale: Locale }) {
           <Stream className="top-0 bottom-0 left-0 md:hidden" />
           <Stream className="top-0 bottom-0 hidden md:block" style={{ left: col(7) }} />
           <Achievement lines={y26.achievements[0]} className="pl-5 md:col-span-6 md:pl-0 md:pr-14" />
+          <Achievement
+            lines={y26.achievements[1]}
+            delay={0.12}
+            className="mt-10 pl-5 md:col-span-5 md:col-start-8 md:mt-0 md:pl-10"
+          />
         </div>
       </section>
 
