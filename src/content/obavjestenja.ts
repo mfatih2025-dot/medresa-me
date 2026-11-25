@@ -66,7 +66,7 @@ export const announcements: readonly Announcement[] = [
     documents: [
       {
         id: "mne",
-        language: { bs: "Na bosanskom / crnogorskom", sq: "Në boshnjakisht / malazezisht", en: "Bosnian / Montenegrin" },
+        language: { bs: "BS", sq: "BS", en: "BS" },
         file: `${DOCS}/2026-11-25/prijava-maturskih-ispita-januarski-rok-mne.pdf`,
         downloadName: "Medresa-Mehmed-Fatih-Prijava-maturskih-ispita-januarski-rok-MNE.pdf",
         bytes: 359761,
@@ -74,7 +74,7 @@ export const announcements: readonly Announcement[] = [
       },
       {
         id: "alb",
-        language: { bs: "Na albanskom", sq: "Në shqip", en: "Albanian" },
+        language: { bs: "SQ", sq: "SQ", en: "SQ" },
         file: `${DOCS}/2026-11-25/paraqitja-e-provimeve-te-matures-afati-i-janarit-alb.pdf`,
         downloadName: "Medreseja-Mehmed-Fatih-Paraqitja-e-provimeve-te-matures-afati-i-janarit-ALB.pdf",
         bytes: 387673,
